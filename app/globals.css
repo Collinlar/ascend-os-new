@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AscendSME design identity. Colours mirror tailwind.config.ts so plain CSS
+   and utility classes cannot drift apart. */
+:root {
+  --navy: #0b1d2e;
+  --ink: #102a43;
+  --teal: #0e8c7f;
+  --teal-dark: #0b6f65;
+  --teal-mint: #5bc7b8;
+  --mid-grey: #6b8091;
+  --page: #dce4eb;
+  --line: #e2ebf0;
+}
+
+html {
+  font-family: var(--font-hanken), system-ui, sans-serif;
+}
+
+body {
+  color: var(--ink);
+  background: #ffffff;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headlines are set tight and balanced; body copy is set for reading. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Money and quantities must not jitter as digits change. Every figure a
+   merchant reads down a column uses this. */
+.num,
+[data-num] {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+/* The eyebrow: small, mono, spaced, uppercase. Used above headlines to say
+   which part of the platform you are in. */
+.eyebrow {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--teal-dark);
+  font-weight: 500;
+}
+
+/* Horizontal rails are scrolled with a thumb, so the scrollbar is a strip
+   of chrome nobody on a phone can grab and everybody can see. */
+.scr::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.scr {
+  scrollbar-width: none;
+}
+
+/* Minimum touch targets: 44x44px on every interactive element. */
+button,
+a.tap,
+input,
+select {
+  min-height: 44px;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* prevents iOS zoom */
+}
+
+/* Focus is visible for keyboard users without shouting at pointer users. */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}

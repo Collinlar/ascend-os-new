@@ -1,0 +1,93 @@
+import { supabaseServer } from "@/lib/supabase";
+import { currentPersonId } from "@/lib/auth/session";
+import BookingList, { type OwnerBooking } from "@/components/services/BookingList";
+
+export const dynamic = "force-dynamic";
+
+// The provider's day. What is next, what needs a decision, and what is
+// already settled (OFF-008).
+
+async function load(): Promise<OwnerBooking[] | null> {
+  try {
+    const personId = await currentPersonId();
+    if (!personId) return null;
+
+    const db = supabaseServer();
+    const { data: membership } = await db
+      .from("business_membership")
+      .select("business_id")
+      .eq("person_id", personId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (!membership) return null;
+
+    const { data } = await db
+      .from("service_booking")
+      .select(
+        "id, status, model, scheduled_start, price_quoted, service_address, staff_notes, customer:customer_id(display_name, phone_e164), item:item_id(name)"
+      )
+      .eq("business_id", membership.business_id)
+      .order("scheduled_start", { ascending: true, nullsFirst: false })
+      .limit(50);
+
+    return (data ?? []).map((b) => {
+      const customer = b.customer as unknown as {
+        display_name: string;
+        phone_e164: string | null;
+      } | null;
+      return {
+        id: b.id,
+        status: b.status,
+        model: b.model,
+        scheduledStart: b.scheduled_start,
+        price: b.price_quoted === null ? null : Number(b.price_quoted),
+        serviceAddress: b.service_address,
+        // Staff notes stay server-side and owner-only; they are never sent
+        // to a customer surface (SRV-013).
+        hasNotes: Boolean(b.staff_notes),
+        customerName: customer?.display_name ?? "Customer",
+        customerPhone: customer?.phone_e164 ?? null,
+        serviceName:
+          (b.item as unknown as { name: string } | null)?.name ?? "Service",
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export default async function Bookings() {
+  const bookings = await load();
+
+  return (
+    <main className="min-h-screen bg-light-grey">
+      <header className="border-b border-line bg-white">
+        <div className="mx-auto max-w-2xl px-5 py-4">
+          <h1 className="text-lg font-semibold text-ink">Your schedule</h1>
+          <p className="text-sm text-mid-grey">
+            Requests needing an answer come first, then what is coming up.
+          </p>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-2xl px-5 py-6">
+        {bookings === null ? (
+          <p className="py-16 text-center text-mid-grey">
+            Verify your WhatsApp number to see your schedule.
+          </p>
+        ) : bookings.length === 0 ? (
+          <div className="border border-line bg-white px-5 py-10 text-center">
+            <p className="font-medium text-ink">Nothing booked yet.</p>
+            <p className="mt-2 text-sm text-mid-grey">
+              Share your booking link on WhatsApp and your first request will
+              land here.
+            </p>
+          </div>
+        ) : (
+          <BookingList bookings={bookings} />
+        )}
+      </div>
+    </main>
+  );
+}
