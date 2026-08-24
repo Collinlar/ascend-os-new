@@ -8,5 +8,11 @@ import { currentWorkspace } from "@/lib/nav/workspace";
 export default async function WorkspaceNav() {
   const workspace = await currentWorkspace().catch(() => null);
   if (!workspace) return null;
-  return <NavBar items={workspace.items} businessName={workspace.businessName} />;
+  return (
+    <NavBar
+      items={workspace.items}
+      businessName={workspace.businessName}
+      businessCount={workspace.businessCount}
+    />
+  );
 }

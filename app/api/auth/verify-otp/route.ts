@@ -7,7 +7,17 @@ import { supabaseServer } from "@/lib/supabase";
 // Verifies the WhatsApp code, then finds or creates the person identity
 // (one person across all contexts, IDN-001) and opens a session.
 export async function POST(request: NextRequest) {
-  let body: { phone?: string; code?: string; fullName?: string };
+  let body: {
+    phone?: string;
+    code?: string;
+    fullName?: string;
+    /**
+     * "signin" means a returning owner, so an unknown number is answered
+     * rather than quietly turned into a new person. Defaults to signup,
+     * which is what onboarding has always done.
+     */
+     intent?: "signin" | "signup";
+  };
   try {
     body = await request.json();
   } catch {
@@ -54,7 +64,7 @@ export async function POST(request: NextRequest) {
 }
 
 async function completeSignIn(
-  body: { fullName?: string },
+  body: { fullName?: string; intent?: "signin" | "signup" },
   phoneE164: string,
   challengeId: string
 ) {
@@ -70,6 +80,22 @@ async function completeSignIn(
 
   if (existing) {
     personId = existing.id;
+  } else if (body.intent === "signin") {
+    // Somebody signing in on a number we have never seen. Answering
+    // honestly only tells them about their own number, because they had to
+    // receive the code to get this far, and creating an account for them
+    // silently would be worse than either.
+    //
+    // The code goes back unspent so they can start a business with it
+    // rather than waiting out the resend timer for a second one.
+    await releaseOtpChallenge(challengeId);
+    return NextResponse.json(
+      {
+        error: "We have no business on this number yet.",
+        unknownNumber: true,
+      },
+      { status: 404 }
+    );
   } else {
     const fullName = (body.fullName ?? "").trim();
     if (!fullName) {
@@ -107,13 +133,23 @@ async function completeSignIn(
   // to business creation.
   const { data: memberships } = await db
     .from("business_membership")
-    .select("business_id")
+    .select("business_id, created_at, business:business_id(name)")
     .eq("person_id", personId)
-    .eq("status", "active");
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  const businesses = (memberships ?? []).map((m) => ({
+    id: m.business_id as string,
+    name:
+      (m.business as unknown as { name: string } | null)?.name ?? "Your business",
+  }));
 
   return NextResponse.json({
     verified: true,
     isNew,
-    hasBusiness: (memberships?.length ?? 0) > 0,
+    hasBusiness: businesses.length > 0,
+    // Named, because somebody holding two businesses has to be asked which
+    // one they came here for rather than dropped into whichever sorts first.
+    businesses,
   });
 }

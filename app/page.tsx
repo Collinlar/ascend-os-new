@@ -41,7 +41,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4">
           <Wordmark tone="light" size={18} />
           <Link
-            href="/dashboard"
+            href="/signin"
             className="tap flex items-center text-sm font-bold text-white"
           >
             Sign in

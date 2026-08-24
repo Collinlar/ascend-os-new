@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
@@ -16,13 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const db = supabaseServer();
-  const { data: membership } = await db
-    .from("business_membership")
-    .select("business_id, role:role_id(key)")
-    .eq("person_id", personId)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const membership = await activeMembership<{ business_id: string; role: { key: string } | null }>(personId, "business_id, role:role_id(key)");
   if (!membership) {
     return NextResponse.json(
       { error: "You do not have access to a business yet." },

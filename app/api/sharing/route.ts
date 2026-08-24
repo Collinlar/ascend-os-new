@@ -3,18 +3,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { hashShareToken, newShareToken, shareUrl } from "@/lib/sharing/share";
 
 async function ownerMembership(personId: string) {
-  const db = supabaseServer();
-  const { data } = await db
-    .from("business_membership")
-    .select("id, business_id, role:role_id(key)")
-    .eq("person_id", personId)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const data = await activeMembership<{
+    id: string;
+    business_id: string;
+    role: { key: string } | null;
+  }>(personId, "id, business_id, role:role_id(key)");
   if (!data) return null;
   const roleKey = (data.role as unknown as { key: string } | null)?.key;
   if (roleKey !== "owner") return null;

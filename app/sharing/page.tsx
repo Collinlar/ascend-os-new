@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import ShareManager, { type ShareRow } from "@/components/sharing/ShareManager";
 
 export const dynamic = "force-dynamic";
@@ -14,13 +15,7 @@ async function load(): Promise<{ isOwner: boolean; shares: ShareRow[] } | null> 
     if (!personId) return null;
 
     const db = supabaseServer();
-    const { data: membership } = await db
-      .from("business_membership")
-      .select("id, business_id, role:role_id(key)")
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    const membership = await activeMembership<{ id: string; business_id: string; role: { key: string } | null }>(personId, "id, business_id, role:role_id(key)");
     if (!membership) return null;
 
     const isOwner =

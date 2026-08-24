@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import ProductManager from "@/components/catalogue/ProductManager";
 import type { StockRow } from "@/app/api/catalogue/items/route";
@@ -31,13 +32,7 @@ async function load(): Promise<LoadResult> {
     if (!personId) return { kind: "no_session" };
 
     const db = supabaseServer();
-    const { data: membership } = await db
-      .from("business_membership")
-      .select("business_id")
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return { kind: "no_business" };
 
     const { data: location } = await db

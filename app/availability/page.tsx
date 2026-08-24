@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import AvailabilityEditor, {
   type DaySchedule,
   type TimeOffRow,
@@ -21,13 +22,7 @@ async function load(): Promise<{
     if (!personId) return null;
 
     const db = supabaseServer();
-    const { data: membership } = await db
-      .from("business_membership")
-      .select("id, business_id")
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
     if (!membership) return null;
 
     const [availability, timeOff] = await Promise.all([

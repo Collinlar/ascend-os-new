@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // Onboarding (§12): understand the job, get to first value fast, defer
@@ -186,6 +187,17 @@ function OnboardingInner() {
                 No card needed. Your records stay yours.
               </p>
             </form>
+
+            {/* The other door, said before they fill any of this in. An
+                owner who came here to get back into a business they already
+                have would otherwise retype everything we already store, and
+                end up with a second empty one. */}
+            <p className="mt-8 text-center text-sm text-mid-grey">
+              Already have a business with us?{" "}
+              <Link href="/signin" className="font-semibold text-teal-dark underline">
+                Sign in instead
+              </Link>
+            </p>
           </>
         )}
 

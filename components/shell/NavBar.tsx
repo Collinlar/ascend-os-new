@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Mark } from "@/components/brand/Mark";
 import { isBareRoute, type NavItem } from "@/lib/nav/routes";
@@ -16,12 +16,29 @@ const MAX_TABS = 4;
 export default function NavBar({
   items,
   businessName,
+  businessCount = 1,
 }: {
   items: NavItem[];
   businessName: string;
+  businessCount?: number;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function signOut() {
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch {
+      // The cookie is cleared server side or it is not. Either way the
+      // person asked to leave, so take them out of the workspace and let
+      // the next request decide what they can see.
+    }
+    router.push("/");
+    router.refresh();
+  }
 
   // The till and the public pages render without this entirely.
   if (isBareRoute(pathname)) return null;
@@ -71,8 +88,11 @@ export default function NavBar({
             </Link>
           ))}
 
-          {rest.length > 0 && (
-            <button
+          {/* Permanent. It holds the way out, and a business with four
+              destinations used to have no More button at all, which would
+              have left sign out unreachable for exactly the people with the
+              simplest setup. */}
+          <button
               onClick={() => setMoreOpen(true)}
               aria-haspopup="dialog"
               className={`tap flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold sm:flex-row sm:gap-2 sm:py-3 sm:text-sm ${
@@ -87,7 +107,6 @@ export default function NavBar({
               />
               More
             </button>
-          )}
         </div>
       </nav>
 
@@ -121,6 +140,32 @@ export default function NavBar({
                 {item.label}
               </Link>
             ))}
+
+            {/* Whose books these are, and how to put them down. On a phone
+                that gets handed around a shop, leaving is not a
+                convenience. */}
+            <div className="mt-2 border-t border-line pt-3">
+              <p className="px-3 text-xs font-medium text-mid-grey">
+                Signed in to{" "}
+                <span className="font-bold text-ink">{businessName}</span>
+              </p>
+              {businessCount > 1 && (
+                <Link
+                  href="/switch"
+                  onClick={() => setMoreOpen(false)}
+                  className="tap mt-1 block rounded-panel px-3 py-3 font-medium text-teal-dark hover:bg-light-grey"
+                >
+                  Open another business
+                </Link>
+              )}
+              <button
+                onClick={signOut}
+                disabled={signingOut}
+                className="tap mt-1 block w-full rounded-panel px-3 py-3 text-left font-medium text-ink-muted hover:bg-light-grey disabled:opacity-60"
+              >
+                {signingOut ? "Signing you out..." : "Sign out"}
+              </button>
+            </div>
           </div>
         </div>
       )}

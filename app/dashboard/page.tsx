@@ -40,14 +40,23 @@ export default async function Dashboard() {
       <main className="flex min-h-screen items-center justify-center bg-light-grey px-5">
         <div className="max-w-sm text-center">
           <h1 className="text-xl font-semibold text-ink">
-            Verify your WhatsApp number to open your business.
+            Sign in to open your business.
           </h1>
+          <p className="mt-2 text-sm text-mid-grey">
+            We send a code to the WhatsApp number your business is set up with.
+          </p>
           <Link
-            href="/onboarding"
+            href="/signin"
             className="tap mt-5 inline-flex items-center bg-teal px-5 py-3 font-medium text-white"
           >
-            Continue
+            Sign in
           </Link>
+          <p className="mt-4 text-sm text-mid-grey">
+            No business yet?{" "}
+            <Link href="/" className="font-semibold text-teal-dark underline">
+              Start one
+            </Link>
+          </p>
         </div>
       </main>
     );

@@ -5,6 +5,7 @@
 // themselves what a business owns.
 
 import { currentPersonId } from "@/lib/auth/session";
+import { currentBusinessChoice } from "@/lib/auth/current-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { supabaseServer } from "@/lib/supabase";
 import type { ProductSetKey, UUID } from "@/lib/domains/types";
@@ -17,6 +18,8 @@ export interface Workspace {
   personId: UUID;
   businessId: UUID;
   businessName: string;
+  /** How many businesses this person could be looking at instead. */
+  businessCount: number;
   locationId: UUID | null;
   productSets: ProductSetKey[];
   /** What this business may actually do. Gates ask this, not the set. */
@@ -89,14 +92,23 @@ export async function currentWorkspace(): Promise<Workspace | null> {
   if (!personId) return null;
 
   const db = supabaseServer();
-  const { data: membership } = await db
+  // Every membership, oldest first. The old query took one with no ordering
+  // at all, so a person who held two businesses landed on whichever the
+  // database happened to return, and could land somewhere different on the
+  // next request. Ordering makes the fallback stable; the cookie makes it
+  // theirs.
+  const { data: memberships } = await db
     .from("business_membership")
-    .select("business_id, business:business_id(name)")
+    .select("business_id, created_at, business:business_id(name)")
     .eq("person_id", personId)
     .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
-  if (!membership) return null;
+    .order("created_at", { ascending: true });
+
+  if (!memberships || memberships.length === 0) return null;
+
+  const chosen = currentBusinessChoice();
+  const membership =
+    memberships.find((m) => m.business_id === chosen) ?? memberships[0];
 
   const businessId = membership.business_id as UUID;
 
@@ -142,6 +154,7 @@ export async function currentWorkspace(): Promise<Workspace | null> {
     businessId,
     businessName:
       (membership.business as unknown as { name: string } | null)?.name ?? "Your business",
+    businessCount: memberships.length,
     locationId: (location?.id as UUID) ?? null,
     productSets,
     capabilities,

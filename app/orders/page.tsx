@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import OrderList, { OwnerOrder } from "@/components/shop/OrderList";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +14,7 @@ async function loadOrders(): Promise<OwnerOrder[] | null> {
     if (!personId) return null;
 
     const db = supabaseServer();
-    const { data: membership } = await db
-      .from("business_membership")
-      .select("business_id")
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return null;
 
     const { data } = await db

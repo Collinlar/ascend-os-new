@@ -4,6 +4,7 @@
 // received" are never confused (REP-003).
 
 import { supabaseServer } from "@/lib/supabase";
+import { activeMembership } from "@/lib/auth/active-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import type { UUID } from "@/lib/domains/types";
 
@@ -50,13 +51,7 @@ export async function loadDashboard(
 ): Promise<DashboardData | null> {
   const db = supabaseServer();
 
-  const { data: membership } = await db
-    .from("business_membership")
-    .select("business_id, business:business_id(name)")
-    .eq("person_id", personId)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const membership = await activeMembership<{ business_id: string; business: { name: string } | null }>(personId, "business_id, business:business_id(name)");
   if (!membership) return null;
 
   const businessId = membership.business_id as string;

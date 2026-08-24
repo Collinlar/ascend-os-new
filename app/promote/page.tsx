@@ -1,5 +1,6 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { activeMembership } from "@/lib/auth/active-business";
 import PromoteManager, {
   type CampaignRow,
   type ListingRow,
@@ -20,13 +21,7 @@ async function load(): Promise<{
     if (!personId) return null;
 
     const db = supabaseServer();
-    const { data: membership } = await db
-      .from("business_membership")
-      .select("business_id")
-      .eq("person_id", personId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return null;
 
     const businessId = membership.business_id as string;
