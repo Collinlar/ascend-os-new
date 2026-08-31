@@ -58,7 +58,7 @@ export default function ShiftGate({
           value={openingCash}
           onChange={(e) => setOpeningCash(e.target.value)}
           placeholder="0"
-          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/40 focus:outline-none"
+          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/60 focus:outline-none"
         />
 
         {error && <p className="mt-3 text-sm text-gold">{error}</p>}

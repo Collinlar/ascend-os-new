@@ -86,7 +86,7 @@ export default function TerminalSetup({ onPaired }: { onPaired: () => void }) {
           autoCapitalize="characters"
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="ABC-234"
-          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold tracking-widest text-white placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-white/40 focus:outline-none"
+          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold tracking-widest text-white placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-white/60 focus:outline-none"
         />
 
         {error ? (

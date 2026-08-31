@@ -157,13 +157,13 @@ export default function ShiftClose({
               value={expenseAmount}
               onChange={(e) => setExpenseAmount(e.target.value)}
               placeholder="How much left the drawer"
-              className="w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:outline-none"
+              className="w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/60 focus:outline-none"
             />
             <input
               value={expenseReason}
               onChange={(e) => setExpenseReason(e.target.value)}
               placeholder="What was it for?"
-              className="w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:outline-none"
+              className="w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/60 focus:outline-none"
             />
             <div className="flex gap-2">
               <button
@@ -198,7 +198,7 @@ export default function ShiftClose({
           value={declared}
           onChange={(e) => setDeclared(e.target.value)}
           placeholder="Actual cash counted"
-          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/40 focus:outline-none"
+          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/60 focus:outline-none"
         />
 
         {difference !== null && (
@@ -228,7 +228,7 @@ export default function ShiftClose({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Explain the difference for the owner"
-              className="mt-2 w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:outline-none"
+              className="mt-2 w-full bg-white/10 px-3 py-2.5 text-white placeholder:text-white/60 focus:outline-none"
             />
           </div>
         )}

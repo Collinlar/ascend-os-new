@@ -211,7 +211,7 @@ export default function ScanSheet({
 
       <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
         {problem && (
-          <p className="mb-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">
+          <p className="mb-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-ink">
             {problem}
           </p>
         )}
@@ -296,7 +296,7 @@ export default function ScanSheet({
               onChange={(e) => setAttachQuery(e.target.value)}
               autoFocus
               placeholder="Search your items"
-              className="mt-3 w-full rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-teal-mint"
+              className="mt-3 w-full rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-teal-mint"
             />
 
             <div className="mt-3 max-h-[38vh] space-y-1 overflow-y-auto">
@@ -357,7 +357,7 @@ export default function ScanSheet({
                 onChange={(e) => setManualCode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submitManual()}
                 placeholder="The number under the bars"
-                className="num flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-teal-mint"
+                className="num flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-sm placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-teal-mint"
               />
               <button
                 onClick={submitManual}

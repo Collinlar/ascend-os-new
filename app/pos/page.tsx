@@ -469,7 +469,7 @@ export default function PosTerminal() {
           </p>
 
           {switchUnsent && switchUnsent > 0 ? (
-            <p className="mt-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">
+            <p className="mt-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-ink">
               It still has {switchUnsent} sale{switchUnsent === 1 ? "" : "s"} to
               send. Get back on network first, or those are lost.
             </p>
@@ -665,7 +665,7 @@ export default function PosTerminal() {
           used to say they existed, so a merchant saw a number that never
           fell and had nothing to do about it. */}
       {stuck.length > 0 && (
-        <div className="mx-4 mb-2 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <div className="mx-4 mb-2 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-ink">
           <p className="font-bold">
             {stuck.length} thing{stuck.length === 1 ? "" : "s"} the office is not
             taking.
@@ -695,13 +695,13 @@ export default function PosTerminal() {
       )}
 
       {storage?.critical && (
-        <p className="mx-4 mb-2 bg-gold px-3 py-2 text-sm text-gold-dark">
+        <p className="mx-4 mb-2 bg-gold px-3 py-2 text-sm font-semibold text-navy">
           This till is almost full. Send your sales and call support today.
         </p>
       )}
 
       {error && (
-        <p className="mx-4 mb-2 bg-gold-light px-3 py-2 text-sm text-gold-dark">{error}</p>
+        <p className="mx-4 mb-2 bg-gold-light px-3 py-2 text-sm text-gold-ink">{error}</p>
       )}
 
       {lastReceipt && (
@@ -731,7 +731,7 @@ export default function PosTerminal() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search your items"
-              className="flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-teal-mint"
+              className="flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-teal-mint"
               aria-label="Search items"
             />
             <button
@@ -903,7 +903,7 @@ export default function PosTerminal() {
             value={tendered}
             onChange={(e) => setTendered(e.target.value)}
             placeholder="How much did they give you?"
-            className="num mt-2 w-full rounded-control bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/40 focus:outline-none"
+            className="num mt-2 w-full rounded-control bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/60 focus:outline-none"
           />
           {parseFloat(tendered) >= total && (
             <p className="mt-2 text-lg">
