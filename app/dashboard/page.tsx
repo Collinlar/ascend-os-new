@@ -13,6 +13,9 @@ export const dynamic = "force-dynamic";
 // things they are (REP-003); data freshness is stated rather than implied
 // (REP-002, ARC-013).
 //
+// Built on the Ascend Business Web design: a navy hero carrying today's one
+// number, then what needs a decision, then the totals behind it.
+//
 // Deliberately thin, and about today only. It used to carry the shop
 // switch, which made the screen a merchant opens every morning the place
 // where every product set piles up. A till business was handed an offer it
@@ -37,21 +40,21 @@ export default async function Dashboard() {
 
   if (!data) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-light-grey px-5">
+      <main className="flex min-h-screen items-center justify-center bg-canvas px-5">
         <div className="max-w-sm text-center">
           <h1 className="text-xl font-semibold text-ink">
             Sign in to open your business.
           </h1>
-          <p className="mt-2 text-sm text-mid-grey">
+          <p className="mt-2 text-sm text-ink-muted">
             We send a code to the WhatsApp number your business is set up with.
           </p>
           <Link
             href="/signin"
-            className="tap mt-5 inline-flex items-center bg-teal px-5 py-3 font-medium text-white"
+            className="tap mt-5 inline-flex items-center rounded-control bg-teal px-5 py-3 font-medium text-white"
           >
             Sign in
           </Link>
-          <p className="mt-4 text-sm text-mid-grey">
+          <p className="mt-4 text-sm text-ink-muted">
             No business yet?{" "}
             <Link href="/" className="font-semibold text-teal-dark underline">
               Start one
@@ -70,145 +73,232 @@ export default async function Dashboard() {
   const hasShop = workspace?.capabilities.has("shop.storefront") ?? false;
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <p className="text-xs text-mid-grey">
-              {data.businessName}
-              {data.locationName && ` · ${data.locationName}`}
-            </p>
-            <h1 className="text-lg font-semibold text-ink">Today at your business</h1>
-          </div>
-          {/* Only for a business that actually sells in person. A shop
-              taking online orders has no till to open. */}
-          {workspace?.capabilities.has("pos.sell") && (
-            <Link
-              href="/pos"
-              className="tap flex items-center bg-teal px-4 font-medium text-white"
-            >
-              Open the till
-            </Link>
-          )}
-        </div>
-      </header>
+    <main className="min-h-screen bg-canvas">
+      <div className="mx-auto w-full max-w-[1200px] px-5 pb-24 pt-6 sm:px-8 sm:pb-16 sm:pt-7">
+        <div className="flex flex-col gap-5 sm:gap-[22px]">
+          {/* Today's one number, on the ground the whole day is read
+              against. Everything in here is a fact: an open shift is a
+              person at a counter, not a device sitting in a drawer. */}
+          <section className="relative overflow-hidden rounded-[22px] bg-navy-deep px-6 py-7 sm:px-[30px]">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -right-[60px] -top-[70px] h-[280px] w-[280px] rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(14,140,127,.35), rgba(14,140,127,0) 70%)",
+              }}
+            />
+            <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center sm:gap-9">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-teal-mint-bright">
+                  Today at your business
+                </p>
+                <p className="mt-2 flex items-end gap-3.5">
+                  <span className="num text-[38px] font-extrabold leading-none tracking-[-0.03em] text-white sm:text-[46px]">
+                    {formatGHS(data.salesToday)}
+                  </span>
+                  <span className="pb-1 text-[13.5px] font-semibold text-on-dark-soft">
+                    {data.saleCount === 0 ? "no sales yet" : "in sales so far"}
+                  </span>
+                </p>
 
-      <div className="mx-auto max-w-3xl px-5 py-8">
-        <section>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {hasTill && (
+                    <>
+                      <span className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-on-dark-strong">
+                        <span
+                          aria-hidden
+                          className={`h-[7px] w-[7px] rounded-full ${
+                            data.tillsSelling > 0
+                              ? "bg-teal-live ring-[3px] ring-teal-live/25"
+                              : "bg-on-dark-soft/50"
+                          }`}
+                        />
+                        {data.tillsSelling > 0
+                          ? `${data.tillsSelling} till${
+                              data.tillsSelling === 1 ? "" : "s"
+                            } selling`
+                          : "No till open"}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="hidden h-3.5 w-px bg-on-dark-strong/25 sm:block"
+                      />
+                    </>
+                  )}
+                  <span className="text-[12.5px] font-medium text-on-dark-soft">
+                    {today()}
+                    {data.openedAt && ` · opened ${clockTime(data.openedAt)}`}
+                  </span>
+                </div>
+              </div>
+
+              {hasTill && (
+                <Link
+                  href="/pos"
+                  className="tap relative flex flex-none items-center justify-center whitespace-nowrap rounded-[14px] bg-teal px-7 py-4 font-bold text-white shadow-action hover:bg-teal-hover"
+                >
+                  Open the till
+                </Link>
+              )}
+            </div>
+          </section>
+
           {path && <SetupPath path={path} />}
 
-          <h2 className="text-sm font-medium text-mid-grey">
-            {quiet ? "Nothing needs you right now" : "Needs your attention"}
-          </h2>
-          <div className="mt-3 space-y-2">
+          {/* Decisions before totals. The rule down the left is the only
+              thing on this screen that says "this one is on you". */}
+          <section>
+            <div className="mb-3 flex items-center gap-2.5">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+                {quiet ? "Nothing needs you right now" : "Needs your attention"}
+              </h2>
+              {!quiet && (
+                <span className="num rounded-full bg-gold-tint px-2 py-0.5 text-[10.5px] font-extrabold text-gold-ink">
+                  {data.attention.length}
+                </span>
+              )}
+            </div>
+
             {quiet ? (
-              <p className="border border-line bg-white px-4 py-4 text-sm text-mid-grey">
+              <p className="rounded-panel border border-line-soft bg-white px-5 py-5 text-sm text-ink-muted shadow-card">
                 {hasTill
                   ? "No orders waiting, no overdue invoices, nothing stuck on a till."
                   : "No orders waiting, no overdue invoices, nothing left to chase."}
               </p>
             ) : (
-              data.attention.map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex flex-col justify-between gap-2 bg-white px-4 py-3 sm:flex-row sm:items-center ${
-                    item.tone === "gold"
-                      ? "border border-l-4 border-line border-l-gold"
-                      : "border border-line"
-                  }`}
-                >
-                  <span className="text-sm text-ink">{item.label}</span>
-                  <Link
-                    href={item.href}
-                    className={`tap flex items-center self-start whitespace-nowrap px-3 text-sm font-medium sm:self-auto ${
-                      item.tone === "gold" ? "text-gold-dark" : "text-teal-dark"
+              <div className="flex flex-col gap-2.5">
+                {data.attention.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col justify-between gap-3 rounded-[14px] border border-line-soft bg-white px-[18px] py-4 shadow-card sm:flex-row sm:items-center sm:gap-5 ${
+                      item.tone === "gold" ? "border-l-4 border-l-gold-rule" : ""
                     }`}
                   >
-                    {item.action}
-                  </Link>
-                </div>
-              ))
+                    <div className="flex items-center gap-3.5">
+                      <span
+                        aria-hidden
+                        className={`flex h-[38px] w-[38px] flex-none items-center justify-center rounded-control text-[17px] font-extrabold ${
+                          item.tone === "gold"
+                            ? "bg-gold-tint text-gold-ink"
+                            : "bg-teal-light text-teal-dark"
+                        }`}
+                      >
+                        !
+                      </span>
+                      <span className="text-[15px] font-bold leading-snug tracking-[-0.01em] text-ink">
+                        {item.label}
+                      </span>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="tap flex flex-none items-center justify-center self-start whitespace-nowrap rounded-chip bg-teal-light px-4 text-[13.5px] font-bold text-teal-dark hover:bg-teal-pale sm:self-auto"
+                    >
+                      {item.action}
+                    </Link>
+                  </div>
+                ))}
+              </div>
             )}
-          </div>
-        </section>
+          </section>
 
-        <section className="mt-10 grid gap-4 sm:grid-cols-3">
-          <Card
-            label="Sales today"
-            value={formatGHS(data.salesToday)}
-            detail={
-              data.saleCount === 0
-                ? "No sales recorded yet today"
-                : `${data.saleCount} sale${data.saleCount === 1 ? "" : "s"}${
-                    hasTill && hasShop
-                      ? " across your till and shop"
-                      : hasTill
-                        ? " at your till"
-                        : " from your shop"
-                  }`
-            }
-          />
-          <Card
-            label="Money received today"
-            value={formatGHS(data.receivedToday)}
-            detail={
-              data.verifiedReceived > 0
-                ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
-                : "Cash and declared payments only"
-            }
-          />
-          <Card
-            label="Owed to you"
-            value={formatGHS(data.owed)}
-            detail={
-              data.owed === 0
-                ? "Nothing outstanding"
-                : `${data.owedCustomers} customer${data.owedCustomers === 1 ? "" : "s"}${
-                    data.oldestOwedDays !== null
-                      ? ` · oldest ${data.oldestOwedDays} days past due`
-                      : ""
-                  }`
-            }
-          />
-        </section>
+          <section className="grid gap-3.5 sm:grid-cols-3">
+            <Card
+              label="Sales today"
+              value={formatGHS(data.salesToday)}
+              note={
+                data.saleCount === 0
+                  ? "No sales recorded yet today"
+                  : `${data.saleCount} sale${data.saleCount === 1 ? "" : "s"}${
+                      hasTill && hasShop
+                        ? " across your till and shop"
+                        : hasTill
+                          ? " at your till"
+                          : " from your shop"
+                    }`
+              }
+              chip={data.tillsSelling > 0 ? "Live" : undefined}
+            />
+            <Card
+              label="Money received today"
+              value={formatGHS(data.receivedToday)}
+              note={
+                data.verifiedReceived > 0
+                  ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
+                  : "Cash and declared payments only"
+              }
+            />
+            <Card
+              label="Owed to you"
+              value={formatGHS(data.owed)}
+              note={
+                data.owed === 0
+                  ? "Nothing outstanding"
+                  : `${data.owedCustomers} customer${
+                      data.owedCustomers === 1 ? "" : "s"
+                    }${
+                      data.oldestOwedDays !== null
+                        ? ` · oldest ${data.oldestOwedDays} days`
+                        : ""
+                    }`
+              }
+              chip={data.owed > 0 ? "Chase" : undefined}
+              chipTone="gold"
+            />
+          </section>
 
-        <section className="mt-6 flex flex-wrap items-baseline justify-between gap-3 border border-line bg-white px-4 py-3">
-          <p className="text-sm text-mid-grey">
-            Ascend Balance{" "}
-            <span className="font-medium text-ink">{formatGHS(data.balance)}</span>
-            {data.balance < 5 && (
-              <span className="text-gold-dark"> · running low</span>
+          <section className="flex flex-col gap-3 rounded-panel border border-line-soft bg-white px-[22px] py-[17px] sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+            <div className="flex items-center gap-3.5">
+              <span
+                aria-hidden
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-chip bg-navy-deep text-sm font-extrabold text-on-dark-strong"
+              >
+                A
+              </span>
+              <div>
+                <p className="text-[13.5px] font-bold text-ink">
+                  Ascend Balance{" "}
+                  <span className="num">{formatGHS(data.balance)}</span>
+                </p>
+                {data.balance < 5 && (
+                  <p className="text-xs font-semibold text-gold-ink">
+                    Running low. Top up before it stops your messages.
+                  </p>
+                )}
+              </div>
+            </div>
+            {hasTill && (
+              <p className="text-xs font-medium text-slate-grey">
+                {data.lastDeviceSync
+                  ? `Till last checked in ${timeAgo(data.lastDeviceSync)}`
+                  : "No till set up yet"}
+                {data.unsyncedSales > 0 && ` · ${data.unsyncedSales} unsent`}
+              </p>
             )}
-          </p>
-          {hasTill && (
-            <p className="text-xs text-mid-grey">
-              {data.lastDeviceSync
-                ? `Till last checked in ${timeAgo(data.lastDeviceSync)}`
-                : "No till set up yet"}
-              {data.unsyncedSales > 0 && ` · ${data.unsyncedSales} unsent`}
-            </p>
+          </section>
+
+          {/* Shown to a business that has readiness, not to every business.
+              A till merchant being handed a link to something they do not
+              have is the same leak as an upsell landing on their home. */}
+          {workspace?.capabilities.has("readiness.score") && (
+            <section className="rounded-panel border border-line-soft bg-white px-[22px] py-5 shadow-card">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+                Your connected record
+              </h2>
+              <p className="mt-2.5 max-w-lg text-sm text-ink-muted">
+                Every sale, receipt and reconciled shift builds your business
+                evidence. Your Sustainability Score updates from real activity,
+                never from what you purchase.
+              </p>
+              <Link
+                href="/readiness"
+                className="tap mt-3 inline-flex items-center font-bold text-teal-dark underline"
+              >
+                See what my record shows
+              </Link>
+            </section>
           )}
-        </section>
-
-        {/* Shown to a business that has readiness, not to every business.
-            A till merchant being handed a link to something they do not have
-            is the same leak as an upsell landing on their home screen. */}
-        {workspace?.capabilities.has("readiness.score") && (
-        <section className="mt-10">
-          <h2 className="text-sm font-medium text-mid-grey">Your connected record</h2>
-          <p className="mt-2 max-w-lg text-sm text-mid-grey">
-            Every sale, receipt and reconciled shift builds your business
-            evidence. Your Sustainability Score updates from real activity,
-            never from what you purchase.
-          </p>
-          <Link
-            href="/readiness"
-            className="tap mt-3 inline-flex items-center font-medium text-teal-dark underline"
-          >
-            See what my record shows
-          </Link>
-        </section>
-        )}
+        </div>
       </div>
     </main>
   );
@@ -217,19 +307,56 @@ export default async function Dashboard() {
 function Card({
   label,
   value,
-  detail,
+  note,
+  chip,
+  chipTone = "teal",
 }: {
   label: string;
   value: string;
-  detail: string;
+  note: string;
+  chip?: string;
+  chipTone?: "teal" | "gold";
 }) {
   return (
-    <div className="border border-line bg-white px-4 py-4">
-      <p className="text-sm text-mid-grey">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs text-mid-grey">{detail}</p>
+    <div className="flex flex-col gap-1.5 rounded-panel border border-line-soft bg-white px-[22px] py-5 shadow-card">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[12.5px] font-semibold text-slate-grey">{label}</p>
+        {chip && (
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-extrabold ${
+              chipTone === "gold"
+                ? "bg-gold-tint text-gold-ink"
+                : "bg-teal-light text-teal-dark"
+            }`}
+          >
+            {chip}
+          </span>
+        )}
+      </div>
+      <p className="num text-3xl font-extrabold tracking-[-0.025em] text-ink">
+        {value}
+      </p>
+      <p className="text-xs font-medium text-slate-grey">{note}</p>
     </div>
   );
+}
+
+function today(): string {
+  return new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+function clockTime(iso: string): string {
+  return new Date(iso)
+    .toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(" ", "");
 }
 
 function timeAgo(iso: string): string {

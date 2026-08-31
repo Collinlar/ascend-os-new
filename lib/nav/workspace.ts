@@ -16,11 +16,13 @@ export { isBareRoute } from "./routes";
 
 export interface Workspace {
   personId: UUID;
+  personName: string;
   businessId: UUID;
   businessName: string;
   /** How many businesses this person could be looking at instead. */
   businessCount: number;
   locationId: UUID | null;
+  locationName: string | null;
   productSets: ProductSetKey[];
   /** What this business may actually do. Gates ask this, not the set. */
   capabilities: Set<string>;
@@ -97,6 +99,12 @@ export async function currentWorkspace(): Promise<Workspace | null> {
   // database happened to return, and could land somewhere different on the
   // next request. Ordering makes the fallback stable; the cookie makes it
   // theirs.
+  const { data: person } = await db
+    .from("person")
+    .select("full_name")
+    .eq("id", personId)
+    .maybeSingle();
+
   const { data: memberships } = await db
     .from("business_membership")
     .select("business_id, created_at, business:business_id(name)")
@@ -114,7 +122,7 @@ export async function currentWorkspace(): Promise<Workspace | null> {
 
   const { data: location } = await db
     .from("location")
-    .select("id")
+    .select("id, name")
     .eq("business_id", businessId)
     .eq("active", true)
     .limit(1)
@@ -151,11 +159,13 @@ export async function currentWorkspace(): Promise<Workspace | null> {
 
   return {
     personId,
+    personName: (person?.full_name as string | null) ?? "You",
     businessId,
     businessName:
       (membership.business as unknown as { name: string } | null)?.name ?? "Your business",
     businessCount: memberships.length,
     locationId: (location?.id as UUID) ?? null,
+    locationName: (location?.name as string | null) ?? null,
     productSets,
     capabilities,
     items,

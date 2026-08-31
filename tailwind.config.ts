@@ -31,6 +31,9 @@ const config: Config = {
           // teal sinks into the background.
           bright: "#22B39C",
           deepest: "#04231F",
+          // A till that is actually selling right now.
+          live: "#17A98F",
+          hover: "#12A392",
           pale: "#CDEDE8",
         },
         // Ink and the muted text ramp.
@@ -38,6 +41,7 @@ const config: Config = {
           DEFAULT: "#102A43",
           soft: "#33506A",
           muted: "#40596F",
+          slate: "#48607A",
         },
         "mid-grey": "#6B8091",
         // The lightest grey in the palette that clears WCAG AA on white
@@ -47,8 +51,13 @@ const config: Config = {
         "soft-grey": "#8298A7",
         "faint-grey": "#93A7B4",
         "on-dark": "#AEC2CE",
+        "on-dark-soft": "#8BA3B6",
+        "on-dark-strong": "#C7D6E0",
         "on-dark-muted": "#8FA6B5",
         // Surfaces.
+        // The Business Web ground. Cooler and lighter than the marketing
+        // page ground, because a working screen is read for hours.
+        canvas: "#EFF4F8",
         page: "#DCE4EB",
         band: "#E4EBF0",
         "light-grey": "#F1F5F8",
@@ -57,6 +66,7 @@ const config: Config = {
         // Lines, lightest to strongest.
         line: {
           DEFAULT: "#E2EBF0",
+          soft: "#E6EDF3",
           strong: "#D3DEE6",
           stronger: "#C4D2DC",
         },
@@ -66,6 +76,12 @@ const config: Config = {
           light: "#FBEFD8",
           dark: "#9A6207",
           deep: "#C08A1E",
+          // The rule down the side of something that needs a decision.
+          rule: "#E4A93C",
+          tint: "#FBEED4",
+          // Darker than the design's #9A6412, which lands at 4.35:1 on the
+          // tint above and misses the 4.5 these badges are set at.
+          ink: "#8A5710",
         },
         danger: {
           DEFAULT: "#B42318",
@@ -101,6 +117,8 @@ const config: Config = {
         // Very soft and low. Not a drop shadow, a lift.
         card: "0 12px 30px -26px rgba(16,42,67,.5)",
         action: "0 16px 34px -18px rgba(14,140,127,.9)",
+        // A list or panel sitting on the canvas, lifted a little further.
+        lift: "0 14px 34px -30px rgba(16,42,67,.9)",
       },
       lineHeight: {
         body: "1.6",

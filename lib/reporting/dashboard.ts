@@ -40,6 +40,10 @@ export interface DashboardData {
   balance: number;
   unsyncedSales: number;
   lastDeviceSync: string | null;
+  /** Tills with an open shift right now, which is what "selling" means. */
+  tillsSelling: number;
+  /** When the first till of the day opened, if one has. */
+  openedAt: string | null;
 }
 
 function today(): string {
@@ -170,6 +174,24 @@ export async function loadDashboard(
     (n, d) => n + (d.pending_transaction_count ?? 0),
     0
   );
+  // Who is actually behind a till right now, and when the day started.
+  // The design says "3 tills selling" and "opened 7:20am", and both are
+  // real: an open shift is a person at a counter, not a paired device
+  // sitting in a drawer.
+  const { data: openShifts } = await db
+    .from("pos_shift")
+    .select("device_id, opened_at")
+    .eq("business_id", businessId)
+    .eq("status", "open");
+
+  const tillsSelling = new Set(
+    (openShifts ?? []).map((r) => r.device_id).filter(Boolean)
+  ).size;
+  const openedAt =
+    (openShifts ?? [])
+      .map((r) => r.opened_at as string)
+      .sort()[0] ?? null;
+
   const lastDeviceSync =
     (devices.data ?? [])
       .map((d) => d.last_sync_at as string | null)
@@ -261,6 +283,8 @@ export async function loadDashboard(
     balance,
     unsyncedSales,
     lastDeviceSync,
+    tillsSelling,
+    openedAt,
   };
 }
 

@@ -96,7 +96,6 @@ export default async function ShopHome() {
     <main className="min-h-screen bg-light-grey">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-3xl px-5 py-4">
-          <p className="text-xs text-mid-grey">{workspace.businessName}</p>
           <h1 className="text-lg font-semibold text-ink">Your shop</h1>
         </div>
       </header>
