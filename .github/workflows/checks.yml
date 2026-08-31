@@ -1,0 +1,58 @@
+name: Checks
+
+# Every push, and every pull request, including ones from forks where the
+# push event never fires in this repository.
+on:
+  push:
+  pull_request:
+
+# A newer push to the same branch makes the older run pointless. Cancelling
+# it keeps the queue short and the feedback fast.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # First, because it needs nothing installed and takes under a second.
+      # A colour a merchant cannot read should not wait behind a dependency
+      # install to be reported.
+      - name: Contrast
+        run: npm run check:contrast
+
+      - name: Install
+        run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      # The build catches what the typechecker cannot see: the client and
+      # server boundary is not part of the type system, so a server-only
+      # import pulled into a client component compiles clean and then fails
+      # every route at runtime. That has happened here.
+      #
+      # The placeholders are deliberate. Nothing in this app reads its
+      # environment at module load, and every route is dynamic, so no page
+      # talks to Supabase while building. Putting real credentials in CI to
+      # satisfy a build that never uses them would be the worse choice.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+          NEXT_SERVICE_ROLE_KEY: ci-placeholder
+          SESSION_SECRET: ci-placeholder
