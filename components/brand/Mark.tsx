@@ -11,7 +11,7 @@ export function Mark({
 }) {
   const dot = Math.round(size * 0.19);
   const gap = Math.round(size * 0.09);
-  const dotColour = tone === "white" ? "#0E8C7F" : "#FFFFFF";
+  const dotColour = tone === "white" ? "#0D8377" : "#FFFFFF";
 
   return (
     <span
@@ -21,7 +21,7 @@ export function Mark({
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.31),
-        background: tone === "white" ? "#FFFFFF" : "#0E8C7F",
+        background: tone === "white" ? "#FFFFFF" : "#0D8377",
       }}
     >
       <span

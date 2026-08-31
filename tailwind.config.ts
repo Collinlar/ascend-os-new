@@ -19,8 +19,13 @@ const config: Config = {
           soft: "#1B3450",
         },
         // Primary action and brand.
+        //
+        // Was #0E8C7F, which carries white text at 4.14:1 and misses the
+        // 4.5 this project holds itself to. This is the same hue and the
+        // same saturation, 1.6% darker in lightness, which clears it at
+        // 4.64 and is not a colour anybody will notice changed.
         teal: {
-          DEFAULT: "#0E8C7F",
+          DEFAULT: "#0D8377",
           dark: "#0B6F65",
           light: "#E6F4F1",
           surface: "#E1F1EE",
@@ -31,9 +36,13 @@ const config: Config = {
           // teal sinks into the background.
           bright: "#22B39C",
           deepest: "#04231F",
-          // A till that is actually selling right now.
+          // A till that is actually selling right now. A dot, never text,
+          // so it answers to the 3:1 non-text rule rather than 4.5.
           live: "#17A98F",
-          hover: "#12A392",
+          // Hover goes darker, not lighter. The design lightens to #12A392,
+          // which carries white at 3.14, so pointing at a button was making
+          // its label harder to read than leaving it alone.
+          hover: "#0B6F65",
           pale: "#CDEDE8",
         },
         // Ink and the muted text ramp.
@@ -120,7 +129,7 @@ const config: Config = {
       boxShadow: {
         // Very soft and low. Not a drop shadow, a lift.
         card: "0 12px 30px -26px rgba(16,42,67,.5)",
-        action: "0 16px 34px -18px rgba(14,140,127,.9)",
+        action: "0 16px 34px -18px rgba(13,131,119,.9)",
         // A list or panel sitting on the canvas, lifted a little further.
         lift: "0 14px 34px -30px rgba(16,42,67,.9)",
       },
