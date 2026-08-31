@@ -17,6 +17,10 @@ export interface NavItem {
 // merchant's customers rather than to the merchant.
 const BARE_PREFIXES = [
   "/pos",
+  // The platform's own desk. An admin is usually a merchant too, and their
+  // shop's navigation on a moderation screen would say they are somewhere
+  // they are not.
+  "/admin",
   "/onboarding",
   "/offline",
   "/b/",
