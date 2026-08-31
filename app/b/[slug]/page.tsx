@@ -1,3 +1,4 @@
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
@@ -7,6 +8,16 @@ import BookingFlow, {
 } from "@/components/services/BookingFlow";
 
 export const dynamic = "force-dynamic";
+
+// The root layout locks zoom, which is right for a till held in a queue and
+// wrong for a stranger reading a price on their own phone. Pinch to zoom is
+// how a lot of people read anything (WCAG 1.4.4), and this page is for
+// somebody who is not our user.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0B1D2E",
+};
 
 // Customer Web booking page, opened from a WhatsApp link or QR code. No
 // account, no download (SRV-005, CHN-004).
@@ -92,6 +103,32 @@ async function load(slug: string) {
   }
 }
 
+// Almost every visit starts as a link pasted into WhatsApp, where the
+// preview card is the first thing anybody sees of this business.
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const data = await load(params.slug);
+  if (!data) return { title: "Booking page not found" };
+
+  const where = data.city ? ` in ${data.city}` : "";
+  const description =
+    data.services.length > 0
+      ? `Book ${data.businessName}${where}. ${data.services.length} ${
+          data.services.length === 1 ? "service" : "services"
+        }, confirmed on WhatsApp.`
+      : `${data.businessName}${where} takes bookings online.`;
+
+  return {
+    title: `${data.businessName} · Book a time`,
+    description,
+    openGraph: { title: data.businessName, description, type: "website" },
+    robots: { index: true, follow: true },
+  };
+}
+
 export default async function BookingPage({
   params,
 }: {
@@ -102,22 +139,10 @@ export default async function BookingPage({
 
   return (
     <main className="min-h-screen bg-white">
-      <header className="border-b border-line">
-        <div className="mx-auto max-w-md px-5 py-6">
-          <h1 className="text-2xl font-semibold leading-display text-ink">
-            {data.businessName}
-          </h1>
-          {data.city && <p className="mt-1 text-sm text-ink-muted">{data.city}</p>}
-          <p className="mt-2 text-sm text-ink-muted">
-            Pick what you need and a time that works. They will confirm on
-            WhatsApp.
-          </p>
-        </div>
-      </header>
-
       <BookingFlow
         slug={data.slug}
         businessName={data.businessName}
+        city={data.city}
         services={data.services}
         providers={data.providers}
       />
