@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import BookingList, { type OwnerBooking } from "@/components/services/BookingList";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ async function load(): Promise<OwnerBooking[] | null> {
     const { data } = await db
       .from("service_booking")
       .select(
-        "id, status, model, scheduled_start, price_quoted, service_address, staff_notes, customer:customer_id(display_name, phone_e164), item:item_id(name)"
+        "id, status, model, scheduled_start, scheduled_end, price_quoted, service_address, staff_notes, customer:customer_id(display_name, phone_e164), item:item_id(name), provider:assigned_membership_id(person:person_id(full_name))"
       )
       .eq("business_id", membership.business_id)
       .order("scheduled_start", { ascending: true, nullsFirst: false })
@@ -36,6 +37,10 @@ async function load(): Promise<OwnerBooking[] | null> {
         status: b.status,
         model: b.model,
         scheduledStart: b.scheduled_start,
+        scheduledEnd: b.scheduled_end,
+        providerName:
+          ((b.provider as unknown as { person: { full_name: string } | null } | null)
+            ?.person?.full_name) ?? null,
         price: b.price_quoted === null ? null : Number(b.price_quoted),
         serviceAddress: b.service_address,
         // Staff notes stay server-side and owner-only; they are never sent
@@ -56,33 +61,25 @@ export default async function Bookings() {
   const bookings = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Your schedule</h1>
-          <p className="text-sm text-ink-muted">
-            Requests needing an answer come first, then what is coming up.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Your schedule"
+        intro="Requests needing an answer come first, then what is coming up."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {bookings === null ? (
-          <p className="py-16 text-center text-ink-muted">
-            Verify your WhatsApp number to see your schedule.
-          </p>
-        ) : bookings.length === 0 ? (
-          <div className="border border-line bg-white px-5 py-10 text-center">
-            <p className="font-medium text-ink">Nothing booked yet.</p>
-            <p className="mt-2 text-sm text-ink-muted">
-              Share your booking link on WhatsApp and your first request will
-              land here.
-            </p>
-          </div>
-        ) : (
-          <BookingList bookings={bookings} />
-        )}
-      </div>
-    </main>
+      {bookings === null ? (
+        <EmptyState
+          title="Sign in to see your schedule."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      ) : bookings.length === 0 ? (
+        <EmptyState
+          title="Nothing booked yet."
+          detail="Share your booking link on WhatsApp and your first request will land here."
+        />
+      ) : (
+        <BookingList bookings={bookings} />
+      )}
+    </PageShell>
   );
 }

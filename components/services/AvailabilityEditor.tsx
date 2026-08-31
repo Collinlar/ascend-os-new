@@ -147,14 +147,16 @@ export default function AvailabilityEditor({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="rounded-panel bg-gold-light px-4 py-3 text-sm font-semibold text-gold-ink">
           {error}
         </p>
       )}
 
-      <section className="border border-line bg-white p-5">
-        <h2 className="font-medium text-ink">Your normal week</h2>
-        <p className="mt-1 text-sm text-ink-muted">
+      <section className="rounded-[18px] border border-line-soft bg-white p-6 shadow-lift">
+        <h2 className="text-lg font-extrabold tracking-[-0.02em] text-ink">
+          Your normal week
+        </h2>
+        <p className="mt-1 text-sm font-medium text-slate-grey">
           {openCount === 0
             ? "You are closed every day, so nobody can book you."
             : `Open ${openCount} day${openCount === 1 ? "" : "s"} a week.`}
@@ -164,12 +166,12 @@ export default function AvailabilityEditor({
           {days.map((day) => (
             <div
               key={day.dayOfWeek}
-              className="flex flex-wrap items-center gap-3 border-b border-line py-2 last:border-0"
+              className="flex flex-wrap items-center gap-3 border-b border-[#EEF3F7] py-2.5 last:border-0"
             >
               <button
                 onClick={() => updateDay(day.dayOfWeek, { closed: !day.closed })}
-                className={`tap w-28 shrink-0 px-2 text-left text-sm font-medium ${
-                  day.closed ? "text-ink-muted" : "text-ink"
+                className={`tap w-28 shrink-0 px-1 text-left text-[15px] font-bold ${
+                  day.closed ? "text-slate-grey" : "text-ink"
                 }`}
               >
                 {DAY_NAMES[day.dayOfWeek]}
@@ -178,9 +180,9 @@ export default function AvailabilityEditor({
               {day.closed ? (
                 <button
                   onClick={() => updateDay(day.dayOfWeek, { closed: false })}
-                  className="tap px-2 text-sm text-ink-muted"
+                  className="tap rounded-chip px-3 text-[13px] font-bold text-teal-dark hover:bg-teal-light"
                 >
-                  Closed · tap to open
+                  Closed, tap to open
                 </button>
               ) : (
                 <div className="flex flex-1 items-center gap-2">
@@ -188,20 +190,20 @@ export default function AvailabilityEditor({
                     type="time"
                     value={day.startTime}
                     onChange={(e) => updateDay(day.dayOfWeek, { startTime: e.target.value })}
-                    className="border border-line px-2 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                    className="num rounded-control border border-line-strong bg-surface px-3 text-sm font-semibold text-ink focus:border-teal focus:outline-none"
                     aria-label={`${DAY_NAMES[day.dayOfWeek]} opening time`}
                   />
-                  <span className="text-sm text-ink-muted">to</span>
+                  <span className="text-sm font-medium text-slate-grey">to</span>
                   <input
                     type="time"
                     value={day.endTime}
                     onChange={(e) => updateDay(day.dayOfWeek, { endTime: e.target.value })}
-                    className="border border-line px-2 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                    className="num rounded-control border border-line-strong bg-surface px-3 text-sm font-semibold text-ink focus:border-teal focus:outline-none"
                     aria-label={`${DAY_NAMES[day.dayOfWeek]} closing time`}
                   />
                   <button
                     onClick={() => updateDay(day.dayOfWeek, { closed: true })}
-                    className="tap ml-auto px-2 text-sm text-ink-muted"
+                    className="tap ml-auto rounded-chip px-3 text-[13px] font-bold text-ink-muted hover:bg-light-grey"
                   >
                     Close
                   </button>
@@ -214,15 +216,17 @@ export default function AvailabilityEditor({
         <button
           onClick={saveHours}
           disabled={busy}
-          className="tap mt-5 w-full bg-teal px-4 py-3 font-medium text-white disabled:opacity-60"
+          className="tap mt-5 flex items-center justify-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
         >
           {busy ? "Saving..." : saved ? "Saved" : "Save my hours"}
         </button>
       </section>
 
-      <section className="border border-line bg-white p-5">
-        <h2 className="font-medium text-ink">Days you are away</h2>
-        <p className="mt-1 text-sm text-ink-muted">
+      <section className="rounded-[18px] border border-line-soft bg-white p-6 shadow-lift">
+        <h2 className="text-lg font-extrabold tracking-[-0.02em] text-ink">
+          Days you are away
+        </h2>
+        <p className="mt-1 text-sm font-medium text-slate-grey">
           Block time and nobody can book it. Anything already booked stays,
           and we will show you what clashes.
         </p>
@@ -232,14 +236,14 @@ export default function AvailabilityEditor({
             type="date"
             value={offStart}
             onChange={(e) => setOffStart(e.target.value)}
-            className="border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+            className="rounded-control border border-line-strong bg-surface px-3 font-semibold text-ink focus:border-teal focus:outline-none"
             aria-label="First day away"
           />
           <input
             type="date"
             value={offEnd}
             onChange={(e) => setOffEnd(e.target.value)}
-            className="border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+            className="rounded-control border border-line-strong bg-surface px-3 font-semibold text-ink focus:border-teal focus:outline-none"
             aria-label="Last day away"
           />
         </div>

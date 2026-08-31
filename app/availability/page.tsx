@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import AvailabilityEditor, {
@@ -74,29 +75,24 @@ export default async function Availability() {
   const data = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">When you are available</h1>
-          <p className="text-sm text-ink-muted">
-            Customers can only book the times you open here.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="When you are free"
+        intro="Your normal week, and the days you are shut. Customers only ever see times that survive both."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {data === null ? (
-          <p className="py-16 text-center text-ink-muted">
-            Verify your WhatsApp number to set your hours.
-          </p>
-        ) : (
-          <AvailabilityEditor
-            businessId={data.businessId}
-            initialDays={data.days}
-            initialTimeOff={data.timeOff}
-          />
-        )}
-      </div>
-    </main>
+      {data === null ? (
+        <EmptyState
+          title="Sign in to set your hours."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      ) : (
+        <AvailabilityEditor
+          businessId={data.businessId}
+          initialDays={data.days}
+          initialTimeOff={data.timeOff}
+        />
+      )}
+    </PageShell>
   );
 }
