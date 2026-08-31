@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import ProductManager from "@/components/catalogue/ProductManager";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import type { StockRow } from "@/app/api/catalogue/items/route";
 
 export const dynamic = "force-dynamic";
@@ -106,42 +108,48 @@ export default async function Products() {
   const data = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">What you sell</h1>
-          <p className="text-sm text-mid-grey">
-            Set your prices, add barcodes so the till can scan, and keep your
-            counts honest.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="What you sell"
+        intro="Set your prices, add barcodes so the till can scan, and keep your counts honest."
+        action={
+          data.kind === "ok" && data.items.length > 0 ? (
+            <Link
+              href="/products/add"
+              className="tap flex items-center justify-center whitespace-nowrap rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
+            >
+              Add a product
+            </Link>
+          ) : null
+        }
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {data.kind === "no_session" && (
-          <p className="py-16 text-center text-mid-grey">
-            Verify your WhatsApp number to manage your products.
-          </p>
-        )}
-        {data.kind === "no_business" && (
-          <p className="py-16 text-center text-mid-grey">
-            Set up your business first, then your products live here.
-          </p>
-        )}
-        {data.kind === "failed" && (
-          <p className="rounded-panel bg-gold-light px-4 py-6 text-center text-sm text-gold-dark">
-            We could not load your products just now. Refresh in a moment.
-          </p>
-        )}
-        {data.kind === "ok" && (
-          <ProductManager
-            businessId={data.businessId}
-            locationId={data.locationId}
-            items={data.items}
-            sellsOnline={data.sellsOnline}
-          />
-        )}
-      </div>
-    </main>
+      {data.kind === "no_session" && (
+        <EmptyState
+          title="Sign in to manage your products."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      )}
+      {data.kind === "no_business" && (
+        <EmptyState
+          title="Set up your business first."
+          detail="Your products live here once it exists."
+        />
+      )}
+      {data.kind === "failed" && (
+        <EmptyState
+          title="We could not load your products just now."
+          detail="Refresh in a moment."
+        />
+      )}
+      {data.kind === "ok" && (
+        <ProductManager
+          businessId={data.businessId}
+          locationId={data.locationId}
+          items={data.items}
+          sellsOnline={data.sellsOnline}
+        />
+      )}
+    </PageShell>
   );
 }

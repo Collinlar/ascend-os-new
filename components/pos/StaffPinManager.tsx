@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { EmptyState } from "@/components/shell/Page";
 import { derivePin } from "@/lib/pos/staff";
 
 // Who can open a till, and with which four digits.
@@ -204,9 +205,11 @@ export default function StaffPinManager({
   }
 
   return (
-    <section className="mt-8">
-      <h2 className="text-base font-semibold text-ink">Who can open a till</h2>
-      <p className="mt-1 text-sm text-mid-grey">
+    <section>
+      <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink">
+        Who can open a till
+      </h2>
+      <p className="mt-1 max-w-2xl text-sm font-medium text-slate-grey">
         Each person types their own 4 digits to start selling, and their name
         goes on every receipt they serve. A till will not open until at least
         one person here has a PIN.
@@ -226,7 +229,7 @@ export default function StaffPinManager({
       {adding ? (
         <div className="mt-4 space-y-3 rounded-panel bg-white p-4">
           <div>
-            <label className="text-xs text-mid-grey">Their name</label>
+            <label className="text-xs text-ink-muted">Their name</label>
             <input
               autoFocus
               value={newName}
@@ -237,7 +240,7 @@ export default function StaffPinManager({
           </div>
 
           <div>
-            <label className="text-xs text-mid-grey">What they do</label>
+            <label className="text-xs text-ink-muted">What they do</label>
             <div className="mt-1 space-y-2">
               {ROLES.map((role) => (
                 <label
@@ -255,7 +258,7 @@ export default function StaffPinManager({
                   />
                   <span className="text-sm text-ink">
                     {role.label}
-                    <span className="block text-xs text-mid-grey">{role.detail}</span>
+                    <span className="block text-xs text-ink-muted">{role.detail}</span>
                   </span>
                 </label>
               ))}
@@ -263,7 +266,7 @@ export default function StaffPinManager({
           </div>
 
           <div>
-            <label className="text-xs text-mid-grey">Their 4 digit PIN</label>
+            <label className="text-xs text-ink-muted">Their 4 digit PIN</label>
             <input
               value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
@@ -274,7 +277,7 @@ export default function StaffPinManager({
             />
           </div>
 
-          <p className="text-xs text-mid-grey">
+          <p className="text-xs text-ink-muted">
             They do not need an account or a phone. The PIN is all they use.
           </p>
 
@@ -293,7 +296,7 @@ export default function StaffPinManager({
                 setNewPin("");
                 setError(null);
               }}
-              className="tap rounded-control px-3 py-2 text-sm font-medium text-mid-grey"
+              className="tap rounded-control px-3 py-2 text-sm font-medium text-ink-muted"
             >
               Cancel
             </button>
@@ -306,26 +309,31 @@ export default function StaffPinManager({
             setError(null);
             setNote(null);
           }}
-          className="tap mt-4 w-full rounded-control border border-teal px-4 py-3 text-sm font-semibold text-teal-dark"
+          className="tap mt-4 flex items-center rounded-[13px] border border-teal-pale bg-teal-light px-[22px] text-[13.5px] font-bold text-teal-dark hover:bg-teal-pale"
         >
           Add someone to the team
         </button>
       )}
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4">
         {rows.length === 0 && (
-          <p className="rounded-panel bg-white px-4 py-6 text-center text-sm text-mid-grey">
-    Only you so far. Everything sold says your name until you add the
-            people who actually serve.
-          </p>
+          <EmptyState
+            title="Only you so far."
+            detail="Everything sold says your name until you add the people who actually serve."
+          />
         )}
 
         {rows.map((person) => (
-          <div key={person.membershipId} className="rounded-panel bg-white px-4 py-3">
+          <div
+            key={person.membershipId}
+            className="mb-2.5 rounded-[15px] border border-line-soft bg-white px-[18px] py-3.5 shadow-card"
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-medium text-ink">{person.displayName}</p>
-                <p className="text-xs capitalize text-mid-grey">
+                <p className="truncate text-[14.5px] font-bold text-ink">
+                  {person.displayName}
+                </p>
+                <p className="text-xs font-medium capitalize text-slate-grey">
                   {person.roleKey}
                   {person.hasPin ? " · can open a till" : " · no PIN yet"}
                 </p>
@@ -340,7 +348,7 @@ export default function StaffPinManager({
                       setError(null);
                       setDone(null);
                     }}
-                    className="tap rounded-control bg-teal px-4 py-2 text-sm font-semibold text-white"
+                    className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale"
                   >
                     {person.hasPin ? "Change PIN" : "Give a PIN"}
                   </button>
@@ -348,7 +356,7 @@ export default function StaffPinManager({
                     <button
                       onClick={() => removePerson(person.membershipId, person.displayName)}
                       disabled={busy}
-                      className="tap rounded-control px-3 py-2 text-sm font-medium text-mid-grey"
+                      className="tap rounded-control px-3 py-2 text-sm font-medium text-ink-muted"
                     >
                       They left
                     </button>
@@ -382,7 +390,7 @@ export default function StaffPinManager({
                     setPin("");
                     setError(null);
                   }}
-                  className="tap rounded-control px-3 py-2 text-sm font-medium text-mid-grey"
+                  className="tap rounded-control px-3 py-2 text-sm font-medium text-ink-muted"
                 >
                   Cancel
                 </button>
@@ -398,7 +406,7 @@ export default function StaffPinManager({
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-mid-grey">
+      <p className="mt-3 text-xs text-ink-muted">
         A till PIN says who is at the counter. It is not the pairing code: a
         till is set up once with the code above, then each person signs in
         with their own PIN. It is not an account password either, and it does

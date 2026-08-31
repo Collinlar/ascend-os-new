@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
+import { EmptyState, Panel as Surface } from "@/components/shell/Page";
 
 export interface DocumentRow {
   id: string;
@@ -21,6 +22,15 @@ interface DraftLine {
   quantity: string;
   unitPrice: string;
 }
+
+// Three letters on the spine, the way a filing cabinet labels one.
+const SPINE: Record<string, string> = {
+  quotation: "QTE",
+  proforma: "PRO",
+  invoice: "INV",
+  receipt: "RCT",
+  credit_note: "CRN",
+};
 
 const TYPE_LABEL: Record<string, string> = {
   quotation: "Quote",
@@ -136,14 +146,19 @@ export default function DocumentWorkspace({
       )}
 
       {!creating ? (
-        <button
-          onClick={() => setCreating(true)}
-          className="tap w-full bg-teal px-5 py-3.5 font-medium text-white"
-        >
-          Create a document
-        </button>
+        // A button, not a banner. Making a document is one thing this
+        // screen can do, not the screen's whole reason for existing: the
+        // list of what has already been issued is.
+        <div className="mb-3.5 flex justify-end">
+          <button
+            onClick={() => setCreating(true)}
+            className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
+          >
+            Create a document
+          </button>
+        </div>
       ) : (
-        <div className="border border-line bg-white p-5">
+        <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
           <div className="flex flex-wrap gap-2">
             {(["invoice", "quotation", "receipt"] as DocumentType[]).map((t) => (
               <button
@@ -152,7 +167,7 @@ export default function DocumentWorkspace({
                 className={`tap border px-3 py-2 text-sm font-medium ${
                   type === t
                     ? "border-teal bg-teal-light text-teal-dark"
-                    : "border-line text-mid-grey"
+                    : "border-line text-ink-muted"
                 }`}
               >
                 {TYPE_LABEL[t]}
@@ -165,14 +180,14 @@ export default function DocumentWorkspace({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Who is this for?"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <input
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               inputMode="tel"
               placeholder="Their WhatsApp number"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
           </div>
 
@@ -183,21 +198,21 @@ export default function DocumentWorkspace({
                   value={line.description}
                   onChange={(e) => updateLine(i, { description: e.target.value })}
                   placeholder="What are you charging for?"
-                  className="col-span-3 border border-line px-3 py-2.5 text-sm text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                  className="col-span-3 border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
                 />
                 <input
                   value={line.quantity}
                   onChange={(e) => updateLine(i, { quantity: e.target.value })}
                   inputMode="decimal"
                   placeholder="Qty"
-                  className="border border-line px-2 py-2.5 text-sm text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                  className="border border-line px-2 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
                 />
                 <input
                   value={line.unitPrice}
                   onChange={(e) => updateLine(i, { unitPrice: e.target.value })}
                   inputMode="decimal"
                   placeholder="Price"
-                  className="col-span-2 border border-line px-2 py-2.5 text-sm text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                  className="col-span-2 border border-line px-2 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
                 />
               </div>
             ))}
@@ -232,7 +247,7 @@ export default function DocumentWorkspace({
             </button>
             <button
               onClick={() => setCreating(false)}
-              className="tap px-3 py-3 text-sm font-medium text-mid-grey"
+              className="tap px-3 py-3 text-sm font-medium text-ink-muted"
             >
               Cancel
             </button>
@@ -240,62 +255,91 @@ export default function DocumentWorkspace({
         </div>
       )}
 
-      <div className="space-y-2">
-        {documents.length === 0 && (
-          <div className="border border-line bg-white px-5 py-10 text-center">
-            <p className="font-medium text-ink">No documents yet.</p>
-            <p className="mt-2 text-sm text-mid-grey">
-              Your first invoice takes about a minute.
-            </p>
-          </div>
-        )}
+      {documents.length === 0 ? (
+        <EmptyState
+          title="No documents yet."
+          detail="Your first invoice takes about a minute."
+        />
+      ) : (
+        <Surface>
+          {documents.map((doc, i) => {
+            const conversions = doc.number
+              ? (DOCUMENT_CONVERSIONS[doc.type as DocumentType] ?? [])
+              : [];
+            const sent = Boolean(doc.number);
+            const overdue =
+              sent &&
+              doc.dueDate !== null &&
+              doc.status !== "paid" &&
+              new Date(doc.dueDate) < new Date();
 
-        {documents.map((doc) => {
-          const conversions = doc.number
-            ? (DOCUMENT_CONVERSIONS[doc.type as DocumentType] ?? [])
-            : [];
-          return (
-            <div key={doc.id} className="border border-line bg-white px-4 py-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <div>
-                  <p className="font-medium text-ink">
+            return (
+              <div
+                key={doc.id}
+                className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-[15px] ${
+                  i < documents.length - 1 ? "border-b border-[#EEF3F7]" : ""
+                }`}
+              >
+                {/* The spine of a filed document, so a long list can be
+                    read by shape before it is read by name. */}
+                <span
+                  aria-hidden
+                  className="flex h-12 w-10 flex-none items-end justify-center rounded-lg border border-line bg-light-grey pb-[7px]"
+                >
+                  <span className="mono text-[8.5px] font-medium tracking-[0.04em] text-slate-grey">
+                    {SPINE[doc.type] ?? "DOC"}
+                  </span>
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-bold leading-snug text-ink sm:truncate">
                     {doc.number ?? `${TYPE_LABEL[doc.type] ?? doc.type} draft`}
+                    {doc.customerName && ` · ${doc.customerName}`}
                   </p>
-                  <p className="text-xs text-mid-grey">
-                    {doc.customerName ?? "No customer"}
-                    {doc.number ? " · sent out" : " · not sent yet"}
+                  <p className="text-[12.5px] font-medium text-slate-grey">
+                    {sent ? "Sent out" : "Not sent yet"}
+                    {doc.total !== null && ` · ${formatGHS(doc.total)}`}
                   </p>
                 </div>
-                <p className="font-semibold text-ink">
-                  {doc.total === null ? "" : formatGHS(doc.total)}
-                </p>
-              </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                {!doc.number && (
-                  <button
-                    onClick={() => act(doc.id, "issue")}
-                    disabled={busy === doc.id}
-                    className="tap bg-teal px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  >
-                    {busy === doc.id ? "Sending..." : "Send it out"}
-                  </button>
-                )}
-                {conversions.map((target) => (
-                  <button
-                    key={target}
-                    onClick={() => act(doc.id, "convert", target)}
-                    disabled={busy === doc.id}
-                    className="tap border border-line px-3 py-2 text-sm font-medium text-teal-dark disabled:opacity-60"
-                  >
-                    {CONVERT_LABEL[target] ?? `Convert to ${target}`}
-                  </button>
-                ))}
+                <span
+                  className={`flex-none rounded-full px-2.5 py-[3px] text-[11.5px] font-extrabold ${
+                    overdue
+                      ? "bg-gold-tint text-gold-ink"
+                      : sent
+                        ? "bg-light-grey text-slate-grey"
+                        : "bg-teal-light text-teal-dark"
+                  }`}
+                >
+                  {overdue ? "Overdue" : sent ? "Filed" : "Draft"}
+                </span>
+
+                <div className="flex w-full flex-none flex-wrap justify-end gap-2 sm:w-auto">
+                  {!doc.number && (
+                    <button
+                      onClick={() => act(doc.id, "issue")}
+                      disabled={busy === doc.id}
+                      className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale disabled:opacity-60"
+                    >
+                      {busy === doc.id ? "Sending..." : "Send it out"}
+                    </button>
+                  )}
+                  {conversions.map((target) => (
+                    <button
+                      key={target}
+                      onClick={() => act(doc.id, "convert", target)}
+                      disabled={busy === doc.id}
+                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey disabled:opacity-60"
+                    >
+                      {CONVERT_LABEL[target] ?? `Convert to ${target}`}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </Surface>
+      )}
     </div>
   );
 }

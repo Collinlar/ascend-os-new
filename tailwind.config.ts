@@ -86,6 +86,10 @@ const config: Config = {
         danger: {
           DEFAULT: "#B42318",
           soft: "#B0453A",
+          tint: "#FBECE4",
+          // Darker than the design's #B4552E, which is 4.26:1 on the tint
+          // above and misses the 4.5 these small badges are set at.
+          ink: "#A44A26",
         },
         info: {
           DEFAULT: "#3F6494",

@@ -1,10 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useMemo, useRef, useState } from "react";
 import { formatGHS } from "@/lib/money";
 import BarcodeCapture from "./BarcodeCapture";
 import { prepareImage } from "@/lib/images";
 import type { StockRow } from "@/app/api/catalogue/items/route";
+import { EmptyState, Panel as Surface } from "@/components/shell/Page";
+import Pills from "@/components/shell/Pills";
+import { initials } from "@/components/shop/storefront-parts";
 
 // The merchant's own view of what they sell. Price, barcode and what is on
 // the shelf, in one list, because those are the three things that go wrong
@@ -49,6 +53,25 @@ export default function ProductManager({
   const [reason, setReason] = useState("");
   // Which product is having its barcode scanned, if any.
   const [scanningFor, setScanningFor] = useState<string | null>(null);
+  const [filter, setFilter] = useState("Everything");
+
+  // The four ways a catalogue is actually wrong, each one a filter. A
+  // merchant who opens this screen is usually looking for the broken ones,
+  // not reading all of them.
+  const faults = useMemo(() => {
+    const isLow = (r: StockRow) =>
+      r.trackStock &&
+      r.lowStockThreshold !== null &&
+      r.quantityOnHand <= r.lowStockThreshold;
+    return {
+      "No price": rows.filter((r) => r.price === null),
+      "Low stock": rows.filter(isLow),
+      "No barcode": rows.filter((r) => !r.barcode),
+      "Not counted": rows.filter((r) => !r.trackStock),
+    } as Record<string, StockRow[]>;
+  }, [rows]);
+
+  const shown = filter === "Everything" ? rows : faults[filter] ?? rows;
 
   function openEdit(row: StockRow) {
     setOpen(row.itemId);
@@ -252,18 +275,18 @@ export default function ProductManager({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-panel bg-white px-4 py-10 text-center">
-        <p className="font-medium text-ink">No products yet.</p>
-        <p className="mt-1 text-sm text-mid-grey">
-          Add what you sell, then set your prices and counts here.
-        </p>
-        <a
-          href="/products/add"
-          className="tap mt-4 inline-block rounded-control bg-teal px-5 py-2.5 text-sm font-semibold text-white"
-        >
-          Add my first products
-        </a>
-      </div>
+      <EmptyState
+        title="No products yet."
+        detail="Add what you sell, then set your prices and counts here."
+        action={
+          <Link
+            href="/products/add"
+            className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
+          >
+            Add my first products
+          </Link>
+        }
+      />
     );
   }
 
@@ -306,21 +329,38 @@ export default function ProductManager({
         />
       )}
 
-      <a
-        href="/products/add"
-        className="tap mb-2 block rounded-control border border-teal px-4 py-3 text-center text-sm font-semibold text-teal-dark"
-      >
-        Add more products
-      </a>
+      <Pills
+        pills={[
+          { label: "Everything" },
+          { label: "No price", count: faults["No price"].length },
+          { label: "Low stock", count: faults["Low stock"].length },
+          { label: "No barcode", count: faults["No barcode"].length },
+          { label: "Not counted", count: faults["Not counted"].length },
+        ]}
+        active={filter}
+        onPick={setFilter}
+        trailing={`${shown.length} ${shown.length === 1 ? "product" : "products"}`}
+      />
 
       {error && (
-        <p className="rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">{error}</p>
+        <p className="mb-2.5 rounded-panel bg-gold-light px-4 py-3 text-sm font-semibold text-gold-ink">
+          {error}
+        </p>
       )}
       {note && (
-        <p className="rounded-panel bg-teal-light px-4 py-3 text-sm text-teal-dark">{note}</p>
+        <p className="mb-2.5 rounded-panel bg-teal-light px-4 py-3 text-sm font-semibold text-teal-dark">
+          {note}
+        </p>
       )}
 
-      {rows.map((row) => {
+      {shown.length === 0 ? (
+        <EmptyState
+          title={`Nothing is ${filter.toLowerCase()}.`}
+          detail="That part of your catalogue is in order."
+        />
+      ) : (
+      <Surface>
+      {shown.map((row, i) => {
         const noPrice = row.price === null;
         const low =
           row.trackStock &&
@@ -330,57 +370,84 @@ export default function ProductManager({
         return (
           <div
             key={row.itemId}
-            className={`rounded-panel bg-white px-4 py-3 ${row.active ? "" : "opacity-60"}`}
+            className={`${i < shown.length - 1 ? "border-b border-[#EEF3F7]" : ""} ${
+              row.active ? "" : "opacity-60"
+            }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              {row.photoUrl && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-4">
+              {row.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={row.photoUrl}
                   alt=""
                   loading="lazy"
-                  className="h-12 w-12 shrink-0 rounded-panel object-cover"
+                  className="h-[46px] w-[46px] flex-none rounded-control object-cover"
                 />
+              ) : (
+                <span
+                  aria-hidden
+                  className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-control bg-light-grey text-sm font-extrabold tracking-[-0.02em] text-ink-slate"
+                >
+                  {initials(row.name)}
+                </span>
               )}
+
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink">{row.name}</p>
-                <p className="num mt-0.5 text-sm text-mid-grey">
+                <p className="text-[15px] font-bold leading-snug tracking-[-0.01em] text-ink sm:truncate">
+                  {row.name}
+                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                   {noPrice ? (
                     // The till hides unpriced items, so say so here rather
                     // than let a merchant wonder where it went.
-                    <span className="text-gold-dark">No price yet, so the till hides it</span>
+                    <span className="rounded-full bg-gold-tint px-2 py-0.5 text-[11.5px] font-bold text-gold-ink">
+                      No price, so the till hides it
+                    </span>
                   ) : (
-                    formatGHS(row.price as number)
+                    <span className="num text-[13.5px] font-bold text-teal-dark">
+                      {formatGHS(row.price as number)}
+                    </span>
                   )}
-                  {row.trackStock && (
-                    <>
-                      {" · "}
-                      <span className={low ? "text-gold-dark" : ""}>
-                        {row.quantityOnHand} on the shelf
-                      </span>
-                    </>
+                  {row.trackStock ? (
+                    <span
+                      className={`text-[12.5px] font-semibold ${
+                        low ? "text-gold-ink" : "text-slate-grey"
+                      }`}
+                    >
+                      {row.quantityOnHand} on the shelf
+                    </span>
+                  ) : (
+                    <span className="text-[12.5px] font-semibold text-slate-grey">
+                      Not counted
+                    </span>
                   )}
-                  {!row.active && " · not selling"}
-                </p>
-                {row.barcode ? (
-                  <p className="mono mt-0.5 text-[11px] text-soft-grey">{row.barcode}</p>
-                ) : (
-                  <p className="mt-0.5 text-[11px] text-soft-grey">
-                    No barcode, so it cannot be scanned
-                  </p>
-                )}
+                  {row.barcode ? (
+                    <span className="mono text-[11.5px] font-medium text-slate-grey">
+                      {row.barcode}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-danger-tint px-2 py-0.5 text-[11.5px] font-bold text-danger-ink">
+                      No barcode
+                    </span>
+                  )}
+                  {!row.active && (
+                    <span className="text-[12.5px] font-semibold text-slate-grey">
+                      Not selling
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="flex shrink-0 gap-2">
+              <div className="flex w-full flex-none justify-end gap-2 sm:w-auto">
                 <button
                   onClick={() => openStock(row)}
-                  className="tap rounded-control bg-teal px-3 py-2 text-sm font-semibold text-white"
+                  className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale"
                 >
                   Stock
                 </button>
                 <button
                   onClick={() => openEdit(row)}
-                  className="tap rounded-control border border-line px-3 py-2 text-sm font-medium text-ink"
+                  className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
                 >
                   Edit
                 </button>
@@ -388,7 +455,7 @@ export default function ProductManager({
             </div>
 
             {open === row.itemId && panel === "edit" && (
-              <div className="mt-3 space-y-3 border-t border-line pt-3">
+              <div className="space-y-3 border-t border-[#EEF3F7] bg-[#F6F9FB] px-[22px] py-4">
                 {/* Photo, replaceable. A blurred shot used to be permanent. */}
                 <div className="flex items-center gap-3">
                   {newPhoto?.preview ?? row.photoUrl ? (
@@ -399,7 +466,7 @@ export default function ProductManager({
                       className="h-16 w-16 rounded-panel object-cover"
                     />
                   ) : (
-                    <span className="flex h-16 w-16 items-center justify-center rounded-panel bg-light-grey text-xs text-mid-grey">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-panel bg-light-grey text-xs text-ink-muted">
                       No photo
                     </span>
                   )}
@@ -416,7 +483,7 @@ export default function ProductManager({
                 </div>
 
                 <div>
-                  <label className="text-xs text-mid-grey">Name</label>
+                  <label className="text-xs text-ink-muted">Name</label>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -427,7 +494,7 @@ export default function ProductManager({
 
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <label className="text-xs text-mid-grey">Price in GHS</label>
+                    <label className="text-xs text-ink-muted">Price in GHS</label>
                     <input
                       value={price}
                       onChange={(e) => setPrice(onlyNumeric(e.target.value))}
@@ -437,7 +504,7 @@ export default function ProductManager({
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-xs text-mid-grey">Group</label>
+                    <label className="text-xs text-ink-muted">Group</label>
                     <input
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
@@ -448,7 +515,7 @@ export default function ProductManager({
                 </div>
 
                 <div>
-                  <label className="text-xs text-mid-grey">
+                  <label className="text-xs text-ink-muted">
                     Barcode, the number under the bars
                   </label>
                   <div className="mt-1 flex gap-2">
@@ -470,7 +537,7 @@ export default function ProductManager({
                 </div>
 
                 <div>
-                  <label className="text-xs text-mid-grey">
+                  <label className="text-xs text-ink-muted">
                     Warn me when the shelf drops to
                   </label>
                   <input
@@ -498,7 +565,7 @@ export default function ProductManager({
                       />
                       <span className="text-sm text-ink">
                         Show this on my Shop
-                        <span className="block text-xs text-mid-grey">
+                        <span className="block text-xs text-ink-muted">
                           Turn it off to keep selling at the counter without
                           listing it online.
                         </span>
@@ -506,7 +573,7 @@ export default function ProductManager({
                     </label>
 
                     <div>
-                      <label className="text-xs text-mid-grey">
+                      <label className="text-xs text-ink-muted">
                         Shop price, if it differs from the counter
                       </label>
                       <input
@@ -519,7 +586,7 @@ export default function ProductManager({
                     </div>
 
                     <div>
-                      <label className="text-xs text-mid-grey">
+                      <label className="text-xs text-ink-muted">
                         What customers read online
                       </label>
                       <textarea
@@ -550,7 +617,7 @@ export default function ProductManager({
                   </button>
                   <button
                     onClick={() => setPanel(null)}
-                    className="tap px-3 py-2 text-sm font-medium text-mid-grey"
+                    className="tap px-3 py-2 text-sm font-medium text-ink-muted"
                   >
                     Cancel
                   </button>
@@ -559,7 +626,7 @@ export default function ProductManager({
             )}
 
             {open === row.itemId && panel === "stock" && (
-              <div className="mt-3 space-y-3 border-t border-line pt-3">
+              <div className="space-y-3 border-t border-[#EEF3F7] bg-[#F6F9FB] px-[22px] py-4">
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -586,7 +653,7 @@ export default function ProductManager({
                 </div>
 
                 <div>
-                  <label className="text-xs text-mid-grey">
+                  <label className="text-xs text-ink-muted">
                     {movementKind === "count_correction"
                       ? "How many are actually there?"
                       : "How many?"}
@@ -600,7 +667,7 @@ export default function ProductManager({
                     className="num mt-1 w-full rounded-control border border-line px-3 py-2 focus:border-teal focus:outline-none"
                   />
                   {movementKind === "count_correction" && (
-                    <p className="mt-1 text-xs text-mid-grey">
+                    <p className="mt-1 text-xs text-ink-muted">
                       The record says {row.quantityOnHand}. We keep both, so the
                       difference stays visible.
                     </p>
@@ -609,7 +676,7 @@ export default function ProductManager({
 
                 {movementKind !== "restock" && (
                   <div>
-                    <label className="text-xs text-mid-grey">What happened?</label>
+                    <label className="text-xs text-ink-muted">What happened?</label>
                     <input
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
@@ -629,7 +696,7 @@ export default function ProductManager({
                   </button>
                   <button
                     onClick={() => setPanel(null)}
-                    className="tap px-3 py-2 text-sm font-medium text-mid-grey"
+                    className="tap px-3 py-2 text-sm font-medium text-ink-muted"
                   >
                     Cancel
                   </button>
@@ -639,6 +706,8 @@ export default function ProductManager({
           </div>
         );
       })}
+      </Surface>
+      )}
     </div>
   );
 }

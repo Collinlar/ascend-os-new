@@ -3,6 +3,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import DeviceManager, { type DeviceRow } from "@/components/pos/DeviceManager";
 import StaffPinManager, { type StaffRow } from "@/components/pos/StaffPinManager";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,32 @@ async function load(): Promise<PageData | null> {
       .eq("business_id", membership.business_id)
       .order("paired_at", { ascending: false, nullsFirst: false });
 
+    // What each till has actually taken today. A card that says a till is
+    // selling without saying how much is a status light, not a report.
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: todaysSales } = await db
+      .from("sale")
+      .select("device_id, total")
+      .eq("business_id", membership.business_id)
+      .eq("business_date", today)
+      .eq("status", "completed");
+
+    const takings = new Map<string, number>();
+    for (const row of todaysSales ?? []) {
+      if (!row.device_id) continue;
+      takings.set(row.device_id, (takings.get(row.device_id) ?? 0) + Number(row.total));
+    }
+
+    // Which tills have somebody behind them right now.
+    const { data: openShifts } = await db
+      .from("pos_shift")
+      .select("device_id")
+      .eq("business_id", membership.business_id)
+      .eq("status", "open");
+    const selling = new Set(
+      (openShifts ?? []).map((r) => r.device_id).filter(Boolean) as string[]
+    );
+
     // Who could stand at a till, and whether they can open one yet. A till
     // gates on a PIN, so a business with none has paired hardware it cannot
     // sell from.
@@ -69,7 +96,9 @@ async function load(): Promise<PageData | null> {
         status: d.status,
         model: d.model,
         lastSyncAt: d.last_sync_at,
-        pendingCount: d.pending_transaction_count ?? 0,
+        takingsToday: takings.get(d.id) ?? 0,
+      selling: selling.has(d.id),
+      pendingCount: d.pending_transaction_count ?? 0,
         leaseExpiresAt: d.offline_lease_expires_at,
       })),
     };
@@ -82,33 +111,27 @@ export default async function Devices() {
   const data = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Your tills</h1>
-          <p className="text-sm text-mid-grey">
-            Set up a new till, see which ones are selling, and stop one you no
-            longer trust.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Your tills"
+        intro="Set up a new till, see which ones are selling, and stop one you no longer trust."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {data === null ? (
-          <p className="py-16 text-center text-mid-grey">
-            Verify your WhatsApp number to manage your tills.
-          </p>
-        ) : (
-          <>
-            <DeviceManager
-              businessId={data.businessId}
-              locationId={data.locationId}
-              devices={data.devices}
-            />
-            <StaffPinManager businessId={data.businessId} staff={data.staff} />
-          </>
-        )}
-      </div>
-    </main>
+      {data === null ? (
+        <EmptyState
+          title="Sign in to manage your tills."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      ) : (
+        <div className="flex flex-col gap-6">
+          <DeviceManager
+            businessId={data.businessId}
+            locationId={data.locationId}
+            devices={data.devices}
+          />
+          <StaffPinManager businessId={data.businessId} staff={data.staff} />
+        </div>
+      )}
+    </PageShell>
   );
 }

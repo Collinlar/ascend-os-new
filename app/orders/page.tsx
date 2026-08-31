@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import OrderList, { OwnerOrder } from "@/components/shop/OrderList";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 
 export const dynamic = "force-dynamic";
 
@@ -60,32 +61,25 @@ export default async function Orders() {
   const orders = await loadOrders();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Your orders</h1>
-          <p className="text-sm text-mid-grey">
-            New orders first. Confirm quickly, customers are waiting on WhatsApp.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Your orders"
+        intro="New orders first. Confirm quickly, customers are waiting on WhatsApp."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {orders === null ? (
-          <p className="py-16 text-center text-mid-grey">
-            Verify your WhatsApp number to see your orders.
-          </p>
-        ) : orders.length === 0 ? (
-          <div className="border border-line bg-white px-5 py-10 text-center">
-            <p className="font-medium text-ink">No orders yet.</p>
-            <p className="mt-2 text-sm text-mid-grey">
-              Share your shop link on WhatsApp and your first order will land here.
-            </p>
-          </div>
-        ) : (
-          <OrderList orders={orders} />
-        )}
-      </div>
-    </main>
+      {orders === null ? (
+        <EmptyState
+          title="Sign in to see your orders."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      ) : orders.length === 0 ? (
+        <EmptyState
+          title="No orders yet."
+          detail="Share your shop link on WhatsApp and your first order will land here."
+        />
+      ) : (
+        <OrderList orders={orders} />
+      )}
+    </PageShell>
   );
 }
