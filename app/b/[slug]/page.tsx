@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
+import { effectiveAccess } from "@/lib/domains/entitlements";
 import BookingFlow, {
   type BookableService,
   type Provider,
@@ -19,6 +20,14 @@ async function load(slug: string) {
       .eq("shop_slug", slug)
       .maybeSingle();
     if (!business) return null;
+
+    // A booking page is public because its owner asked for one. Every
+    // business got a shop_slug the moment it was created, and nothing here
+    // ever checked, so thirty businesses that only wanted a till had a
+    // live booking page they were never told about and could not take
+    // down. A stranger could book their time.
+    const access = await effectiveAccess(business.id).catch(() => null);
+    if (!access?.capabilities.has("services.bookings")) return null;
 
     const { data: location } = await db
       .from("location")

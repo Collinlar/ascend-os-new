@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
 
 interface Body {
@@ -49,6 +50,17 @@ export async function POST(request: NextRequest) {
   if (!business) {
     return NextResponse.json(
       { error: "This booking link is not active. Check with the business." },
+      { status: 404 }
+    );
+  }
+
+  // The page is gated the same way, but an endpoint is a door of its own,
+  // and a business that never took Services must not have its calendar
+  // filled through one.
+  const access = await effectiveAccess(business.id).catch(() => null);
+  if (!access?.capabilities.has("services.bookings")) {
+    return NextResponse.json(
+      { error: "This business is not taking bookings right now." },
       { status: 404 }
     );
   }

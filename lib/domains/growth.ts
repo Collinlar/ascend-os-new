@@ -99,7 +99,7 @@ export async function growthOptions(
       pitch: "Take bookings and deposits against your time.",
       suits: "For customers who book you",
       carriesOver: [customers].filter((x): x is string => Boolean(x)),
-      home: "/bookings",
+      home: "/services",
       held: held.has("services"),
     },
     {

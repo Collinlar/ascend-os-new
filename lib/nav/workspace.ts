@@ -44,6 +44,12 @@ const DESTINATIONS: Array<NavItem & { requires: string }> = [
   { href: "/orders", label: "Online orders", short: "Orders", requires: "shop.orders" },
   { href: "/bookings", label: "Bookings", short: "Bookings", requires: "services.bookings" },
   {
+    href: "/services",
+    label: "What you offer",
+    short: "Services",
+    requires: "services.bookings",
+  },
+  {
     href: "/documents",
     label: "Quotes and invoices",
     short: "Documents",
