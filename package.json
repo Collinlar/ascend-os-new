@@ -10,7 +10,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "dev:lan": "next dev -H 0.0.0.0",
-    "dev:https": "next dev --experimental-https -H 0.0.0.0"
+    "dev:https": "next dev --experimental-https -H 0.0.0.0",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "check": "npm run typecheck && npm run check:contrast"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

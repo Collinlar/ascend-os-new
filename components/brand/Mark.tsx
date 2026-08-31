@@ -58,6 +58,7 @@ export function Wordmark({
   return (
     <span className="flex items-center gap-[11px]">
       <Mark size={Math.round(size * 1.7)} tone={tone === "light" ? "white" : "teal"} />
+      {/* @contrast-ignore the caller picks the ground, and passes tone to match it */}
       <span
         className={`font-extrabold tracking-[-0.02em] ${
           tone === "light" ? "text-white" : "text-ink"
@@ -82,7 +83,7 @@ export function Eyebrow({
     tone === "mint"
       ? "text-teal-mint"
       : tone === "muted"
-        ? "text-soft-grey"
+        ? "text-ink-muted"
         : "text-teal-dark";
   return (
     <p

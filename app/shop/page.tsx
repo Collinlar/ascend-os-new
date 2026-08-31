@@ -108,7 +108,7 @@ export default async function ShopHome() {
             <h2 className="text-lg font-semibold text-ink">
               Your page is open, but there is nothing on it yet.
             </h2>
-            <p className="mt-1 text-sm text-mid-grey">
+            <p className="mt-1 text-sm text-ink-muted">
               {shop.sellable > 0
                 ? `You have ${shop.sellable} product${
                     shop.sellable === 1 ? "" : "s"
@@ -152,7 +152,7 @@ export default async function ShopHome() {
         </section>
 
         <section className="flex flex-wrap items-center justify-between gap-3 border border-line bg-white px-4 py-3">
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             <span className="font-medium text-ink">{shop.listed}</span> on your shop
             page, out of {shop.sellable} you can sell
           </p>
@@ -193,9 +193,9 @@ function Card({
         tone === "gold" ? "border border-l-4 border-line border-l-gold" : "border border-line"
       }`}
     >
-      <p className="text-sm text-mid-grey">{label}</p>
+      <p className="text-sm text-ink-muted">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs text-mid-grey">{detail}</p>
+      <p className="mt-1 text-xs text-ink-muted">{detail}</p>
     </div>
   );
 }

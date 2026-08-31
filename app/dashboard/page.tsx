@@ -79,6 +79,7 @@ export default async function Dashboard() {
           {/* Today's one number, on the ground the whole day is read
               against. Everything in here is a fact: an open shift is a
               person at a counter, not a device sitting in a drawer. */}
+          {/* @contrast-surface navy-deep */}
           <section className="relative overflow-hidden rounded-[22px] bg-navy-deep px-6 py-7 sm:px-[30px]">
             <span
               aria-hidden
@@ -144,6 +145,7 @@ export default async function Dashboard() {
             </div>
           </section>
 
+          {/* @contrast-surface canvas */}
           {path && <SetupPath path={path} />}
 
           {/* Decisions before totals. The rule down the left is the only

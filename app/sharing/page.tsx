@@ -78,7 +78,7 @@ export default async function Sharing() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">Who can see your record</h1>
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             You choose what to share, with whom, and for how long. You can stop
             any of it at any moment.
           </p>
@@ -87,11 +87,11 @@ export default async function Sharing() {
 
       <div className="mx-auto max-w-2xl px-5 py-6">
         {data === null ? (
-          <p className="py-16 text-center text-mid-grey">
+          <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to manage sharing.
           </p>
         ) : !data.isOwner ? (
-          <p className="border border-line bg-white px-5 py-6 text-sm text-mid-grey">
+          <p className="border border-line bg-white px-5 py-6 text-sm text-ink-muted">
             Only the owner can share the business record.
           </p>
         ) : (

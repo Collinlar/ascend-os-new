@@ -60,7 +60,7 @@ export default async function Bookings() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">Your schedule</h1>
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             Requests needing an answer come first, then what is coming up.
           </p>
         </div>
@@ -68,13 +68,13 @@ export default async function Bookings() {
 
       <div className="mx-auto max-w-2xl px-5 py-6">
         {bookings === null ? (
-          <p className="py-16 text-center text-mid-grey">
+          <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to see your schedule.
           </p>
         ) : bookings.length === 0 ? (
           <div className="border border-line bg-white px-5 py-10 text-center">
             <p className="font-medium text-ink">Nothing booked yet.</p>
-            <p className="mt-2 text-sm text-mid-grey">
+            <p className="mt-2 text-sm text-ink-muted">
               Share your booking link on WhatsApp and your first request will
               land here.
             </p>

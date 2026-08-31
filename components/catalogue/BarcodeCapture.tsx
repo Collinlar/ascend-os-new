@@ -1,5 +1,8 @@
 "use client";
 
+// @contrast-surface navy
+// The till is a dark screen. Everything below reads on navy, which is
+// what npm run check:contrast measures against.
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   closeCamera,
@@ -139,7 +142,7 @@ export default function BarcodeCapture({
 
       <div className="px-4 pb-6 pt-4">
         {problem && (
-          <p className="mb-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">
+          <p className="mb-4 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-ink">
             {problem}
           </p>
         )}
@@ -158,7 +161,7 @@ export default function BarcodeCapture({
               if (e.key === "Enter" && typed.trim()) onCapture(typed.trim());
             }}
             placeholder="The number under the bars"
-            className="num flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-teal-mint"
+            className="num flex-1 rounded-control bg-white/10 px-4 py-3 text-white placeholder:text-sm placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-teal-mint"
           />
           <button
             onClick={() => typed.trim() && onCapture(typed.trim())}

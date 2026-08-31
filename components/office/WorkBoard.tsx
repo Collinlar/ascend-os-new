@@ -104,7 +104,7 @@ export default function WorkBoard({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
@@ -133,7 +133,7 @@ export default function WorkBoard({
 
       {approvals.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-mid-grey">Waiting on a decision</h2>
+          <h2 className="text-sm font-medium text-ink-muted">Waiting on a decision</h2>
           <div className="mt-3 space-y-2">
             {approvals.map((approval) => (
               <div
@@ -146,14 +146,14 @@ export default function WorkBoard({
                       {KIND_LABEL[approval.kind] ?? approval.kind}
                       {approval.amount !== null && ` · ${formatGHS(approval.amount)}`}
                     </p>
-                    <p className="text-xs text-mid-grey">
+                    <p className="text-xs text-ink-muted">
                       {approval.requesterName} · {timeAgo(approval.createdAt)}
                     </p>
                   </div>
                 </div>
 
                 {approval.isOwnRequest ? (
-                  <p className="mt-3 text-sm text-mid-grey">
+                  <p className="mt-3 text-sm text-ink-muted">
                     This is your own request. Someone else has to decide it.
                   </p>
                 ) : (
@@ -193,10 +193,10 @@ export default function WorkBoard({
       )}
 
       <section>
-        <h2 className="text-sm font-medium text-mid-grey">What you need to do</h2>
+        <h2 className="text-sm font-medium text-ink-muted">What you need to do</h2>
         <div className="mt-3 space-y-2">
           {tasks.length === 0 ? (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-mid-grey">
+            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
               Nothing outstanding.
             </p>
           ) : (
@@ -207,7 +207,7 @@ export default function WorkBoard({
               >
                 <div>
                   <p className="text-sm font-medium text-ink">{task.title}</p>
-                  <p className="text-xs text-mid-grey">
+                  <p className="text-xs text-ink-muted">
                     {task.sourceType && SOURCE_LABEL[task.sourceType]
                       ? SOURCE_LABEL[task.sourceType]
                       : "Added by hand"}
@@ -231,7 +231,7 @@ export default function WorkBoard({
 
       <section className="border border-line bg-white p-5">
         <h2 className="font-medium text-ink">Money you spent</h2>
-        <p className="mt-1 text-sm text-mid-grey">
+        <p className="mt-1 text-sm text-ink-muted">
           Record it here. Above your business&apos;s limit it goes for approval
           first.
         </p>
@@ -243,13 +243,13 @@ export default function WorkBoard({
               onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal"
               placeholder="How much?"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <input
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
               placeholder="What was it for?"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <div className="flex gap-2">
               <button

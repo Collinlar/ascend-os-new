@@ -216,7 +216,7 @@ export default function StaffPinManager({
       </p>
 
       {error && (
-        <p className="mt-3 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="mt-3 rounded-panel bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}

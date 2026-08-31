@@ -37,6 +37,7 @@ const PATHS = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-page">
+      {/* @contrast-surface navy */}
       <header className="bg-navy">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4">
           <Wordmark tone="light" size={18} />
@@ -63,6 +64,7 @@ export default function Home() {
         </div>
       </section>
 
+      {/* @contrast-surface page */}
       <section className="mx-auto max-w-3xl px-5 py-10">
         <Eyebrow>Choose where to start</Eyebrow>
 
@@ -79,7 +81,7 @@ export default function Home() {
               <span className="mt-2.5 text-[19px] font-extrabold tracking-[-0.015em] text-ink">
                 {path.title}
               </span>
-              <span className="mt-2 flex-1 text-[14.5px] leading-body text-mid-grey">
+              <span className="mt-2 flex-1 text-[14.5px] leading-body text-ink-muted">
                 {path.detail}
               </span>
               <span className="mt-4 text-sm font-bold text-teal-dark">
@@ -114,7 +116,7 @@ export default function Home() {
           </ul>
         </div>
 
-        <p className="mono mt-8 text-center text-xs text-soft-grey">
+        <p className="mono mt-8 text-center text-xs text-ink-muted">
           Built by Bold Vision MultiTech in Accra, for African businesses.
         {" "}
         <a href="/pos" className="font-medium text-teal-dark underline">

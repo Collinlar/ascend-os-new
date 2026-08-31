@@ -177,7 +177,7 @@ export default function SignInForm() {
             </p>
 
             {devCode && (
-              <p className="mono mt-4 rounded-control bg-gold-light px-4 py-3 text-sm text-gold-dark">
+              <p className="mono mt-4 rounded-control bg-gold-light px-4 py-3 text-sm text-gold-ink">
                 Development mode, no WhatsApp provider configured. Your code is{" "}
                 <strong>{devCode}</strong>.
               </p>

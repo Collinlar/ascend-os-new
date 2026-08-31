@@ -97,7 +97,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
   return (
     <div className="space-y-6">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
@@ -129,7 +129,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
       ) : (
         <div className="border border-line bg-white p-5">
           <h2 className="font-medium text-ink">What they will see</h2>
-          <p className="mt-1 text-sm text-mid-grey">
+          <p className="mt-1 text-sm text-ink-muted">
             They never see your customers, your staff, or individual sales.
             Only what you tick below.
           </p>
@@ -150,7 +150,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
                   <span className="block text-sm font-medium text-ink">
                     {field.label}
                   </span>
-                  <span className="block text-xs text-mid-grey">{field.detail}</span>
+                  <span className="block text-xs text-ink-muted">{field.detail}</span>
                 </span>
               </label>
             ))}
@@ -161,7 +161,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Who is this for? e.g. Stanbic loan application"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <select
               value={days}
@@ -197,7 +197,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
         {shares.length === 0 && (
           <div className="border border-line bg-white px-5 py-10 text-center">
             <p className="font-medium text-ink">Nobody can see your record.</p>
-            <p className="mt-2 text-sm text-mid-grey">
+            <p className="mt-2 text-sm text-ink-muted">
               Nothing is shared until you choose to share it.
             </p>
           </div>
@@ -215,14 +215,14 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
                 </p>
                 <p
                   className={`text-sm ${
-                    !live ? "text-mid-grey" : expired ? "text-mid-grey" : "text-teal-dark"
+                    !live ? "text-ink-muted" : expired ? "text-ink-muted" : "text-teal-dark"
                   }`}
                 >
                   {!live ? "Stopped" : expired ? "Expired" : "Can see it now"}
                 </p>
               </div>
 
-              <p className="mt-1 text-xs text-mid-grey">
+              <p className="mt-1 text-xs text-ink-muted">
                 {share.fields.length} thing{share.fields.length === 1 ? "" : "s"} shared ·{" "}
                 {share.viewCount === 0
                   ? "never opened"

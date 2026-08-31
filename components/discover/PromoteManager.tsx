@@ -74,12 +74,12 @@ export default function PromoteManager({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
 
-      <p className="border border-line bg-white px-4 py-3 text-sm text-mid-grey">
+      <p className="border border-line bg-white px-4 py-3 text-sm text-ink-muted">
         Ascend Balance{" "}
         <span className="font-medium text-ink">{formatGHS(balance)}</span>
         {balance < 10 && (
@@ -88,10 +88,10 @@ export default function PromoteManager({
       </p>
 
       <section>
-        <h2 className="text-sm font-medium text-mid-grey">Where you appear</h2>
+        <h2 className="text-sm font-medium text-ink-muted">Where you appear</h2>
         <div className="mt-3 space-y-2">
           {listings.length === 0 && (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-mid-grey">
+            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
               You are not listed on Discover yet.
             </p>
           )}
@@ -102,7 +102,7 @@ export default function PromoteManager({
                 <p className="font-medium text-ink">{listing.name}</p>
                 <p
                   className={`text-sm ${
-                    listing.status === "eligible" ? "text-teal-dark" : "text-mid-grey"
+                    listing.status === "eligible" ? "text-teal-dark" : "text-ink-muted"
                   }`}
                 >
                   {LISTING_STATUS[listing.status] ?? listing.status}
@@ -123,7 +123,7 @@ export default function PromoteManager({
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                         placeholder="Tell us what we should reconsider"
-                        className="w-full border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                        className="w-full border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
                       />
                       <div className="flex gap-2">
                         <button
@@ -163,7 +163,7 @@ export default function PromoteManager({
               )}
 
               {listing.status === "pending_review" && (
-                <p className="mt-2 text-sm text-mid-grey">
+                <p className="mt-2 text-sm text-ink-muted">
                   A person is looking at this. We will message you on WhatsApp
                   when it is decided.
                 </p>
@@ -178,7 +178,7 @@ export default function PromoteManager({
                         onChange={(e) => setBudget(e.target.value)}
                         inputMode="decimal"
                         placeholder="Budget in GHS"
-                        className="flex-1 border border-line px-3 py-2 text-sm text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                        className="flex-1 border border-line px-3 py-2 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
                       />
                       <button
                         onClick={async () => {
@@ -199,7 +199,7 @@ export default function PromoteManager({
                       </button>
                       <button
                         onClick={() => setBudgetFor(null)}
-                        className="tap px-3 py-2 text-sm font-medium text-mid-grey"
+                        className="tap px-3 py-2 text-sm font-medium text-ink-muted"
                       >
                         Cancel
                       </button>
@@ -221,7 +221,7 @@ export default function PromoteManager({
 
       {campaigns.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-mid-grey">What you have spent</h2>
+          <h2 className="text-sm font-medium text-ink-muted">What you have spent</h2>
           <div className="mt-3 space-y-2">
             {campaigns.map((campaign) => (
               <div
@@ -233,9 +233,9 @@ export default function PromoteManager({
                     {formatGHS(Number(campaign.spent))} of{" "}
                     {formatGHS(Number(campaign.budget))} spent
                   </p>
-                  <p className="text-sm text-mid-grey">{campaign.status}</p>
+                  <p className="text-sm text-ink-muted">{campaign.status}</p>
                 </div>
-                <p className="mt-1 text-xs text-mid-grey">
+                <p className="mt-1 text-xs text-ink-muted">
                   Seen {campaign.impressions} times · {campaign.clicks} people
                   tapped through
                   {campaign.orders > 0 && ` · ${campaign.orders} ordered`}
@@ -250,7 +250,7 @@ export default function PromoteManager({
                       })
                     }
                     disabled={busy === campaign.campaign_id}
-                    className="tap mt-3 text-sm font-medium text-mid-grey disabled:opacity-60"
+                    className="tap mt-3 text-sm font-medium text-ink-muted disabled:opacity-60"
                   >
                     Pause this
                   </button>
@@ -258,7 +258,7 @@ export default function PromoteManager({
               </div>
             ))}
           </div>
-          <p className="mt-4 text-xs text-mid-grey">
+          <p className="mt-4 text-xs text-ink-muted">
             These numbers are reach. They do not affect your Sustainability
             Score, and paying for promotion never will.
           </p>

@@ -140,7 +140,7 @@ export default function DocumentWorkspace({
   return (
     <div className="space-y-6">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}

@@ -5,7 +5,7 @@ export default function Offline() {
     <main className="flex min-h-screen items-center justify-center bg-white px-5">
       <div className="max-w-sm text-center">
         <h1 className="text-2xl font-semibold text-ink">No network right now.</h1>
-        <p className="mt-3 text-mid-grey">
+        <p className="mt-3 text-ink-muted">
           Your till still works. Open it and keep selling. Your sales save on
           this device and send themselves when the network returns.
         </p>

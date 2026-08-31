@@ -72,7 +72,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
@@ -93,7 +93,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
               <div className="flex items-baseline justify-between gap-3">
                 <div>
                   <p className="font-medium text-ink">{booking.serviceName}</p>
-                  <p className="text-xs text-mid-grey">
+                  <p className="text-xs text-ink-muted">
                     {booking.customerName} · {STATUS_LABEL[booking.status]}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
                 </p>
               )}
               {booking.serviceAddress && (
-                <p className="mt-1 text-sm text-mid-grey">{booking.serviceAddress}</p>
+                <p className="mt-1 text-sm text-ink-muted">{booking.serviceAddress}</p>
               )}
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -135,7 +135,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
                   <button
                     onClick={() => act(booking.id, "no_show")}
                     disabled={busy === booking.id}
-                    className="tap px-3 py-2.5 text-sm font-medium text-mid-grey disabled:opacity-60"
+                    className="tap px-3 py-2.5 text-sm font-medium text-ink-muted disabled:opacity-60"
                   >
                     Did not show
                   </button>
@@ -143,7 +143,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
                 <button
                   onClick={() => act(booking.id, "cancelled")}
                   disabled={busy === booking.id}
-                  className="tap px-3 py-2.5 text-sm font-medium text-mid-grey disabled:opacity-60"
+                  className="tap px-3 py-2.5 text-sm font-medium text-ink-muted disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -155,7 +155,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
 
       {settled.length > 0 && (
         <section>
-          <h2 className="text-sm font-medium text-mid-grey">Past</h2>
+          <h2 className="text-sm font-medium text-ink-muted">Past</h2>
           <div className="mt-3 space-y-2">
             {settled.map((booking) => (
               <div
@@ -164,7 +164,7 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
               >
                 <div>
                   <p className="text-sm font-medium text-ink">{booking.serviceName}</p>
-                  <p className="text-xs text-mid-grey">
+                  <p className="text-xs text-ink-muted">
                     {booking.customerName} · {STATUS_LABEL[booking.status]}
                   </p>
                 </div>

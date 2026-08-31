@@ -62,6 +62,7 @@ export default function StoreBrowse({
       {/* Hero. Everything in it is a fact about this shop, because a
           storefront that opens with a claim nobody wrote reads as a
           template with a name dropped into it. */}
+      {/* @contrast-surface navy-deep */}
       <section className="bg-navy-deep px-5 py-10 sm:px-11 sm:py-14">
         <div className="mx-auto grid max-w-5xl items-center gap-8 lg:grid-cols-[1fr_320px]">
           <div>
@@ -111,6 +112,7 @@ export default function StoreBrowse({
         </div>
       </section>
 
+      {/* @contrast-surface white */}
       {products.length === 0 ? (
         <p className="px-5 py-20 text-center text-ink-muted">
           Nothing is on this page yet. Check back soon.

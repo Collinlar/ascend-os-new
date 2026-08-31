@@ -270,7 +270,7 @@ export default function AddProducts({
             ? "Your photos become your Shop."
             : "Your photos become what you sell."}
         </h1>
-        <p className="mt-3 text-mid-grey">
+        <p className="mt-3 text-ink-muted">
           Add photos of everything you sell, as many at once as you like. We
           suggest the name and description, you approve and set the price.{" "}
           {sellsOnline
@@ -340,12 +340,12 @@ export default function AddProducts({
                     </p>
                   </div>
                 ) : draft.status === "naming" ? (
-                  <p className="py-4 text-center text-sm text-mid-grey">
+                  <p className="py-4 text-center text-sm text-ink-muted">
                     Reading this photo...
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs text-mid-grey">
+                    <p className="text-xs text-ink-muted">
                       {draft.status === "needs_name"
                         ? (draft.note ?? "Give this one a name yourself.")
                         : "Our suggestion, yours to change"}
@@ -377,7 +377,7 @@ export default function AddProducts({
                     />
 
                     {draft.suggestion?.suggested_price_note && (
-                      <p className="mt-1 text-xs text-mid-grey">
+                      <p className="mt-1 text-xs text-ink-muted">
                         {draft.suggestion.suggested_price_note}
                       </p>
                     )}
@@ -402,7 +402,7 @@ export default function AddProducts({
 
         {savedCount > 0 && (
           <div className="mt-10 border-t border-line pt-6">
-            <p className="text-sm text-mid-grey">
+            <p className="text-sm text-ink-muted">
               {savedCount} product{savedCount > 1 ? "s" : ""} saved.{" "}
               {sellsOnline
                 ? "Add a few more, then share your Shop link on WhatsApp."

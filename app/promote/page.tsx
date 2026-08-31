@@ -60,7 +60,7 @@ export default async function Promote() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">Getting found</h1>
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             Being listed is free. Paying puts you higher up, and is labelled
             to customers as paid.
           </p>
@@ -69,7 +69,7 @@ export default async function Promote() {
 
       <div className="mx-auto max-w-2xl px-5 py-6">
         {data === null ? (
-          <p className="py-16 text-center text-mid-grey">
+          <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to manage this.
           </p>
         ) : (

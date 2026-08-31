@@ -52,7 +52,7 @@ export default function PayButton({
         onChange={(e) => setPhone(e.target.value)}
         inputMode="tel"
         placeholder="Your MoMo number"
-        className="mt-2 w-full border border-teal/40 bg-white px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+        className="mt-2 w-full border border-teal/40 bg-white px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
       />
       {error && <p className="mt-2 text-sm text-gold-dark">{error}</p>}
       <button

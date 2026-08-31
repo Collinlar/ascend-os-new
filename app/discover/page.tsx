@@ -38,7 +38,7 @@ export default async function Discover({
           <h1 className="text-2xl font-semibold leading-display text-ink">
             Find a business near you
           </h1>
-          <p className="mt-2 text-sm text-mid-grey">
+          <p className="mt-2 text-sm text-ink-muted">
             Shops and services running on AscendSME. You buy from them
             directly, not from us.
           </p>
@@ -48,13 +48,13 @@ export default async function Discover({
               name="q"
               defaultValue={searchParams.q ?? ""}
               placeholder="What are you looking for?"
-              className="flex-1 border border-line px-4 py-3 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="flex-1 border border-line px-4 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <input
               name="city"
               defaultValue={searchParams.city ?? ""}
               placeholder="City"
-              className="w-28 border border-line px-3 py-3 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+              className="w-28 border border-line px-3 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <button
               type="submit"

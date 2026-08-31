@@ -94,13 +94,13 @@ export default async function CustomerDocument({
       <div className="mx-auto max-w-lg bg-white px-6 py-8">
         <div className="flex items-baseline justify-between gap-3">
           <div>
-            <p className="text-sm text-mid-grey">{label}</p>
+            <p className="text-sm text-ink-muted">{label}</p>
             <h1 className="text-xl font-semibold text-ink">{businessName}</h1>
           </div>
           <p className="text-sm font-medium text-ink">{snapshot.number}</p>
         </div>
 
-        <p className="mt-1 text-sm text-mid-grey">
+        <p className="mt-1 text-sm text-ink-muted">
           {new Date(snapshot.issued_at).toLocaleDateString("en-GB", {
             day: "numeric",
             month: "long",
@@ -111,7 +111,7 @@ export default async function CustomerDocument({
 
         <table className="mt-8 w-full text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-mid-grey">
+            <tr className="border-b border-line text-left text-ink-muted">
               <th className="pb-2 font-medium">Item</th>
               <th className="pb-2 text-right font-medium">Qty</th>
               <th className="pb-2 text-right font-medium">Amount</th>
@@ -121,7 +121,7 @@ export default async function CustomerDocument({
             {(snapshot.lines ?? []).map((line, i) => (
               <tr key={i} className="border-b border-line">
                 <td className="py-3 text-ink">{line.description}</td>
-                <td className="py-3 text-right text-mid-grey">{line.quantity}</td>
+                <td className="py-3 text-right text-ink-muted">{line.quantity}</td>
                 <td className="py-3 text-right text-ink">{formatGHS(line.line_total)}</td>
               </tr>
             ))}
@@ -138,14 +138,14 @@ export default async function CustomerDocument({
             Paid. Thank you.
           </p>
         ) : status === "partially_paid" ? (
-          <p className="mt-6 bg-gold-light px-4 py-3 text-sm text-gold-dark">
+          <p className="mt-6 bg-gold-light px-4 py-3 text-sm text-gold-ink">
             Part of this has been paid. Talk to {businessName} about the balance.
           </p>
         ) : (
           <PayButton token={params.token} amount={snapshot.total} />
         )}
 
-        <p className="mt-8 text-center text-xs text-mid-grey">
+        <p className="mt-8 text-center text-xs text-ink-muted">
           Sent through AscendSME
         </p>
       </div>

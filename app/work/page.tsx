@@ -94,7 +94,7 @@ export default async function Work() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">Your work</h1>
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             Decisions waiting on you, then what you need to do.
           </p>
         </div>
@@ -102,7 +102,7 @@ export default async function Work() {
 
       <div className="mx-auto max-w-2xl px-5 py-6">
         {data === null ? (
-          <p className="py-16 text-center text-mid-grey">
+          <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to see your work.
           </p>
         ) : (

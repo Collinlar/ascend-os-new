@@ -145,7 +145,7 @@ export default function BookingFlow({
 
   if (services.length === 0) {
     return (
-      <div className="mx-auto max-w-md px-5 py-16 text-center text-mid-grey">
+      <div className="mx-auto max-w-md px-5 py-16 text-center text-ink-muted">
         This business has not listed any services yet.
       </div>
     );
@@ -159,10 +159,10 @@ export default function BookingFlow({
         <h2 className="mt-4 text-2xl font-semibold text-ink">
           {requested ? "Your request is in." : "You are booked."}
         </h2>
-        <p className="mt-3 text-mid-grey">
+        <p className="mt-3 text-ink-muted">
           {service?.name} with {businessName} on {formatSlot(confirmed.start)}.
         </p>
-        <p className="mt-3 text-sm text-mid-grey">
+        <p className="mt-3 text-sm text-ink-muted">
           {confirmed.depositPending
             ? "We could not open Mobile Money just now. Your time is held for a short while, so pay the deposit soon or message them."
             : requested
@@ -176,7 +176,7 @@ export default function BookingFlow({
   return (
     <div className="mx-auto max-w-md px-5 pb-24 pt-6">
       {error && (
-        <p className="mb-4 border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="mb-4 border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
@@ -199,9 +199,9 @@ export default function BookingFlow({
                 )}
               </span>
               {s.description && (
-                <span className="mt-1 block text-sm text-mid-grey">{s.description}</span>
+                <span className="mt-1 block text-sm text-ink-muted">{s.description}</span>
               )}
-              <span className="mt-1 block text-xs text-mid-grey">
+              <span className="mt-1 block text-xs text-ink-muted">
                 About {s.durationMinutes} minutes
                 {s.depositAmount ? ` · ${formatGHS(s.depositAmount)} deposit` : ""}
               </span>
@@ -212,7 +212,7 @@ export default function BookingFlow({
 
       {step === "time" && service && (
         <div>
-          <p className="text-sm text-mid-grey">{service.name}</p>
+          <p className="text-sm text-ink-muted">{service.name}</p>
           <h2 className="mt-1 text-xl font-semibold text-ink">Pick a time</h2>
 
           {providers.length > 1 && (
@@ -224,7 +224,7 @@ export default function BookingFlow({
                   className={`tap border px-3 py-2 text-sm font-medium ${
                     provider?.membershipId === p.membershipId
                       ? "border-teal bg-teal-light text-teal-dark"
-                      : "border-line text-mid-grey"
+                      : "border-line text-ink-muted"
                   }`}
                 >
                   {p.name}
@@ -241,7 +241,7 @@ export default function BookingFlow({
                 className={`tap shrink-0 border px-3 py-2 text-sm font-medium ${
                   date === d
                     ? "border-teal bg-teal-light text-teal-dark"
-                    : "border-line text-mid-grey"
+                    : "border-line text-ink-muted"
                 }`}
               >
                 {formatDay(d)}
@@ -251,9 +251,9 @@ export default function BookingFlow({
 
           <div className="mt-5">
             {loadingSlots ? (
-              <p className="text-sm text-mid-grey">Checking what is free...</p>
+              <p className="text-sm text-ink-muted">Checking what is free...</p>
             ) : slots.length === 0 ? (
-              <p className="text-sm text-mid-grey">
+              <p className="text-sm text-ink-muted">
                 Nothing free that day. Try another one.
               </p>
             ) : (
@@ -295,7 +295,7 @@ export default function BookingFlow({
 
       {step === "details" && service && slot && (
         <div>
-          <p className="text-sm text-mid-grey">{service.name}</p>
+          <p className="text-sm text-ink-muted">{service.name}</p>
           <h2 className="mt-1 text-xl font-semibold text-ink">{formatSlot(slot)}</h2>
 
           <div className="mt-6 space-y-4">
@@ -308,7 +308,7 @@ export default function BookingFlow({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="So they know who is coming"
-                className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
               />
             </div>
             <div>
@@ -321,12 +321,12 @@ export default function BookingFlow({
                 onChange={(e) => setPhone(e.target.value)}
                 inputMode="tel"
                 placeholder="024 XXX XXXX"
-                className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+                className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
               />
             </div>
 
             {service.depositAmount ? (
-              <p className="bg-gold-light px-4 py-3 text-sm text-gold-dark">
+              <p className="bg-gold-light px-4 py-3 text-sm text-gold-ink">
                 This booking asks for a {formatGHS(service.depositAmount)} deposit.
                 They will send you a payment link on WhatsApp.
               </p>

@@ -1,5 +1,8 @@
 "use client";
 
+// @contrast-surface navy
+// The till is a dark screen. Everything below reads on navy, which is
+// what npm run check:contrast measures against.
 import { formatGHS } from "@/lib/money";
 import { heldFor, type HeldSale } from "@/lib/pos/held";
 

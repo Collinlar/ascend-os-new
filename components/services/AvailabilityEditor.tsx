@@ -147,14 +147,14 @@ export default function AvailabilityEditor({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-dark">
+        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
         </p>
       )}
 
       <section className="border border-line bg-white p-5">
         <h2 className="font-medium text-ink">Your normal week</h2>
-        <p className="mt-1 text-sm text-mid-grey">
+        <p className="mt-1 text-sm text-ink-muted">
           {openCount === 0
             ? "You are closed every day, so nobody can book you."
             : `Open ${openCount} day${openCount === 1 ? "" : "s"} a week.`}
@@ -169,7 +169,7 @@ export default function AvailabilityEditor({
               <button
                 onClick={() => updateDay(day.dayOfWeek, { closed: !day.closed })}
                 className={`tap w-28 shrink-0 px-2 text-left text-sm font-medium ${
-                  day.closed ? "text-mid-grey" : "text-ink"
+                  day.closed ? "text-ink-muted" : "text-ink"
                 }`}
               >
                 {DAY_NAMES[day.dayOfWeek]}
@@ -178,7 +178,7 @@ export default function AvailabilityEditor({
               {day.closed ? (
                 <button
                   onClick={() => updateDay(day.dayOfWeek, { closed: false })}
-                  className="tap px-2 text-sm text-mid-grey"
+                  className="tap px-2 text-sm text-ink-muted"
                 >
                   Closed · tap to open
                 </button>
@@ -191,7 +191,7 @@ export default function AvailabilityEditor({
                     className="border border-line px-2 py-2 text-sm text-ink focus:border-teal focus:outline-none"
                     aria-label={`${DAY_NAMES[day.dayOfWeek]} opening time`}
                   />
-                  <span className="text-sm text-mid-grey">to</span>
+                  <span className="text-sm text-ink-muted">to</span>
                   <input
                     type="time"
                     value={day.endTime}
@@ -201,7 +201,7 @@ export default function AvailabilityEditor({
                   />
                   <button
                     onClick={() => updateDay(day.dayOfWeek, { closed: true })}
-                    className="tap ml-auto px-2 text-sm text-mid-grey"
+                    className="tap ml-auto px-2 text-sm text-ink-muted"
                   >
                     Close
                   </button>
@@ -222,7 +222,7 @@ export default function AvailabilityEditor({
 
       <section className="border border-line bg-white p-5">
         <h2 className="font-medium text-ink">Days you are away</h2>
-        <p className="mt-1 text-sm text-mid-grey">
+        <p className="mt-1 text-sm text-ink-muted">
           Block time and nobody can book it. Anything already booked stays,
           and we will show you what clashes.
         </p>
@@ -247,7 +247,7 @@ export default function AvailabilityEditor({
           value={offReason}
           onChange={(e) => setOffReason(e.target.value)}
           placeholder="Why? Only you see this"
-          className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+          className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
         />
         <button
           onClick={blockTime}
@@ -258,7 +258,7 @@ export default function AvailabilityEditor({
         </button>
 
         {clashes !== null && (
-          <div className="mt-4 bg-gold-light px-4 py-3 text-sm text-gold-dark">
+          <div className="mt-4 bg-gold-light px-4 py-3 text-sm text-gold-ink">
             {clashes.length === 0 ? (
               <p>Blocked. Nothing was booked in that time.</p>
             ) : (
@@ -293,12 +293,12 @@ export default function AvailabilityEditor({
                   <p className="text-sm text-ink">
                     {formatRange(t.startsAt, t.endsAt)}
                   </p>
-                  {t.reason && <p className="text-xs text-mid-grey">{t.reason}</p>}
+                  {t.reason && <p className="text-xs text-ink-muted">{t.reason}</p>}
                 </div>
                 <button
                   onClick={() => removeTimeOff(t.id)}
                   disabled={busy}
-                  className="tap px-2 text-sm font-medium text-mid-grey disabled:opacity-60"
+                  className="tap px-2 text-sm font-medium text-ink-muted disabled:opacity-60"
                 >
                   Remove
                 </button>

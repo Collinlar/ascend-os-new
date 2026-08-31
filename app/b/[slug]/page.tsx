@@ -98,8 +98,8 @@ export default async function BookingPage({
           <h1 className="text-2xl font-semibold leading-display text-ink">
             {data.businessName}
           </h1>
-          {data.city && <p className="mt-1 text-sm text-mid-grey">{data.city}</p>}
-          <p className="mt-2 text-sm text-mid-grey">
+          {data.city && <p className="mt-1 text-sm text-ink-muted">{data.city}</p>}
+          <p className="mt-2 text-sm text-ink-muted">
             Pick what you need and a time that works. They will confirm on
             WhatsApp.
           </p>

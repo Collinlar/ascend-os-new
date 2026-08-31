@@ -78,7 +78,7 @@ export default async function Availability() {
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">When you are available</h1>
-          <p className="text-sm text-mid-grey">
+          <p className="text-sm text-ink-muted">
             Customers can only book the times you open here.
           </p>
         </div>
@@ -86,7 +86,7 @@ export default async function Availability() {
 
       <div className="mx-auto max-w-2xl px-5 py-6">
         {data === null ? (
-          <p className="py-16 text-center text-mid-grey">
+          <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to set your hours.
           </p>
         ) : (

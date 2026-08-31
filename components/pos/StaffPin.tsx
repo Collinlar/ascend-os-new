@@ -1,5 +1,8 @@
 "use client";
 
+// @contrast-surface navy
+// The till is a dark screen. Everything below reads on navy, which is
+// what npm run check:contrast measures against.
 import { useEffect, useState } from "react";
 import { Eyebrow } from "@/components/brand/Mark";
 import {
@@ -203,7 +206,7 @@ export default function StaffPin({
           ))}
         </div>
 
-        <p className="mono mt-6 text-center text-[11px] text-white/40">
+        <p className="mono mt-6 text-center text-[11px] text-white/60">
           Your PIN identifies you on this till. It is not your account password.
         </p>
 
@@ -248,7 +251,7 @@ export default function StaffPin({
         ) : (
           <button
             onClick={beginSwitch}
-            className="tap mt-3 w-full text-center text-[11px] text-white/40 underline"
+            className="tap mt-3 w-full text-center text-[11px] text-white/60 underline"
           >
             This device should be a different till
           </button>

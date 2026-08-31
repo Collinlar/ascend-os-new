@@ -48,7 +48,7 @@ const DIMENSION_COPY: Record<string, { name: string; grows: string }> = {
 const STATUS_COPY: Record<string, { label: string; tone: string }> = {
   strong: { label: "Well shown", tone: "text-teal-dark" },
   building: { label: "Building up", tone: "text-ink" },
-  not_shown_yet: { label: "Not shown yet", tone: "text-mid-grey" },
+  not_shown_yet: { label: "Not shown yet", tone: "text-ink-muted" },
   concerning: { label: "Needs a look", tone: "text-gold-dark" },
 };
 
@@ -115,14 +115,14 @@ export default async function Readiness() {
         <h1 className="mt-6 max-w-md text-3xl font-semibold leading-display text-ink">
           What your business record shows
         </h1>
-        <p className="mt-3 max-w-lg text-mid-grey">
+        <p className="mt-3 max-w-lg text-ink-muted">
           Your record is built from how the business actually operates. Every
           sale, receipt, reconciled shift and fulfilled order adds evidence.
           Buying more Ascend products never improves it. Only real activity does.
         </p>
 
         {data === null ? (
-          <p className="mt-10 text-mid-grey">
+          <p className="mt-10 text-ink-muted">
             Verify your WhatsApp number to see your record.
           </p>
         ) : !data.hasScore || data.dimensions.length === 0 ? (
@@ -130,7 +130,7 @@ export default async function Readiness() {
             <p className="font-medium text-ink">
               Your evidence trail starts with your first sale.
             </p>
-            <p className="mt-2 text-sm text-mid-grey">
+            <p className="mt-2 text-sm text-ink-muted">
               As you sell, invoice and reconcile, this page fills in. Nothing to
               configure, nothing to self-report.
             </p>
@@ -146,20 +146,20 @@ export default async function Readiness() {
             <section className="mt-10 border border-line px-5 py-6">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div>
-                  <p className="text-sm text-mid-grey">Sustainability Score</p>
+                  <p className="text-sm text-ink-muted">Sustainability Score</p>
                   <p className="mt-1 text-4xl font-semibold text-ink">
                     {data.score.toFixed(0)}
-                    <span className="text-lg text-mid-grey"> / 100</span>
+                    <span className="text-lg text-ink-muted"> / 100</span>
                   </p>
                 </div>
-                <div className="text-right text-sm text-mid-grey">
+                <div className="text-right text-sm text-ink-muted">
                   <p>Evidence confidence {data.confidence.toFixed(0)}%</p>
                   <p>Trust level {data.trust.toFixed(0)}</p>
                 </div>
               </div>
 
               {data.provisional && (
-                <p className="mt-4 bg-gold-light px-3 py-2 text-sm text-gold-dark">
+                <p className="mt-4 bg-gold-light px-3 py-2 text-sm text-gold-ink">
                   This is provisional. Your record does not yet cover enough of
                   how your business runs for the number to mean much. Keep
                   trading and it will settle.
@@ -167,14 +167,14 @@ export default async function Readiness() {
               )}
 
               {data.computedAt && (
-                <p className="mt-3 text-xs text-mid-grey">
+                <p className="mt-3 text-xs text-ink-muted">
                   Worked out from your activity, {timeAgo(data.computedAt)}.
                 </p>
               )}
             </section>
 
             <section className="mt-8">
-              <h2 className="text-sm font-medium text-mid-grey">
+              <h2 className="text-sm font-medium text-ink-muted">
                 What goes into it
               </h2>
               <div className="mt-3 space-y-3">
@@ -192,7 +192,7 @@ export default async function Readiness() {
                           </p>
                           <p className={`text-sm ${status.tone}`}>{status.label}</p>
                         </div>
-                        <p className="mt-1 text-sm text-mid-grey">
+                        <p className="mt-1 text-sm text-ink-muted">
                           {copy?.grows ?? ""}
                         </p>
                         <div className="mt-3 h-1.5 w-full bg-light-grey">
@@ -205,7 +205,7 @@ export default async function Readiness() {
                             }}
                           />
                         </div>
-                        <p className="mt-1 text-xs text-mid-grey">
+                        <p className="mt-1 text-xs text-ink-muted">
                           Counts for {dim.weight}% of your score
                         </p>
                       </div>
@@ -215,15 +215,15 @@ export default async function Readiness() {
             </section>
 
             <section className="mt-10">
-              <h2 className="text-sm font-medium text-mid-grey">
+              <h2 className="text-sm font-medium text-ink-muted">
                 Sharing this with a bank or partner
               </h2>
-              <p className="mt-2 max-w-lg text-sm text-mid-grey">
+              <p className="mt-2 max-w-lg text-sm text-ink-muted">
                 {data.fundingReady
                   ? "Your record is complete enough to put in front of a partner. You choose who sees it and for how long."
                   : "Your record is not yet complete enough to be worth a partner's time. Keep trading, and keep issuing proper documents."}
               </p>
-              <p className="mt-3 max-w-lg text-sm text-mid-grey">
+              <p className="mt-3 max-w-lg text-sm text-ink-muted">
                 Ascend evidence is one input into a partner&apos;s own decision.
                 It is not an offer, an approval, or a guarantee of finance.
               </p>

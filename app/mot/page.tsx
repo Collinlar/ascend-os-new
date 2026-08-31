@@ -49,14 +49,14 @@ export default async function Mot() {
         <h1 className="mt-6 max-w-md text-3xl font-semibold leading-display text-ink">
           A check-up on how your business is running
         </h1>
-        <p className="mt-3 max-w-lg text-mid-grey">
+        <p className="mt-3 max-w-lg text-ink-muted">
           This is not your score. Your score says how strong your record is.
           This says what needs fixing right now, and what to do about each
           thing.
         </p>
 
         {data === null ? (
-          <p className="mt-10 text-mid-grey">
+          <p className="mt-10 text-ink-muted">
             Verify your WhatsApp number to run a check-up.
           </p>
         ) : (
@@ -69,7 +69,7 @@ export default async function Mot() {
           />
         )}
 
-        <p className="mt-12 text-sm text-mid-grey">
+        <p className="mt-12 text-sm text-ink-muted">
           Looking for your Sustainability Score instead?{" "}
           <Link href="/readiness" className="tap font-medium text-teal-dark underline">
             See what your record shows

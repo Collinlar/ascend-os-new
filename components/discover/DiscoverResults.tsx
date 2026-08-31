@@ -38,7 +38,7 @@ export default function DiscoverResults({ results }: { results: DiscoverRow[] })
 
   if (results.length === 0) {
     return (
-      <p className="py-16 text-center text-mid-grey">
+      <p className="py-16 text-center text-ink-muted">
         Nothing found. Try a different word, or leave the city empty.
       </p>
     );
@@ -64,7 +64,7 @@ export default function DiscoverResults({ results }: { results: DiscoverRow[] })
                 </span>
               )}
             </span>
-            <span className="mt-1 block text-sm text-mid-grey">
+            <span className="mt-1 block text-sm text-ink-muted">
               {row.business_name}
               {row.city && ` · ${row.city}`}
             </span>
@@ -72,7 +72,7 @@ export default function DiscoverResults({ results }: { results: DiscoverRow[] })
             {/* Paid placement is labelled plainly, and says what it is not.
                 It must never read as a recommendation or a trust signal. */}
             {row.promoted && (
-              <span className="mt-2 inline-block bg-light-grey px-2 py-1 text-xs text-mid-grey">
+              <span className="mt-2 inline-block bg-light-grey px-2 py-1 text-xs text-ink-muted">
                 Paid placement · this business paid to appear here, it is not a
                 recommendation
               </span>
@@ -81,7 +81,7 @@ export default function DiscoverResults({ results }: { results: DiscoverRow[] })
         );
       })}
 
-      <p className="pt-6 text-center text-xs text-mid-grey">
+      <p className="pt-6 text-center text-xs text-ink-muted">
         Each business sets its own prices, stock and delivery, and handles its
         own customer service. AscendSME does not sell these items.
       </p>

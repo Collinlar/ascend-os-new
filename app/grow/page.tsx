@@ -33,14 +33,14 @@ export default async function Grow() {
       </header>
 
       <div className="mx-auto max-w-3xl px-5 py-8">
-        <p className="max-w-lg text-sm text-mid-grey">
+        <p className="max-w-lg text-sm text-ink-muted">
           Nothing here starts you over. What you have already built comes with
           you, which is the whole point of keeping it in one place.
         </p>
 
         <div className="mt-6 space-y-4">
           {available.length === 0 && (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-mid-grey">
+            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
               You have taken on everything available to you. Nothing else to add
               right now.
             </p>
@@ -52,7 +52,7 @@ export default async function Grow() {
                 {option.suits}
               </p>
               <h2 className="mt-2 text-lg font-semibold text-ink">{option.name}</h2>
-              <p className="mt-1 text-sm text-mid-grey">{option.pitch}</p>
+              <p className="mt-1 text-sm text-ink-muted">{option.pitch}</p>
 
               {/* The zero silo promise, said in counts a merchant can check
                   against their own records rather than as architecture. */}
@@ -83,7 +83,7 @@ export default async function Grow() {
 
         {held.length > 0 && (
           <section className="mt-10">
-            <h2 className="text-sm font-medium text-mid-grey">
+            <h2 className="text-sm font-medium text-ink-muted">
               What your business already runs on
             </h2>
             <div className="mt-3 space-y-2">

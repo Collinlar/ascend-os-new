@@ -50,16 +50,16 @@ export default function SetupPath({ path }: { path: Path }) {
               <div className="min-w-0 flex-1">
                 <p
                   className={`text-sm font-medium ${
-                    step.done ? "text-mid-grey line-through" : "text-ink"
+                    step.done ? "text-ink-muted line-through" : "text-ink"
                   }`}
                 >
                   {step.label}
                   {step.optional && !step.done && (
-                    <span className="ml-2 font-normal text-mid-grey">when you can</span>
+                    <span className="ml-2 font-normal text-ink-muted">when you can</span>
                   )}
                 </p>
                 {!step.done && (
-                  <p className="mt-0.5 text-xs text-mid-grey">{step.detail}</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">{step.detail}</p>
                 )}
               </div>
 

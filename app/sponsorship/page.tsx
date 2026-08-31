@@ -63,7 +63,7 @@ export default async function Sponsorship() {
         <p className="text-sm font-medium text-teal-dark">Your funding</p>
 
         {outlook === null ? (
-          <p className="mt-10 text-mid-grey">
+          <p className="mt-10 text-ink-muted">
             Verify your WhatsApp number to see your funding.
           </p>
         ) : !outlook.sponsored ? (
@@ -71,7 +71,7 @@ export default async function Sponsorship() {
             <h1 className="mt-6 text-3xl font-semibold leading-display text-ink">
               You are paying for your own account.
             </h1>
-            <p className="mt-3 max-w-lg text-mid-grey">
+            <p className="mt-3 max-w-lg text-ink-muted">
               Nobody else is funding this business on Ascend. If a programme or
               bank ever sponsors you, this page will show exactly what they are
               paying for and what happens when they stop.
@@ -82,7 +82,7 @@ export default async function Sponsorship() {
             <h1 className="mt-6 text-3xl font-semibold leading-display text-ink">
               Someone is funding part of your Ascend account.
             </h1>
-            <p className="mt-3 max-w-lg text-mid-grey">
+            <p className="mt-3 max-w-lg text-ink-muted">
               Here is exactly what they pay for, and what happens when that
               stops. Read the second part now, not later.
             </p>
@@ -96,13 +96,13 @@ export default async function Sponsorship() {
                   </li>
                 ))}
                 {(outlook.funded_product_sets ?? []).length === 0 && (
-                  <li className="text-sm text-mid-grey">No products funded.</li>
+                  <li className="text-sm text-ink-muted">No products funded.</li>
                 )}
               </ul>
 
               {typeof outlook.sponsor_credit_remaining === "number" &&
                 outlook.sponsor_credit_remaining > 0 && (
-                  <p className="mt-3 text-sm text-mid-grey">
+                  <p className="mt-3 text-sm text-ink-muted">
                     {formatGHS(outlook.sponsor_credit_remaining)} of their credit
                     is left. It can only be spent on what they funded, and
                     anything unspent goes back to them.
@@ -138,13 +138,13 @@ export default async function Sponsorship() {
               </dl>
             </section>
 
-            <p className="mt-6 max-w-lg text-sm text-mid-grey">
+            <p className="mt-6 max-w-lg text-sm text-ink-muted">
               {outlook.your_records}
             </p>
           </>
         )}
 
-        <p className="mt-12 text-sm text-mid-grey">
+        <p className="mt-12 text-sm text-ink-muted">
           Whoever funds your account,{" "}
           <Link href="/sharing" className="tap font-medium text-teal-dark underline">
             you still choose who sees your record

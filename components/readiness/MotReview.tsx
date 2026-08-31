@@ -34,7 +34,7 @@ const VERDICT: Record<string, { label: string; tone: string; border: string }> =
   },
   not_applicable: {
     label: "Does not apply",
-    tone: "text-mid-grey",
+    tone: "text-ink-muted",
     border: "border-line",
   },
 };
@@ -95,7 +95,7 @@ export default function MotReview({
         {error && <p className="mb-4 text-sm text-gold-dark">{error}</p>}
         <div className="border border-line bg-light-grey px-5 py-6">
           <p className="font-medium text-ink">You have not had a check-up yet.</p>
-          <p className="mt-2 text-sm text-mid-grey">
+          <p className="mt-2 text-sm text-ink-muted">
             It takes a moment and reads only your own records. Nothing is sent
             anywhere.
           </p>
@@ -143,7 +143,7 @@ export default function MotReview({
           {summary.detail}
         </p>
         {reviewedAt && (
-          <p className="mt-3 text-xs text-mid-grey">
+          <p className="mt-3 text-xs text-ink-muted">
             Checked {new Date(reviewedAt).toLocaleDateString("en-GB", {
               day: "numeric",
               month: "long",
@@ -159,7 +159,7 @@ export default function MotReview({
 
       {needsWork.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-medium text-mid-grey">What to do</h2>
+          <h2 className="text-sm font-medium text-ink-muted">What to do</h2>
           <div className="mt-3 space-y-3">
             {needsWork.map((check) => {
               const verdict = VERDICT[check.verdict] ?? VERDICT.attention;
@@ -173,7 +173,7 @@ export default function MotReview({
                   </div>
                   <p className="mt-1 text-sm text-ink">{check.finding}</p>
                   {check.action && (
-                    <p className="mt-2 text-sm text-mid-grey">{check.action}</p>
+                    <p className="mt-2 text-sm text-ink-muted">{check.action}</p>
                   )}
                 </div>
               );
@@ -184,7 +184,7 @@ export default function MotReview({
 
       {fine.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-medium text-mid-grey">Checked and fine</h2>
+          <h2 className="text-sm font-medium text-ink-muted">Checked and fine</h2>
           <div className="mt-3 space-y-2">
             {fine.map((check) => {
               const verdict = VERDICT[check.verdict] ?? VERDICT.pass;

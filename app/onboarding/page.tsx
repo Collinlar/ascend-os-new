@@ -141,7 +141,7 @@ function OnboardingInner() {
             <h1 className="mt-6 text-3xl font-semibold leading-display text-ink">
               {copy.headline}
             </h1>
-            <p className="mt-3 text-mid-grey">{copy.firstValue}</p>
+            <p className="mt-3 text-ink-muted">{copy.firstValue}</p>
 
             <form className="mt-10 space-y-5" onSubmit={requestCode}>
               <Field
@@ -183,7 +183,7 @@ function OnboardingInner() {
               >
                 {busy ? "Reaching your WhatsApp..." : "Send my WhatsApp code"}
               </button>
-              <p className="text-center text-sm text-mid-grey">
+              <p className="text-center text-sm text-ink-muted">
                 No card needed. Your records stay yours.
               </p>
             </form>
@@ -192,7 +192,7 @@ function OnboardingInner() {
                 owner who came here to get back into a business they already
                 have would otherwise retype everything we already store, and
                 end up with a second empty one. */}
-            <p className="mt-8 text-center text-sm text-mid-grey">
+            <p className="mt-8 text-center text-sm text-ink-muted">
               Already have a business with us?{" "}
               <Link href="/signin" className="font-semibold text-teal-dark underline">
                 Sign in instead
@@ -206,11 +206,11 @@ function OnboardingInner() {
             <h1 className="mt-6 text-3xl font-semibold leading-display text-ink">
               Check your WhatsApp.
             </h1>
-            <p className="mt-3 text-mid-grey">
+            <p className="mt-3 text-ink-muted">
               We sent a 6 digit code to {phone}. It expires in 10 minutes.
             </p>
             {devCode && (
-              <p className="mt-2 bg-gold-light px-3 py-2 text-sm text-gold-dark">
+              <p className="mt-2 bg-gold-light px-3 py-2 text-sm text-gold-ink">
                 Development mode: your code is {devCode}
               </p>
             )}
@@ -248,7 +248,7 @@ function OnboardingInner() {
             <h1 className="text-2xl font-semibold text-ink">
               Setting up {businessName}...
             </h1>
-            <p className="mt-3 text-mid-grey">
+            <p className="mt-3 text-ink-muted">
               Creating your business record, your first location and your owner access.
             </p>
           </div>
@@ -284,7 +284,7 @@ function Field({
         inputMode={inputMode}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-mid-grey focus:border-teal focus:outline-none"
+        className="mt-2 w-full border border-line px-4 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
       />
     </div>
   );

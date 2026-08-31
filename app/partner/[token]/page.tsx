@@ -77,19 +77,19 @@ export default async function PartnerView({
   return (
     <main className="min-h-screen bg-light-grey py-10">
       <div className="mx-auto max-w-2xl bg-white px-6 py-8">
-        <p className="text-sm text-mid-grey">Shared business record</p>
+        <p className="text-sm text-ink-muted">Shared business record</p>
         <h1 className="mt-1 text-2xl font-semibold text-ink">
           {identity?.name ?? "Business record"}
         </h1>
         {identity && (
-          <p className="mt-1 text-sm text-mid-grey">
+          <p className="mt-1 text-sm text-ink-muted">
             {identity.country}
             {identity.archetype && ` · ${identity.archetype.replace(/_/g, " ")}`} ·
             identity {identity.identity_verification.replace(/_/g, " ")}
           </p>
         )}
 
-        <p className="mt-4 border-l-2 border-line pl-3 text-sm text-mid-grey">
+        <p className="mt-4 border-l-2 border-line pl-3 text-sm text-ink-muted">
           Shared for: {data.scope.purpose ?? "no purpose stated"}. Covers{" "}
           {formatDate(data.scope.period_from)} to {formatDate(data.scope.period_to)}.
           {data.scope.expires_at &&
@@ -100,13 +100,13 @@ export default async function PartnerView({
           <section className="mt-8 border border-line px-5 py-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <p className="text-sm text-mid-grey">Sustainability Score</p>
+                <p className="text-sm text-ink-muted">Sustainability Score</p>
                 <p className="mt-1 text-3xl font-semibold text-ink">
                   {Number(score.value).toFixed(0)}
-                  <span className="text-base text-mid-grey"> / 100</span>
+                  <span className="text-base text-ink-muted"> / 100</span>
                 </p>
               </div>
-              <div className="text-right text-sm text-mid-grey">
+              <div className="text-right text-sm text-ink-muted">
                 {data.report.evidence_confidence !== undefined && (
                   <p>Evidence confidence {Number(data.report.evidence_confidence).toFixed(0)}%</p>
                 )}
@@ -116,7 +116,7 @@ export default async function PartnerView({
               </div>
             </div>
             {score.breakdown?.provisional && (
-              <p className="mt-3 bg-gold-light px-3 py-2 text-sm text-gold-dark">
+              <p className="mt-3 bg-gold-light px-3 py-2 text-sm text-gold-ink">
                 Provisional. This business&apos;s record does not yet cover
                 enough of its operations for the score to carry full weight.
               </p>
@@ -126,10 +126,10 @@ export default async function PartnerView({
 
         {data.report.revenue_summary && data.report.revenue_summary.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-sm font-medium text-mid-grey">Monthly revenue</h2>
+            <h2 className="text-sm font-medium text-ink-muted">Monthly revenue</h2>
             <table className="mt-3 w-full text-sm">
               <thead>
-                <tr className="border-b border-line text-left text-mid-grey">
+                <tr className="border-b border-line text-left text-ink-muted">
                   <th className="pb-2 font-medium">Month</th>
                   <th className="pb-2 text-right font-medium">Revenue</th>
                   <th className="pb-2 text-right font-medium">Refunds</th>
@@ -142,7 +142,7 @@ export default async function PartnerView({
                     <td className="py-2 text-right text-ink">
                       {formatGHS(Number(row.revenue ?? 0))}
                     </td>
-                    <td className="py-2 text-right text-mid-grey">
+                    <td className="py-2 text-right text-ink-muted">
                       {formatGHS(Math.abs(Number(row.refunds ?? 0)))}
                     </td>
                   </tr>
@@ -156,7 +156,7 @@ export default async function PartnerView({
           <section className="mt-8 grid gap-4 sm:grid-cols-2">
             {data.report.document_summary && (
               <div className="border border-line px-4 py-4">
-                <p className="text-sm text-mid-grey">Documents</p>
+                <p className="text-sm text-ink-muted">Documents</p>
                 <p className="mt-1 text-ink">
                   {data.report.document_summary.issued} issued ·{" "}
                   {data.report.document_summary.paid} paid
@@ -170,11 +170,11 @@ export default async function PartnerView({
             )}
             {data.report.activity_summary && (
               <div className="border border-line px-4 py-4">
-                <p className="text-sm text-mid-grey">Activity</p>
+                <p className="text-sm text-ink-muted">Activity</p>
                 <p className="mt-1 text-ink">
                   {data.report.activity_summary.pos_sales} counter sales
                 </p>
-                <p className="text-sm text-mid-grey">
+                <p className="text-sm text-ink-muted">
                   {data.report.activity_summary.shop_orders_fulfilled} orders ·{" "}
                   {data.report.activity_summary.services_completed} services
                 </p>
@@ -187,12 +187,12 @@ export default async function PartnerView({
           <h2 className="text-sm font-medium text-ink">Read this before deciding</h2>
           <ul className="mt-3 space-y-2">
             {data.limitations.map((limitation, i) => (
-              <li key={i} className="text-sm text-mid-grey">
+              <li key={i} className="text-sm text-ink-muted">
                 {limitation}
               </li>
             ))}
           </ul>
-          <p className="mt-5 text-xs text-mid-grey">
+          <p className="mt-5 text-xs text-ink-muted">
             The business granted this access and can end it at any time. Every
             time this page is opened, it is recorded and visible to them.
           </p>

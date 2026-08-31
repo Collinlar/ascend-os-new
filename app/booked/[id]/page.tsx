@@ -51,7 +51,7 @@ export default async function Booked({ params }: { params: { id: string } }) {
             <h1 className="mt-4 text-2xl font-semibold text-ink">
               That time was released.
             </h1>
-            <p className="mt-3 text-mid-grey">
+            <p className="mt-3 text-ink-muted">
               The deposit did not arrive in time, so the slot went back on the
               calendar. Book another time and it is yours.
             </p>
@@ -62,13 +62,13 @@ export default async function Booked({ params }: { params: { id: string } }) {
             <h1 className="mt-4 text-2xl font-semibold text-ink">
               {settled ? "Your booking is secured." : "You are booked."}
             </h1>
-            <p className="mt-3 text-mid-grey">
+            <p className="mt-3 text-ink-muted">
               {booking.serviceName} with {booking.businessName}
               {booking.scheduledStart && ` on ${formatWhen(booking.scheduledStart)}`}.
             </p>
 
             {booking.depositRequired > 0 && (
-              <p className="mt-4 bg-light-grey px-4 py-3 text-sm text-mid-grey">
+              <p className="mt-4 bg-light-grey px-4 py-3 text-sm text-ink-muted">
                 {settled ? (
                   <>
                     Deposit of {formatGHS(booking.depositPaid)} received.
@@ -85,7 +85,7 @@ export default async function Booked({ params }: { params: { id: string } }) {
               </p>
             )}
 
-            <p className="mt-6 text-sm text-mid-grey">
+            <p className="mt-6 text-sm text-ink-muted">
               {businessMessage(settled)}
             </p>
           </>
