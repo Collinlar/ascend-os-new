@@ -74,7 +74,7 @@ begin
     -- Withdrawn rather than deleted: campaigns reference listings, and a
     -- business that relists should come back rather than start again.
     update discover_listing
-    set status = 'withdrawn'
+    set status = 'withdrawn'::listing_status
     where business_id = p_business
       and status <> 'suspended';
     return;
@@ -82,18 +82,19 @@ begin
 
   -- The business itself, found by name.
   insert into discover_listing (business_id, item_id, status, city)
-  values (p_business, null, 'eligible', v_city)
+  values (p_business, null, 'eligible'::listing_status, v_city)
   on conflict (business_id) where item_id is null
   do update set status = case
-                  when discover_listing.status = 'suspended' then 'suspended'
-                  else 'eligible'
+                  when discover_listing.status = 'suspended'
+                    then 'suspended'::listing_status
+                  else 'eligible'::listing_status
                 end,
                 city = excluded.city;
 
   -- One row per sellable product, so a customer searching for a thing
   -- finds the thing rather than only the shop that happens to stock it.
   insert into discover_listing (business_id, item_id, status, category, city)
-  select p_business, ci.id, 'eligible', ci.category, v_city
+  select p_business, ci.id, 'eligible'::listing_status, ci.category, v_city
   from catalogue_item ci
   join channel_listing cl
     on cl.item_id = ci.id and cl.channel = 'shop' and cl.visible
@@ -102,15 +103,16 @@ begin
     and coalesce(cl.price_override, ci.base_price) is not null
   on conflict (business_id, item_id)
   do update set status = case
-                  when discover_listing.status = 'suspended' then 'suspended'
-                  else 'eligible'
+                  when discover_listing.status = 'suspended'
+                    then 'suspended'::listing_status
+                  else 'eligible'::listing_status
                 end,
                 category = excluded.category,
                 city = excluded.city;
 
   -- Anything that used to be sellable and is not any more.
   update discover_listing dl
-  set status = 'withdrawn'
+  set status = 'withdrawn'::listing_status
   where dl.business_id = p_business
     and dl.item_id is not null
     and dl.status <> 'suspended'
@@ -154,8 +156,19 @@ returns trigger
 language plpgsql security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_business uuid;
 begin
-  perform refresh_discover_listings(coalesce(new.business_id, old.business_id));
+  -- NEW does not exist on a delete and OLD does not exist on an insert.
+  -- Reading the wrong one raises rather than returning null, so which row
+  -- to read is decided by the operation and never by coalesce.
+  if tg_op = 'DELETE' then
+    v_business := old.business_id;
+  else
+    v_business := new.business_id;
+  end if;
+
+  perform refresh_discover_listings(v_business);
   return null;
 end;
 $$;
@@ -166,11 +179,16 @@ language plpgsql security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_item uuid;
   v_business uuid;
 begin
-  select business_id into v_business
-  from catalogue_item
-  where id = coalesce(new.item_id, old.item_id);
+  if tg_op = 'DELETE' then
+    v_item := old.item_id;
+  else
+    v_item := new.item_id;
+  end if;
+
+  select business_id into v_business from catalogue_item where id = v_item;
   if v_business is not null then
     perform refresh_discover_listings(v_business);
   end if;
@@ -184,10 +202,13 @@ language plpgsql security definer
 set search_path = public, pg_temp
 as $$
 begin
-  -- Only the shop set decides eligibility, and the discover grant below
-  -- must not send this round again.
-  if coalesce(new.product_set_key, old.product_set_key) = 'shop' then
-    perform refresh_discover_listings(coalesce(new.business_id, old.business_id));
+  -- This trigger fires on insert and update only, so NEW is always the
+  -- row to read. OLD does not exist on an insert.
+  --
+  -- Only the shop set decides eligibility, and the discover grant made
+  -- inside refresh_discover_listings must not send this round again.
+  if new.product_set_key = 'shop' then
+    perform refresh_discover_listings(new.business_id);
   end if;
   return null;
 end;
