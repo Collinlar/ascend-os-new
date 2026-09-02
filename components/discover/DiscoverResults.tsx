@@ -19,6 +19,7 @@ export interface DiscoverRow {
   photo_url: string | null;
   city: string | null;
   category: string | null;
+  category_label: string | null;
   promoted: boolean;
   campaign_id: string | null;
   shop_slug?: string | null;

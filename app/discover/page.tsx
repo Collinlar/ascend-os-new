@@ -7,6 +7,13 @@ import DiscoverResults, {
 
 export const dynamic = "force-dynamic";
 
+// A chip on the rail: the slug the filter runs on, and the one name this
+// category goes by however the merchant happened to type it.
+interface Category {
+  slug: string;
+  label: string;
+}
+
 // Customer-facing Discover, on the Ascend Discover design.
 //
 // Promoted results are visibly marked as paid placement and never as a
@@ -37,30 +44,40 @@ async function search(q?: string, city?: string, category?: string) {
         p_category: category || null,
         p_limit: 24,
       }),
-      // What a customer can actually narrow by. Built from what is listed
-      // rather than from a fixed list that would go stale.
+      // What a customer can actually narrow by. Only categories that have
+      // something in them, named once each: the taxonomy gives the label,
+      // the live listings decide which chips are worth showing.
       db
         .from("discover_listing")
-        .select("category")
+        .select("category, discover_category!inner(slug, label, sort_order)")
         .eq("status", "eligible")
         .not("category", "is", null),
     ]);
 
-    const seen = new Map<string, number>();
+    const seen = new Map<string, { label: string; sort: number; n: number }>();
     for (const row of categories.data ?? []) {
-      const c = row.category as string;
-      seen.set(c, (seen.get(c) ?? 0) + 1);
+      const c = row.discover_category as unknown as {
+        slug: string;
+        label: string;
+        sort_order: number;
+      };
+      if (!c) continue;
+      const hit = seen.get(c.slug);
+      if (hit) hit.n += 1;
+      else seen.set(c.slug, { label: c.label, sort: c.sort_order, n: 1 });
     }
 
     return {
       rows: (results.data ?? []) as DiscoverRow[],
+      // Busiest first, so the rail leads with the shelf most likely to have
+      // what somebody came for, and the taxonomy's own order breaks ties.
       categories: Array.from(seen.entries())
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => b[1].n - a[1].n || a[1].sort - b[1].sort)
         .slice(0, 8)
-        .map(([name]) => name),
+        .map(([slug, v]) => ({ slug, label: v.label })),
     };
   } catch {
-    return { rows: [] as DiscoverRow[], categories: [] as string[] };
+    return { rows: [] as DiscoverRow[], categories: [] as Category[] };
   }
 }
 
@@ -145,15 +162,15 @@ export default async function Discover({
             </Link>
             {categories.map((c) => (
               <Link
-                key={c}
-                href={keep({ category: c })}
+                key={c.slug}
+                href={keep({ category: c.slug })}
                 className={`tap flex flex-none items-center whitespace-nowrap rounded-chip border px-4 text-[13px] font-bold ${
-                  searchParams.category === c
+                  searchParams.category === c.slug
                     ? "border-ink bg-ink text-white"
                     : "border-line bg-white text-ink-muted"
                 }`}
               >
-                {c}
+                {c.label}
               </Link>
             ))}
           </div>
