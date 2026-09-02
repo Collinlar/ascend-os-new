@@ -1,4 +1,5 @@
 import { supabaseServer } from "@/lib/supabase";
+import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import PromoteManager, {
@@ -56,30 +57,24 @@ export default async function Promote() {
   const data = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Getting found</h1>
-          <p className="text-sm text-ink-muted">
-            Being listed is free. Paying puts you higher up, and is labelled
-            to customers as paid.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Getting found"
+        intro="Being listed is free once you have products and a live shop. Paying puts you higher up, and customers are told it is paid."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        {data === null ? (
-          <p className="py-16 text-center text-ink-muted">
-            Verify your WhatsApp number to manage this.
-          </p>
-        ) : (
-          <PromoteManager
-            balance={data.balance}
-            listings={data.listings}
-            campaigns={data.campaigns}
-          />
-        )}
-      </div>
-    </main>
+      {data === null ? (
+        <EmptyState
+          title="Sign in to manage this."
+          detail="We send a code to the WhatsApp number your business is set up with."
+        />
+      ) : (
+        <PromoteManager
+          balance={data.balance}
+          listings={data.listings}
+          campaigns={data.campaigns}
+        />
+      )}
+    </PageShell>
   );
 }

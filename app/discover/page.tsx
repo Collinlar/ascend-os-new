@@ -1,3 +1,5 @@
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase";
 import DiscoverResults, {
   type DiscoverRow,
@@ -5,69 +7,161 @@ import DiscoverResults, {
 
 export const dynamic = "force-dynamic";
 
-// Customer-facing Discover. Promoted results are visibly marked as paid
-// placement and never as a recommendation, endorsement or verification
-// (DSC-002, PRI-006).
+// Customer-facing Discover, on the Ascend Discover design.
+//
+// Promoted results are visibly marked as paid placement and never as a
+// recommendation, endorsement or verification (DSC-002, PRI-006).
 
-async function search(q?: string, city?: string): Promise<DiscoverRow[]> {
+// A customer page, not a till. The root layout locks zoom, which is right
+// for a handheld being held in a queue and wrong for somebody reading a
+// price on their own phone (WCAG 1.4.4).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#FFFFFF",
+};
+
+export const metadata: Metadata = {
+  title: "Discover · Shops and services near you",
+  description:
+    "Find Ghanaian businesses selling and booking on AscendSME. You buy from them directly.",
+};
+
+async function search(q?: string, city?: string, category?: string) {
+  const db = supabaseServer();
   try {
-    const db = supabaseServer();
-    const { data } = await db.rpc("discover_search", {
-      p_query: q || null,
-      p_city: city || null,
-      p_category: null,
-      p_limit: 20,
-    });
-    return (data ?? []) as DiscoverRow[];
+    const [results, categories] = await Promise.all([
+      db.rpc("discover_search", {
+        p_query: q || null,
+        p_city: city || null,
+        p_category: category || null,
+        p_limit: 24,
+      }),
+      // What a customer can actually narrow by. Built from what is listed
+      // rather than from a fixed list that would go stale.
+      db
+        .from("discover_listing")
+        .select("category")
+        .eq("status", "eligible")
+        .not("category", "is", null),
+    ]);
+
+    const seen = new Map<string, number>();
+    for (const row of categories.data ?? []) {
+      const c = row.category as string;
+      seen.set(c, (seen.get(c) ?? 0) + 1);
+    }
+
+    return {
+      rows: (results.data ?? []) as DiscoverRow[],
+      categories: Array.from(seen.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([name]) => name),
+    };
   } catch {
-    return [];
+    return { rows: [] as DiscoverRow[], categories: [] as string[] };
   }
 }
 
 export default async function Discover({
   searchParams,
 }: {
-  searchParams: { q?: string; city?: string };
+  searchParams: { q?: string; city?: string; category?: string };
 }) {
-  const results = await search(searchParams.q, searchParams.city);
+  const { rows, categories } = await search(
+    searchParams.q,
+    searchParams.city,
+    searchParams.category
+  );
+
+  const keep = (extra: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    const merged = { ...searchParams, ...extra };
+    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v);
+    const query = params.toString();
+    return query ? `/discover?${query}` : "/discover";
+  };
 
   return (
     <main className="min-h-screen bg-white">
-      <header className="border-b border-line">
-        <div className="mx-auto max-w-2xl px-5 py-6">
-          <h1 className="text-2xl font-semibold leading-display text-ink">
-            Find a business near you
-          </h1>
-          <p className="mt-2 text-sm text-ink-muted">
-            Shops and services running on AscendSME. You buy from them
-            directly, not from us.
-          </p>
-
-          <form className="mt-5 flex gap-2" action="/discover">
-            <input
-              name="q"
-              defaultValue={searchParams.q ?? ""}
-              placeholder="What are you looking for?"
-              className="flex-1 border border-line px-4 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
-            />
-            <input
-              name="city"
-              defaultValue={searchParams.city ?? ""}
-              placeholder="City"
-              className="w-28 border border-line px-3 py-3 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="tap bg-teal px-5 font-medium text-white"
+      <div className="mx-auto max-w-5xl px-5 pb-16 pt-5 sm:px-8">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.04em] text-ink-muted">
+              DISCOVER
+            </p>
+            <h1 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em] text-ink sm:text-3xl">
+              {searchParams.city ? `Made near ${searchParams.city}` : "Made near you"}
+            </h1>
+          </div>
+          {searchParams.city && (
+            <Link
+              href={keep({ city: undefined })}
+              className="tap flex flex-none items-center gap-1.5 rounded-chip border border-line bg-surface px-3 text-xs font-bold text-teal-dark"
             >
-              Search
-            </button>
-          </form>
-        </div>
-      </header>
+              {searchParams.city} ·<span className="font-extrabold">clear</span>
+            </Link>
+          )}
+        </header>
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
-        <DiscoverResults results={results} />
+        <form className="mt-3.5 flex gap-2" action="/discover">
+          {searchParams.category && (
+            <input type="hidden" name="category" value={searchParams.category} />
+          )}
+          <input
+            name="q"
+            defaultValue={searchParams.q ?? ""}
+            placeholder="Search products, shops or brands"
+            aria-label="Search Discover"
+            className="min-w-0 flex-1 rounded-[14px] border border-line bg-surface px-4 font-medium text-ink outline-none placeholder:text-ink-muted focus:border-teal"
+          />
+          <input
+            name="city"
+            defaultValue={searchParams.city ?? ""}
+            placeholder="City"
+            aria-label="City"
+            className="w-24 rounded-[14px] border border-line bg-surface px-3 font-medium text-ink outline-none placeholder:text-ink-muted focus:border-teal sm:w-32"
+          />
+          <button
+            type="submit"
+            className="tap flex flex-none items-center rounded-[14px] bg-ink px-5 font-bold text-white"
+          >
+            Search
+          </button>
+        </form>
+
+        {categories.length > 0 && (
+          <div className="scr -mx-5 mt-3.5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0">
+            <Link
+              href={keep({ category: undefined })}
+              className={`tap flex flex-none items-center whitespace-nowrap rounded-chip border px-4 text-[13px] font-bold ${
+                !searchParams.category
+                  ? "border-ink bg-ink text-white"
+                  : "border-line bg-white text-ink-muted"
+              }`}
+            >
+              Everything
+            </Link>
+            {categories.map((c) => (
+              <Link
+                key={c}
+                href={keep({ category: c })}
+                className={`tap flex flex-none items-center whitespace-nowrap rounded-chip border px-4 text-[13px] font-bold ${
+                  searchParams.category === c
+                    ? "border-ink bg-ink text-white"
+                    : "border-line bg-white text-ink-muted"
+                }`}
+              >
+                {c}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5">
+          <DiscoverResults results={rows} />
+        </div>
       </div>
     </main>
   );
