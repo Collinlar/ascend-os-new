@@ -16,6 +16,7 @@ export interface DiscoverRow {
   item_id: string | null;
   item_name: string | null;
   price: number | null;
+  photo_url: string | null;
   city: string | null;
   category: string | null;
   promoted: boolean;
@@ -95,14 +96,26 @@ export default function DiscoverResults({ results }: { results: DiscoverRow[] })
               onClick={() => go(row, href)}
               className="tap flex flex-col overflow-hidden rounded-panel border border-line bg-white text-left shadow-card"
             >
+              {/* The photograph is the whole point of a browsing page, so
+                  it gets shown whenever there is one. The tinted initials
+                  are the fallback, not the design. */}
               <span
-                aria-hidden
-                style={{ backgroundColor: tint.bg, color: tint.ink }}
-                className="relative flex aspect-square w-full items-center justify-center"
+                style={row.photo_url ? undefined : { backgroundColor: tint.bg, color: tint.ink }}
+                className="relative flex aspect-square w-full items-center justify-center bg-light-grey"
               >
-                <span className="mono text-[19px] font-medium opacity-40">
-                  {initials(label)}
-                </span>
+                {row.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={row.photo_url}
+                    alt={label}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span aria-hidden className="mono text-[19px] font-medium opacity-40">
+                    {initials(label)}
+                  </span>
+                )}
                 {row.promoted && (
                   <span className="absolute left-2.5 top-2.5 rounded-full bg-white/95 px-2.5 py-0.5 text-[10.5px] font-extrabold text-ink-muted">
                     Sponsored
