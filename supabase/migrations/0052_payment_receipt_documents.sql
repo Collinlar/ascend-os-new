@@ -249,7 +249,7 @@ begin
     where p.status = 'confirmed'
       and p.source_entity_type <> 'sale'
       and not exists (select 1 from document d where d.payment_id = p.id)
-    order by p.created_at
+    order by p.occurred_at
   loop
     begin
       v_result := issue_receipt_for_payment(jsonb_build_object('payment_id', r.id));

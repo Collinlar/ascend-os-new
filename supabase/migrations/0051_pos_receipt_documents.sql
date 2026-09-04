@@ -172,7 +172,7 @@ begin
           and d.source_entity_id = s.id
           and d.type = 'receipt'
       )
-    order by s.created_at
+    order by s.occurred_at
   loop
     begin
       perform issue_receipt_for_sale(jsonb_build_object('sale_id', r.id));
