@@ -1,0 +1,10 @@
+# Netlify configuration.
+#
+# Deliberately minimal. Build command and publish directory stay where they
+# already are, in the Netlify UI, because settings named here take precedence
+# over the UI and silently overriding a working deploy is not worth the
+# tidiness. This file exists to declare the scheduled function.
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
