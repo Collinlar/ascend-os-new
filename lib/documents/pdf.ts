@@ -62,6 +62,23 @@ export interface PdfDocument {
   reason?: string | null;
   /** Where the customer can check this document is real. */
   verifyUrl?: string | null;
+  /** What the business wants said at the bottom of every document: MoMo
+   *  details, terms, or thanks. */
+  footerNote?: string | null;
+  /** #RRGGBB. Used for the title and the rule under the table, never for
+   *  anything that carries meaning, so a bad choice cannot make a document
+   *  unreadable. */
+  accentColour?: string | null;
+}
+
+// PDF wants 0-1 floats per channel, not hex.
+function rgb(hex: string | null | undefined): [number, number, number] | null {
+  if (!hex || !/^#[0-9A-Fa-f]{6}$/.test(hex)) return null;
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -134,9 +151,19 @@ function pdfString(value: string): string {
 class Content {
   private ops: string[] = [];
 
-  text(x: number, y: number, value: string, font: "F1" | "F2" | "F3", size: number) {
+  text(
+    x: number,
+    y: number,
+    value: string,
+    font: "F1" | "F2" | "F3",
+    size: number,
+    colour?: [number, number, number] | null
+  ) {
+    const fill = colour
+      ? `${colour[0].toFixed(3)} ${colour[1].toFixed(3)} ${colour[2].toFixed(3)} rg `
+      : "0 g ";
     this.ops.push(
-      `BT /${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfString(value)}) Tj ET`
+      `BT ${fill}/${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfString(value)}) Tj ET`
     );
     return this;
   }
@@ -215,6 +242,7 @@ const ROWS_FIRST_PAGE = 22;
 const ROWS_LATER_PAGE = 34;
 
 export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
+  const accent = rgb(doc.accentColour);
   const pdf = new Pdf();
   const catalogId = pdf.reserve(); // object 1, per the trailer
   const pagesId = pdf.reserve();
@@ -252,7 +280,7 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       const titleY = PAGE_HEIGHT - MARGIN;
       const title = TYPE_TITLE[doc.type] ?? doc.type.toUpperCase();
       const titleWidth = title.length * 14 * HELVETICA_RATIO;
-      c.text(PAGE_WIDTH - MARGIN - titleWidth, titleY, title, "F2", 14);
+      c.text(PAGE_WIDTH - MARGIN - titleWidth, titleY, title, "F2", 14, accent);
 
       let ry = titleY - 16;
       if (doc.number) {
@@ -377,6 +405,12 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       if (status) {
         c.text(MARGIN, y, status, "F2", 10);
         y -= 20;
+      }
+
+      // What the business wants said on every document. Sits above the
+      // verification line, because it is theirs and that line is ours.
+      if (doc.footerNote) {
+        c.text(MARGIN, MARGIN + 46, truncate(doc.footerNote, CONTENT_WIDTH, 8.5), "F1", 8.5);
       }
 
       // The footer says who to trust and how to check. A document nobody

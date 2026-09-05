@@ -89,7 +89,24 @@ export async function buildDocumentPdf(
   // nothing paid at all.
   const showsPayment = doc.type === "invoice";
 
-  const address = [location?.address, location?.city].filter(Boolean).join(", ");
+  // Branding is read from the frozen snapshot for an issued document, so a
+  // business that rebrands next year does not silently repaint the
+  // invoices it already sent. A draft has no snapshot, so it shows what the
+  // business looks like today.
+  const snapshotBranding = (snapshot?.branding ?? null) as Record<string, unknown> | null;
+  let branding = snapshotBranding;
+  if (!branding || Object.keys(branding).length === 0) {
+    const { data: live } = await db
+      .from("document_branding")
+      .select("trading_name, address_line, phone, footer_note, accent_colour")
+      .eq("business_id", doc.business_id)
+      .maybeSingle();
+    branding = (live ?? null) as Record<string, unknown> | null;
+  }
+
+  const address =
+    (branding?.address_line as string) ||
+    [location?.address, location?.city].filter(Boolean).join(", ");
 
   const pdfDoc: PdfDocument = {
     type: doc.type,
@@ -97,9 +114,9 @@ export async function buildDocumentPdf(
     issuedAt: (snapshot?.issued_at as string) ?? doc.issued_at,
     dueDate: (snapshot?.due_date as string) ?? doc.due_date,
     currencyCode: (snapshot?.currency_code as string) ?? doc.currency_code ?? "GHS",
-    businessName: business?.name ?? "",
+    businessName: (branding?.trading_name as string) || business?.name || "",
     businessAddress: address || null,
-    businessPhone: null,
+    businessPhone: (branding?.phone as string) ?? null,
     // On a purchase order the party is the supplier the business is
     // ordering from, so that is whose name belongs in the address block.
     customerName:
@@ -112,6 +129,8 @@ export async function buildDocumentPdf(
     amountPaid: showsPayment ? paid : null,
     status: doc.status,
     reason: doc.reason,
+    footerNote: (branding?.footer_note as string) ?? null,
+    accentColour: (branding?.accent_colour as string) ?? null,
     verifyUrl: options.verifyUrl ?? null,
   };
 
