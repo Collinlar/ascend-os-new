@@ -89,6 +89,10 @@ export default function DocumentWorkspace({
   const [creditReason, setCreditReason] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  // Finding one document among hundreds. A filing cabinet nobody can search
+  // is a pile.
+  const [query, setQuery] = useState("");
+  const [shelf, setShelf] = useState<"all" | "owed" | "invoice" | "receipt" | "quotation" | "purchase_order">("all");
 
   const total = useMemo(
     () =>
@@ -225,6 +229,51 @@ export default function DocumentWorkspace({
       setBusy(null);
     }
   }
+
+  const OWED = new Set(["issued", "sent", "delivered", "viewed", "partially_paid", "overdue"]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return documents.filter((d) => {
+      if (shelf === "owed") {
+        if (d.type !== "invoice" || !OWED.has(d.status)) return false;
+      } else if (shelf !== "all" && d.type !== shelf) {
+        return false;
+      }
+      if (q === "") return true;
+      return (
+        (d.number ?? "").toLowerCase().includes(q) ||
+        (d.customerName ?? "").toLowerCase().includes(q) ||
+        (TYPE_LABEL[d.type] ?? d.type).toLowerCase().includes(q)
+      );
+    });
+  }, [documents, query, shelf]);
+
+  // The two figures a merchant actually opens this screen for.
+  const owedTotal = useMemo(
+    () =>
+      documents
+        .filter((d) => d.type === "invoice" && OWED.has(d.status))
+        .reduce((sum, d) => sum + (d.total ?? 0), 0),
+    [documents]
+  );
+  const owedCount = useMemo(
+    () => documents.filter((d) => d.type === "invoice" && OWED.has(d.status)).length,
+    [documents]
+  );
+  const overdueCount = useMemo(
+    () => documents.filter((d) => d.status === "overdue").length,
+    [documents]
+  );
+
+  const SHELVES: Array<[typeof shelf, string]> = [
+    ["all", "Everything"],
+    ["owed", "Not paid yet"],
+    ["invoice", "Invoices"],
+    ["receipt", "Receipts"],
+    ["quotation", "Quotes"],
+    ["purchase_order", "Purchase orders"],
+  ];
 
   return (
     <div className="space-y-6">
@@ -408,29 +457,87 @@ export default function DocumentWorkspace({
         </div>
       )}
 
+      {documents.length > 0 && (
+        <>
+          {owedTotal > 0 && (
+            <div className="mb-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[18px] border border-line-soft bg-white px-[22px] py-4 shadow-lift">
+              <span className="num text-2xl font-extrabold tracking-[-0.02em] text-ink">
+                {formatGHS(owedTotal)}
+              </span>
+              <span className="text-sm font-medium text-slate-grey">
+                owed to you across {owedCount}{" "}
+                {owedCount === 1 ? "invoice" : "invoices"}
+                {overdueCount > 0 && (
+                  <>
+                    {", "}
+                    <span className="font-bold text-gold-ink">
+                      {overdueCount} past the due date
+                    </span>
+                  </>
+                )}
+              </span>
+            </div>
+          )}
+
+          <div className="mb-3.5 space-y-2.5">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by number, customer or kind"
+              aria-label="Search your documents"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+            />
+            <div className="scr -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0">
+              {SHELVES.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setShelf(key)}
+                  className={`tap flex flex-none items-center whitespace-nowrap rounded-chip border px-4 text-[13px] font-bold ${
+                    shelf === key
+                      ? "border-ink bg-ink text-white"
+                      : "border-line bg-white text-ink-slate"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {documents.length === 0 ? (
         <EmptyState
           title="No documents yet."
           detail="Your first invoice takes about a minute."
         />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          title="Nothing here matches."
+          detail="Try a different word, or tap Everything to see them all."
+        />
       ) : (
         <Surface>
-          {documents.map((doc, i) => {
+          {visible.map((doc, i) => {
             const conversions = doc.number
               ? (DOCUMENT_CONVERSIONS[doc.type as DocumentType] ?? [])
               : [];
             const sent = Boolean(doc.number);
+            // The relay marks these on a tick, so the stored status is the
+            // answer. The date comparison stays as a fallback for the few
+            // minutes between a date passing and the next tick.
             const overdue =
-              sent &&
-              doc.dueDate !== null &&
-              doc.status !== "paid" &&
-              new Date(doc.dueDate) < new Date();
+              doc.status === "overdue" ||
+              (sent &&
+                doc.dueDate !== null &&
+                !["paid", "cancelled", "credited", "expired"].includes(doc.status) &&
+                new Date(doc.dueDate) < new Date());
 
             return (
               <div
                 key={doc.id}
                 className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-[15px] ${
-                  i < documents.length - 1 ? "border-b border-[#EEF3F7]" : ""
+                  i < visible.length - 1 ? "border-b border-[#EEF3F7]" : ""
                 }`}
               >
                 {/* The spine of a filed document, so a long list can be

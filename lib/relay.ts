@@ -23,6 +23,12 @@ export interface RelayResult {
   failed: number;
   messagesSent: number;
   messagesFailed: number;
+  /** Invoices that passed their due date on this tick. */
+  overdue: number;
+  /** Quotations nobody accepted in time. */
+  expired: number;
+  /** Reminders put on the queue for the message dispatcher below. */
+  remindersQueued: number;
 }
 
 export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
@@ -61,6 +67,31 @@ export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
     }
   }
 
+  // A due date passing is a fact about the calendar, so it is applied on a
+  // tick rather than waiting for somebody to open a screen. This runs
+  // before reminders, because a reminder is only sent to an invoice that
+  // has already been marked overdue.
+  let overdue = 0;
+  let expired = 0;
+  let remindersQueued = 0;
+  try {
+    const { data } = await db.rpc("mark_overdue_documents");
+    overdue = Number(data?.overdue ?? 0);
+    expired = Number(data?.expired ?? 0);
+  } catch {
+    // Transport failure only; the next tick retries.
+  }
+
+  // Chasing what is owed. An invoice going out and nothing following it up
+  // is the most expensive silence in the product for a business whose
+  // hardest problem is being paid late.
+  try {
+    const { data } = await db.rpc("queue_payment_reminders", { p_limit: 50 });
+    remindersQueued = Number(data?.queued ?? 0);
+  } catch {
+    // Transport failure only; the next tick retries.
+  }
+
   // Outbound messages ride the same worker: a merchant should never wait on
   // WhatsApp during a page load.
   const messages = await dispatchQueuedMessages(25).catch(() => ({
@@ -85,5 +116,8 @@ export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
     failed,
     messagesSent: messages.sent,
     messagesFailed: messages.failed,
+    overdue,
+    expired,
+    remindersQueued,
   };
 }
