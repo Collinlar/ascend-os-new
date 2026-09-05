@@ -8,6 +8,12 @@ import { formatGHS } from "@/lib/money";
 import type { DocumentType, UUID } from "./types";
 
 export interface DocumentLine {
+  /** The catalogue item this line sells, where there is one. A line typed
+   *  by hand has none, which is allowed: a business charges for things its
+   *  catalogue has never heard of. Where it is set, the document can be
+   *  joined back to what was actually sold, which is what keeps Documents
+   *  in the same world as POS, Shop and Services (DOC-LIN-004). */
+  itemId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -48,6 +54,7 @@ export async function createDraft(input: DraftInput): Promise<UUID> {
       tax_total: 0,
       total,
       lines: input.lines.map((l) => ({
+        item_id: l.itemId ?? null,
         description: l.description,
         quantity: l.quantity,
         unit_price: l.unitPrice,

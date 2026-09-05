@@ -14,7 +14,12 @@ interface Body {
   type?: DocumentType;
   customerName?: string;
   customerPhone?: string;
-  lines?: Array<{ description?: string; quantity?: number; unitPrice?: number }>;
+  lines?: Array<{
+    itemId?: string | null;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+  }>;
   dueDate?: string;
   issueNow?: boolean;
 }
@@ -43,21 +48,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const lines: DocumentLine[] = (body.lines ?? [])
-    .filter((l) => (l.description ?? "").trim().length > 0)
-    .map((l) => {
-      const quantity = Number(l.quantity) || 0;
-      const unitPrice = Number(l.unitPrice) || 0;
-      return {
-        description: (l.description ?? "").trim(),
-        quantity,
-        unitPrice,
-        lineTotal: Math.round(quantity * unitPrice * 100) / 100,
-      };
-    })
-    .filter((l) => l.quantity > 0);
+  // A line needs a quantity and something to call itself, which is either
+  // its own wording or a catalogue item that supplies one.
+  const rawLines = (body.lines ?? [])
+    .map((l) => ({
+      itemId: typeof l.itemId === "string" && l.itemId ? l.itemId : null,
+      description: (l.description ?? "").trim(),
+      quantity: Number(l.quantity) || 0,
+      unitPrice: Number(l.unitPrice) || 0,
+    }))
+    .filter((l) => l.quantity > 0 && (l.description.length > 0 || l.itemId));
 
-  if (lines.length === 0) {
+  if (rawLines.length === 0) {
     return NextResponse.json(
       { error: "Add at least one line with a description and quantity." },
       { status: 422 }
@@ -76,6 +78,56 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "You do not have access to this business." },
       { status: 403 }
+    );
+  }
+
+  // Resolve the catalogue links. The item has to belong to this business:
+  // the service-role client bypasses RLS, so an id from the request is not
+  // evidence of anything until it has been checked here.
+  //
+  // The name comes from the catalogue so a document says what the business
+  // actually sells. The price comes from the request, because a merchant
+  // discounts, rounds and negotiates, and a document that silently
+  // overwrote what they typed would be worse than useless.
+  const wantedIds = Array.from(
+    new Set(rawLines.map((l) => l.itemId).filter((id): id is string => Boolean(id)))
+  );
+
+  const catalogue = new Map<string, { name: string; basePrice: number | null }>();
+  if (wantedIds.length > 0) {
+    const { data: items } = await db
+      .from("catalogue_item")
+      .select("id, name, base_price")
+      .eq("business_id", body.businessId)
+      .in("id", wantedIds);
+    for (const item of items ?? []) {
+      catalogue.set(item.id, {
+        name: item.name,
+        basePrice: item.base_price === null ? null : Number(item.base_price),
+      });
+    }
+  }
+
+  const lines: DocumentLine[] = rawLines.map((l) => {
+    const item = l.itemId ? catalogue.get(l.itemId) : undefined;
+    const description = item?.name ?? l.description;
+    const unitPrice = l.unitPrice || item?.basePrice || 0;
+    return {
+      // An id that did not resolve is dropped rather than stored. A link
+      // that points nowhere is worse than no link, because everything
+      // downstream would trust it.
+      itemId: item ? l.itemId : null,
+      description,
+      quantity: l.quantity,
+      unitPrice,
+      lineTotal: Math.round(l.quantity * unitPrice * 100) / 100,
+    };
+  });
+
+  if (lines.some((l) => !l.description)) {
+    return NextResponse.json(
+      { error: "One of those lines has nothing to charge for. Add a description." },
+      { status: 422 }
     );
   }
 

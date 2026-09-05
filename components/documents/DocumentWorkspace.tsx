@@ -18,10 +18,27 @@ export interface DocumentRow {
 }
 
 interface DraftLine {
+  /** Set when the line came from the catalogue, so the document can be
+   *  joined back to what was sold. Null for a line typed by hand. */
+  itemId: string | null;
   description: string;
   quantity: string;
   unitPrice: string;
 }
+
+export interface CatalogueOption {
+  id: string;
+  name: string;
+  kind: string;
+  basePrice: number | null;
+}
+
+const BLANK_LINE: DraftLine = {
+  itemId: null,
+  description: "",
+  quantity: "1",
+  unitPrice: "",
+};
 
 // Three letters on the spine, the way a filing cabinet labels one.
 const SPINE: Record<string, string> = {
@@ -50,18 +67,19 @@ const CONVERT_LABEL: Record<string, string> = {
 export default function DocumentWorkspace({
   businessId,
   documents,
+  catalogue,
 }: {
   businessId: string;
   documents: DocumentRow[];
+  catalogue: CatalogueOption[];
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [type, setType] = useState<DocumentType>("invoice");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [lines, setLines] = useState<DraftLine[]>([
-    { description: "", quantity: "1", unitPrice: "" },
-  ]);
+  const [lines, setLines] = useState<DraftLine[]>([{ ...BLANK_LINE }]);
+  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +96,30 @@ export default function DocumentWorkspace({
     setLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   }
 
+  // Six is what fits on a 375px screen without the list becoming the page.
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q === "") return [];
+    return catalogue.filter((i) => i.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [catalogue, search]);
+
+  function addFromCatalogue(item: CatalogueOption) {
+    const line: DraftLine = {
+      itemId: item.id,
+      description: item.name,
+      quantity: "1",
+      unitPrice: item.basePrice === null ? "" : String(item.basePrice),
+    };
+    setLines((prev) => {
+      // Fill the empty line the form opens with rather than leaving it
+      // stranded above the thing the merchant just picked.
+      const blank = prev.findIndex((l) => !l.itemId && l.description.trim() === "");
+      if (blank === -1) return [...prev, line];
+      return prev.map((l, i) => (i === blank ? line : l));
+    });
+    setSearch("");
+  }
+
   async function create(issueNow: boolean) {
     setBusy("create");
     setError(null);
@@ -92,6 +134,7 @@ export default function DocumentWorkspace({
           customerPhone,
           issueNow,
           lines: lines.map((l) => ({
+            itemId: l.itemId,
             description: l.description,
             quantity: parseFloat(l.quantity) || 0,
             unitPrice: parseFloat(l.unitPrice) || 0,
@@ -104,7 +147,8 @@ export default function DocumentWorkspace({
         return;
       }
       setCreating(false);
-      setLines([{ description: "", quantity: "1", unitPrice: "" }]);
+      setLines([{ ...BLANK_LINE }]);
+      setSearch("");
       setCustomerName("");
       setCustomerPhone("");
       router.refresh();
@@ -191,15 +235,67 @@ export default function DocumentWorkspace({
             />
           </div>
 
+          {/* The catalogue the business already keeps. Typing a price that
+              is already recorded is how two versions of the truth start,
+              so the list comes first and the blank line stays underneath
+              for whatever the catalogue has never heard of. */}
+          {catalogue.length > 0 && (
+            <div className="mt-4">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search what you sell"
+                aria-label="Search your products and services"
+                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              />
+              {matches.length > 0 && (
+                <div className="mt-2 divide-y divide-line-soft border border-line-soft">
+                  {matches.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => addFromCatalogue(item)}
+                      className="tap flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-light-grey"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                        {item.name}
+                      </span>
+                      <span className="num flex-none text-sm font-bold text-teal-dark">
+                        {item.basePrice === null ? "No price yet" : formatGHS(item.basePrice)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {search.trim() !== "" && matches.length === 0 && (
+                <p className="mt-2 text-sm font-medium text-slate-grey">
+                  Nothing in your catalogue matches that. Type the line below instead.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="mt-4 space-y-2">
             {lines.map((line, i) => (
               <div key={i} className="grid grid-cols-6 gap-2">
-                <input
-                  value={line.description}
-                  onChange={(e) => updateLine(i, { description: e.target.value })}
-                  placeholder="What are you charging for?"
-                  className="col-span-3 border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
-                />
+                {line.itemId ? (
+                  <span className="col-span-3 flex items-center justify-between gap-2 border border-teal-light bg-teal-light px-3 py-2.5 text-sm font-semibold text-teal-dark">
+                    <span className="min-w-0 truncate">{line.description}</span>
+                    <button
+                      onClick={() => updateLine(i, { itemId: null })}
+                      aria-label={`Unlink ${line.description} from your catalogue`}
+                      className="flex-none font-bold"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : (
+                  <input
+                    value={line.description}
+                    onChange={(e) => updateLine(i, { description: e.target.value })}
+                    placeholder="What are you charging for?"
+                    className="col-span-3 border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                  />
+                )}
                 <input
                   value={line.quantity}
                   onChange={(e) => updateLine(i, { quantity: e.target.value })}
@@ -217,9 +313,7 @@ export default function DocumentWorkspace({
               </div>
             ))}
             <button
-              onClick={() =>
-                setLines((prev) => [...prev, { description: "", quantity: "1", unitPrice: "" }])
-              }
+              onClick={() => setLines((prev) => [...prev, { ...BLANK_LINE }])}
               className="tap text-sm font-medium text-teal-dark"
             >
               Add another line
