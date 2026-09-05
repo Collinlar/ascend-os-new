@@ -145,6 +145,18 @@ export default async function CustomerDocument({
           <PayButton token={params.token} amount={snapshot.total} />
         )}
 
+        {/* A customer needs a copy they can keep, forward to a bank, or
+            show at a counter. The same link authorises it, so there is
+            nothing to sign in to. */}
+        <a
+          href={`/d/${params.token}/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="tap mt-6 flex items-center justify-center border border-line text-sm font-semibold text-ink hover:bg-light-grey"
+        >
+          Save a copy
+        </a>
+
         <p className="mt-8 text-center text-xs text-ink-muted">
           Sent through AscendSME
         </p>

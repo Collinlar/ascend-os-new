@@ -324,6 +324,19 @@ export default function DocumentWorkspace({
                       {busy === doc.id ? "Sending..." : "Send it out"}
                     </button>
                   )}
+                  {/* Only an issued document has a number and a frozen
+                      version, which is what a PDF is a copy of. A draft
+                      would produce a file that changes under the customer. */}
+                  {doc.number && (
+                    <a
+                      href={`/api/documents/${doc.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                    >
+                      Open the PDF
+                    </a>
+                  )}
                   {conversions.map((target) => (
                     <button
                       key={target}
