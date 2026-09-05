@@ -80,6 +80,7 @@ export default function DocumentWorkspace({
   const [type, setType] = useState<DocumentType>("invoice");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([{ ...BLANK_LINE }]);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -143,7 +144,7 @@ export default function DocumentWorkspace({
           type,
           ...(type === "purchase_order"
             ? { supplierName: customerName, supplierPhone: customerPhone }
-            : { customerName, customerPhone }),
+            : { customerName, customerPhone, customerEmail }),
           issueNow,
           lines: lines.map((l) => ({
             itemId: l.itemId,
@@ -163,6 +164,7 @@ export default function DocumentWorkspace({
       setSearch("");
       setCustomerName("");
       setCustomerPhone("");
+      setCustomerEmail("");
       router.refresh();
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
@@ -341,6 +343,19 @@ export default function DocumentWorkspace({
               aria-label={type === "purchase_order" ? "Supplier phone" : "Customer WhatsApp number"}
               className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
+            {/* Optional, and second to WhatsApp on purpose. A company
+                paying on account wants it in the inbox its accounts team
+                works from; a trader does not want to be asked. */}
+            {type !== "purchase_order" && (
+              <input
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                inputMode="email"
+                placeholder="Their email, if they use one"
+                aria-label="Customer email address"
+                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:col-span-2"
+              />
+            )}
           </div>
 
           {/* The catalogue the business already keeps. Typing a price that

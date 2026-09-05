@@ -82,44 +82,79 @@ export interface IssueResult {
 
 const DELIVERABLE: DocumentType[] = ["invoice", "proforma", "quotation", "receipt"];
 
-// Sends the issued document to the customer over WhatsApp with a secure
-// link. Delivery failure never fails the issuance: the document is a
-// commercial record whether or not the message got through (MSG-007).
+// Sends the issued document to the customer with a secure link. Delivery
+// failure never fails the issuance: the document is a commercial record
+// whether or not the message got through (MSG-007).
+//
+// WhatsApp where there is a number, email where there is an address, and
+// both where the customer has both. A company paying on account reads its
+// invoices in an inbox; a trader reads them on WhatsApp. Sending to both
+// costs one extra message and saves the merchant chasing somebody who
+// simply never saw it. One secure link serves both, so there is one thing
+// to revoke.
 async function deliverIssuedDocument(
   documentId: UUID
 ): Promise<IssueResult["delivery"]> {
   const db = supabaseServer();
   const { data: doc } = await db
     .from("document")
-    .select("id, business_id, customer_id, type, number, total, customer:customer_id(phone_e164)")
+    .select("id, business_id, customer_id, type, number, total, customer:customer_id(display_name, phone_e164, email)")
     .eq("id", documentId)
     .maybeSingle();
 
   if (!doc || !DELIVERABLE.includes(doc.type as DocumentType)) return "skipped";
 
-  const phone = (doc.customer as unknown as { phone_e164: string | null } | null)
-    ?.phone_e164;
-  if (!doc.customer_id || !phone) return "no_customer";
+  const customer = doc.customer as unknown as {
+    display_name: string | null;
+    phone_e164: string | null;
+    email: string | null;
+  } | null;
+  const phone = customer?.phone_e164;
+  const email = customer?.email;
+  if (!doc.customer_id || (!phone && !email)) return "no_customer";
 
   const token = await createDocumentLink(doc.id, doc.business_id);
-  const result = await queueMessage({
-    businessId: doc.business_id,
-    templateKey: doc.type === "receipt" ? "receipt.sent" : "document.issued",
-    customerId: doc.customer_id,
-    recipient: phone,
-    variables: {
-      document_type: String(doc.type).replace("_", " "),
-      document_number: doc.number ?? "",
-      amount: formatGHS(Number(doc.total ?? 0)),
-      link: documentUrl(token),
-    },
-    sourceEntityType: "document",
-    sourceEntityId: doc.id,
-    // One message per issued document, however many times issue is retried.
-    clientRef: `doc:${doc.id}:issued`,
-  });
+  const variables = {
+    customer_name: customer?.display_name ?? "there",
+    document_type: String(doc.type).replace("_", " "),
+    document_number: doc.number ?? "",
+    amount: formatGHS(Number(doc.total ?? 0)),
+    link: documentUrl(token),
+  };
+  const base = doc.type === "receipt" ? "receipt.sent" : "document.issued";
 
-  return result.status === "queued" ? "queued" : "blocked_no_balance";
+  let queued = false;
+  let blocked = false;
+
+  for (const channel of [
+    phone ? { key: base, recipient: phone, suffix: "issued" } : null,
+    email ? { key: `${base}.email`, recipient: email, suffix: "issued.email" } : null,
+  ]) {
+    if (!channel) continue;
+    try {
+      const result = await queueMessage({
+        businessId: doc.business_id,
+        templateKey: channel.key as Parameters<typeof queueMessage>[0]["templateKey"],
+        customerId: doc.customer_id,
+        recipient: channel.recipient,
+        variables,
+        sourceEntityType: "document",
+        sourceEntityId: doc.id,
+        // One message per document per channel, however many times issue
+        // is retried.
+        clientRef: `doc:${doc.id}:${channel.suffix}`,
+      });
+      if (result.status === "queued") queued = true;
+      else blocked = true;
+    } catch {
+      // One channel failing must not stop the other. A merchant who has
+      // both wants whichever one works.
+      blocked = true;
+    }
+  }
+
+  if (queued) return "queued";
+  return blocked ? "blocked_no_balance" : "no_customer";
 }
 
 export async function issueDocument(

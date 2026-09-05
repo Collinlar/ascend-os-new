@@ -6,7 +6,16 @@ import { createHash, randomBytes } from "crypto";
 import { supabaseServer } from "@/lib/supabase";
 import type { UUID } from "@/lib/domains/types";
 
-export type TemplateKey = "document.issued" | "order.confirmed" | "receipt.sent";
+export type TemplateKey =
+  | "document.issued"
+  | "order.confirmed"
+  | "receipt.sent"
+  | "invoice.reminder"
+  // Email counterparts. Same engine, same consent and cost rules, a
+  // subject line and a body that reads as a letter rather than a chat.
+  | "document.issued.email"
+  | "receipt.sent.email"
+  | "invoice.reminder.email";
 
 export interface QueueInput {
   businessId: UUID;
@@ -96,7 +105,7 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
   const { data: queued } = await db
     .from("message")
     .select(
-      "id, channel, recipient, rendered_body, used_template, variables, template:template_key(provider_name, provider_namespace, param_order)"
+      "id, channel, recipient, rendered_body, subject, used_template, variables, template:template_key(provider_name, provider_namespace, param_order)"
     )
     .eq("status", "queued")
     .limit(limit);
@@ -116,6 +125,7 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
         message.channel as string,
         message.recipient as string,
         message.rendered_body as string,
+        message.subject as string | null,
         // Outside the customer's 24-hour window WhatsApp only accepts a
         // registered template, so the queue records which form to send.
         message.used_template
@@ -179,12 +189,70 @@ function orderedParams(
   return order.map((key) => variables[key] ?? "");
 }
 
+// Email delivery. Deliberately the same shape as the WhatsApp branch: a
+// timeout, a dev fallback that logs rather than sends, and a reason string
+// on failure that support can read back to a merchant.
+//
+// WhatsApp remains the default channel for Ghana at 91.8% reach. Email is
+// for the customer paying on account, whose accounts team works from an
+// inbox.
+async function deliverEmail(
+  recipient: string,
+  subject: string | null,
+  body: string
+): Promise<DeliveryResult> {
+  if (!recipient || !recipient.includes("@")) {
+    return { ok: false, reason: "no recipient email address" };
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    console.info(
+      `[dev] Email to ${recipient}: ${subject ?? "(no subject)"}
+${body}`
+    );
+    return { ok: true, reference: "dev-mode" };
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [recipient],
+        subject: subject ?? "",
+        text: body,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      return { ok: false, reason: `email provider returned ${response.status}` };
+    }
+    const data = (await response.json()) as { id?: string };
+    return { ok: true, reference: data.id };
+  } catch {
+    // A timeout or a network failure. The message stays queued and the
+    // next relay tick retries rather than losing it.
+    return { ok: false, reason: "could not reach the email provider" };
+  }
+}
+
 async function deliver(
   channel: string,
   recipient: string,
   body: string,
+  subject: string | null,
   template?: TemplateSend
 ): Promise<DeliveryResult> {
+  if (channel === "email") {
+    return deliverEmail(recipient, subject, body);
+  }
   if (channel !== "whatsapp") {
     return { ok: false, reason: `channel not configured: ${channel}` };
   }

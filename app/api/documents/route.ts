@@ -20,6 +20,7 @@ interface Body {
   type?: DocumentType;
   customerName?: string;
   customerPhone?: string;
+  customerEmail?: string;
   /** Purchase orders only: who the business is buying from. */
   supplierName?: string;
   supplierPhone?: string;
@@ -188,16 +189,22 @@ export async function POST(request: NextRequest) {
   // (CAP-003).
   let customerId: string | undefined;
   const phone = body.customerPhone?.trim();
+  const email = body.customerEmail?.trim() || null;
   const name = body.customerName?.trim();
   if (name && type !== "purchase_order") {
     if (phone) {
       const { data: existing } = await db
         .from("customer")
-        .select("id")
+        .select("id, email")
         .eq("business_id", body.businessId)
         .eq("phone_e164", phone)
         .maybeSingle();
       customerId = existing?.id;
+      // A customer who gives an address on a later document should be
+      // reachable at it from then on, without a separate edit screen.
+      if (existing && email && !existing.email) {
+        await db.from("customer").update({ email }).eq("id", existing.id);
+      }
     }
     if (!customerId) {
       const { data: created } = await db
@@ -206,6 +213,7 @@ export async function POST(request: NextRequest) {
           business_id: body.businessId,
           display_name: name,
           phone_e164: phone ?? null,
+          email,
           created_via: "documents",
         })
         .select("id")
