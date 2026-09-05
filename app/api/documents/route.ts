@@ -7,13 +7,22 @@ import { supabaseServer } from "@/lib/supabase";
 import { createDraft, issueDocument, type DocumentLine } from "@/lib/domains/documents";
 import type { DocumentType } from "@/lib/domains/types";
 
-const CREATABLE: DocumentType[] = ["quotation", "proforma", "invoice", "receipt"];
+const CREATABLE: DocumentType[] = [
+  "quotation",
+  "proforma",
+  "invoice",
+  "receipt",
+  "purchase_order",
+];
 
 interface Body {
   businessId?: string;
   type?: DocumentType;
   customerName?: string;
   customerPhone?: string;
+  /** Purchase orders only: who the business is buying from. */
+  supplierName?: string;
+  supplierPhone?: string;
   lines?: Array<{
     itemId?: string | null;
     description?: string;
@@ -131,12 +140,56 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // A purchase order faces the other way: it is addressed to a supplier
+  // and never to a customer, which the schema enforces (0054).
+  let supplierId: string | undefined;
+  if (type === "purchase_order") {
+    const supplierName = body.supplierName?.trim();
+    if (!supplierName) {
+      return NextResponse.json(
+        { error: "Say who you are ordering from." },
+        { status: 422 }
+      );
+    }
+    // Matched on the name the merchant typed, case and spacing ignored, so
+    // ordering from Melcom twice does not create two Melcoms and split the
+    // purchase history down the middle.
+    const { data: existing } = await db
+      .from("supplier")
+      .select("id")
+      .eq("business_id", body.businessId)
+      .eq("active", true)
+      .ilike("name", supplierName)
+      .maybeSingle();
+
+    if (existing) {
+      supplierId = existing.id;
+    } else {
+      const { data: created, error: supplierError } = await db
+        .from("supplier")
+        .insert({
+          business_id: body.businessId,
+          name: supplierName,
+          phone_e164: body.supplierPhone?.trim() || null,
+        })
+        .select("id")
+        .single();
+      if (supplierError || !created) {
+        return NextResponse.json(
+          { error: "We could not save that supplier. Tap again in a moment." },
+          { status: 500 }
+        );
+      }
+      supplierId = created.id;
+    }
+  }
+
   // Reuse the shared customer record rather than creating a parallel one
   // (CAP-003).
   let customerId: string | undefined;
   const phone = body.customerPhone?.trim();
   const name = body.customerName?.trim();
-  if (name) {
+  if (name && type !== "purchase_order") {
     if (phone) {
       const { data: existing } = await db
         .from("customer")
@@ -165,6 +218,7 @@ export async function POST(request: NextRequest) {
     const documentId = await createDraft({
       businessId: body.businessId,
       customerId,
+      supplierId,
       type,
       lines,
       dueDate: body.dueDate,

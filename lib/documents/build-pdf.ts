@@ -41,7 +41,7 @@ export async function buildDocumentPdf(
     // select string, and a concatenated one is just `string` to the
     // compiler, which loses every column type.
     .select(
-      "id, business_id, customer_id, type, status, number, currency_code, subtotal, tax_total, total, lines, issued_at, due_date, issued_snapshot, reason, business:business_id(name), customer:customer_id(display_name, phone_e164, organisation_name)"
+      "id, business_id, customer_id, type, status, number, currency_code, subtotal, tax_total, total, lines, issued_at, due_date, issued_snapshot, reason, business:business_id(name), customer:customer_id(display_name, phone_e164, organisation_name), supplier:supplier_id(name, phone_e164)"
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -54,6 +54,10 @@ export async function buildDocumentPdf(
     display_name: string;
     phone_e164: string | null;
     organisation_name: string | null;
+  } | null;
+  const supplier = doc.supplier as unknown as {
+    name: string;
+    phone_e164: string | null;
   } | null;
 
   // Where the business trades, for the letterhead. The first active
@@ -96,8 +100,11 @@ export async function buildDocumentPdf(
     businessName: business?.name ?? "",
     businessAddress: address || null,
     businessPhone: null,
-    customerName: customer?.organisation_name || customer?.display_name || null,
-    customerPhone: customer?.phone_e164 ?? null,
+    // On a purchase order the party is the supplier the business is
+    // ordering from, so that is whose name belongs in the address block.
+    customerName:
+      supplier?.name ?? customer?.organisation_name ?? customer?.display_name ?? null,
+    customerPhone: supplier?.phone_e164 ?? customer?.phone_e164 ?? null,
     lines: toLines(snapshot?.lines ?? doc.lines),
     subtotal: Number(snapshot?.subtotal ?? doc.subtotal ?? 0),
     taxTotal: Number(snapshot?.tax_total ?? doc.tax_total ?? 0),

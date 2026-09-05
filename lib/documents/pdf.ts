@@ -287,7 +287,15 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       y = Math.min(y, ry) - 18;
 
       if (doc.customerName) {
-        c.text(MARGIN, y, "Billed to", "F1", 8.5);
+        // A purchase order is addressed to whoever is being ordered from,
+        // not billed.
+        c.text(
+          MARGIN,
+          y,
+          doc.type === "purchase_order" ? "Ordered from" : "Billed to",
+          "F1",
+          8.5
+        );
         y -= 13;
         c.text(MARGIN, y, doc.customerName, "F2", 11);
         y -= 12;

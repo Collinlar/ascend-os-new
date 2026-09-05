@@ -47,6 +47,7 @@ const SPINE: Record<string, string> = {
   invoice: "INV",
   receipt: "RCT",
   credit_note: "CRN",
+  purchase_order: "PO",
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -55,6 +56,7 @@ const TYPE_LABEL: Record<string, string> = {
   invoice: "Invoice",
   receipt: "Receipt",
   credit_note: "Credit note",
+  purchase_order: "Purchase order",
 };
 
 const CONVERT_LABEL: Record<string, string> = {
@@ -135,8 +137,9 @@ export default function DocumentWorkspace({
         body: JSON.stringify({
           businessId,
           type,
-          customerName,
-          customerPhone,
+          ...(type === "purchase_order"
+            ? { supplierName: customerName, supplierPhone: customerPhone }
+            : { customerName, customerPhone }),
           issueNow,
           lines: lines.map((l) => ({
             itemId: l.itemId,
@@ -252,7 +255,7 @@ export default function DocumentWorkspace({
       ) : (
         <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
           <div className="flex flex-wrap gap-2">
-            {(["invoice", "quotation", "receipt"] as DocumentType[]).map((t) => (
+            {(["invoice", "quotation", "receipt", "purchase_order"] as DocumentType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setType(t)}
@@ -267,18 +270,26 @@ export default function DocumentWorkspace({
             ))}
           </div>
 
+          {/* A purchase order faces the other way: the business is the
+              buyer, so it asks who they are ordering from. */}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Who is this for?"
+              placeholder={
+                type === "purchase_order" ? "Who are you ordering from?" : "Who is this for?"
+              }
+              aria-label={type === "purchase_order" ? "Supplier name" : "Customer name"}
               className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
             <input
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               inputMode="tel"
-              placeholder="Their WhatsApp number"
+              placeholder={
+                type === "purchase_order" ? "Their phone number" : "Their WhatsApp number"
+              }
+              aria-label={type === "purchase_order" ? "Supplier phone" : "Customer WhatsApp number"}
               className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
             />
           </div>

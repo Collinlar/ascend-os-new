@@ -22,6 +22,8 @@ export interface DocumentLine {
 
 export interface DraftInput {
   businessId: UUID;
+  /** Purchase orders only. The schema refuses a document that names both. */
+  supplierId?: UUID;
   customerId?: UUID;
   type: DocumentType;
   lines: DocumentLine[];
@@ -47,6 +49,7 @@ export async function createDraft(input: DraftInput): Promise<UUID> {
     .insert({
       business_id: input.businessId,
       customer_id: input.customerId ?? null,
+      supplier_id: input.supplierId ?? null,
       type: input.type,
       status: "draft",
       currency_code: "GHS",

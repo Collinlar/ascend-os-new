@@ -32,7 +32,7 @@ async function load(): Promise<{
     const [{ data }, { data: items }] = await Promise.all([
       db
         .from("document")
-        .select("id, type, status, number, total, currency_code, due_date, created_at, customer:customer_id(display_name)")
+        .select("id, type, status, number, total, currency_code, due_date, created_at, customer:customer_id(display_name), supplier:supplier_id(name)")
         .eq("business_id", membership.business_id)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -61,8 +61,12 @@ async function load(): Promise<{
         total: d.total === null ? null : Number(d.total),
         dueDate: d.due_date,
         createdAt: d.created_at,
+        // A purchase order names the supplier it went to. Same column on
+        // the row, because from the merchant's side both answer "who".
         customerName:
-          (d.customer as unknown as { display_name: string } | null)?.display_name ?? null,
+          (d.supplier as unknown as { name: string } | null)?.name ??
+          (d.customer as unknown as { display_name: string } | null)?.display_name ??
+          null,
       })),
     };
   } catch {
