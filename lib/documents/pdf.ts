@@ -57,6 +57,9 @@ export interface PdfDocument {
   total: number | null;
   amountPaid?: number | null;
   status: string;
+  /** Why the document exists, where that is part of the record. On a
+   *  credit note it always is: it is the whole audit trail. */
+  reason?: string | null;
   /** Where the customer can check this document is real. */
   verifyUrl?: string | null;
 }
@@ -347,6 +350,14 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
         totalRow("Paid", doc.amountPaid);
         const balance = (doc.total ?? 0) - doc.amountPaid;
         if (Math.abs(balance) > 0.005) totalRow("Balance due", balance, true);
+      }
+
+      if (doc.reason) {
+        y -= 4;
+        c.text(MARGIN, y, "Reason", "F1", 8.5);
+        y -= 12;
+        c.text(MARGIN, y, truncate(doc.reason, CONTENT_WIDTH * 0.55, 9.5), "F2", 9.5);
+        y -= 14;
       }
 
       y -= 8;

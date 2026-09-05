@@ -177,5 +177,7 @@ export type DocumentType =
 export const DOCUMENT_CONVERSIONS: Partial<Record<DocumentType, DocumentType[]>> = {
   quotation: ["proforma", "invoice"],
   proforma: ["invoice"],
-  invoice: ["receipt", "credit_note"],
+  // credit_note is deliberately absent. It is not a conversion: it needs a
+  // reason and a limit, so it has its own action (0053).
+  invoice: ["receipt"],
 };

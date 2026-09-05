@@ -41,7 +41,7 @@ export async function buildDocumentPdf(
     // select string, and a concatenated one is just `string` to the
     // compiler, which loses every column type.
     .select(
-      "id, business_id, customer_id, type, status, number, currency_code, subtotal, tax_total, total, lines, issued_at, due_date, issued_snapshot, business:business_id(name), customer:customer_id(display_name, phone_e164, organisation_name)"
+      "id, business_id, customer_id, type, status, number, currency_code, subtotal, tax_total, total, lines, issued_at, due_date, issued_snapshot, reason, business:business_id(name), customer:customer_id(display_name, phone_e164, organisation_name)"
     )
     .eq("id", documentId)
     .maybeSingle();
@@ -104,6 +104,7 @@ export async function buildDocumentPdf(
     total: Number(snapshot?.total ?? doc.total ?? 0),
     amountPaid: showsPayment ? paid : null,
     status: doc.status,
+    reason: doc.reason,
     verifyUrl: options.verifyUrl ?? null,
   };
 

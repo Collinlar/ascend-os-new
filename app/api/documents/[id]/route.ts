@@ -4,12 +4,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
-import { convertDocument, issueDocument } from "@/lib/domains/documents";
+import {
+  convertDocument,
+  issueCreditNote,
+  issueDocument,
+} from "@/lib/domains/documents";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
 
 interface Body {
-  action?: "issue" | "convert";
+  action?: "issue" | "convert" | "credit";
   toType?: DocumentType;
+  /** Credit notes only: why the merchant is giving money back. */
+  reason?: string;
+  /** Credit notes only: leave unset to credit everything still eligible. */
+  amount?: number;
 }
 
 export async function POST(
@@ -101,6 +109,72 @@ export async function POST(
       }
       return NextResponse.json(
         { error: "We could not convert this document. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (body.action === "credit") {
+    const reason = (body.reason ?? "").trim();
+    if (reason.length < 4) {
+      return NextResponse.json(
+        { error: "Say why you are crediting this, so the record explains itself." },
+        { status: 422 }
+      );
+    }
+    const amount =
+      body.amount === undefined || body.amount === null ? undefined : Number(body.amount);
+    if (amount !== undefined && (!Number.isFinite(amount) || amount <= 0)) {
+      return NextResponse.json(
+        { error: "Enter an amount to credit, or leave it blank for the full invoice." },
+        { status: 422 }
+      );
+    }
+
+    try {
+      const result = await issueCreditNote(doc.id, reason, amount, membership.id);
+      return NextResponse.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (/credit_note_needs_an_invoice/.test(message)) {
+        return NextResponse.json(
+          { error: "Only an invoice can be credited." },
+          { status: 422 }
+        );
+      }
+      if (/credit_note_needs_an_issued_invoice/.test(message)) {
+        return NextResponse.json(
+          { error: "Send the invoice out first. A draft can just be edited." },
+          { status: 409 }
+        );
+      }
+      if (/invoice_already_fully_credited/.test(message)) {
+        return NextResponse.json(
+          { error: "This invoice has already been credited in full." },
+          { status: 409 }
+        );
+      }
+      if (/credit_exceeds_eligible_amount/.test(message)) {
+        // The function names the remaining figure, which is the one thing
+        // the merchant needs in order to fix their entry.
+        const remaining = message.match(/of ([0-9.]+) remaining/)?.[1];
+        return NextResponse.json(
+          {
+            error: remaining
+              ? `That is more than is left on this invoice. You can still credit GHS ${remaining}.`
+              : "That is more than is left on this invoice.",
+          },
+          { status: 422 }
+        );
+      }
+      if (/credit_note_needs_a_reason/.test(message)) {
+        return NextResponse.json(
+          { error: "Say why you are crediting this, so the record explains itself." },
+          { status: 422 }
+        );
+      }
+      return NextResponse.json(
+        { error: "We could not issue that credit note. Tap again in a moment." },
         { status: 500 }
       );
     }

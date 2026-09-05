@@ -82,6 +82,11 @@ export default function DocumentWorkspace({
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Which invoice is being credited, and on what grounds.
+  const [crediting, setCrediting] = useState<string | null>(null);
+  const [creditReason, setCreditReason] = useState("");
+  const [creditAmount, setCreditAmount] = useState("");
+  const [note, setNote] = useState<string | null>(null);
 
   const total = useMemo(
     () =>
@@ -159,6 +164,43 @@ export default function DocumentWorkspace({
     }
   }
 
+  async function credit(documentId: string) {
+    setBusy(documentId);
+    setError(null);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/documents/${documentId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "credit",
+          reason: creditReason,
+          // Blank means the whole of what is still owed, which is what a
+          // merchant means when they do not stop to work out a figure.
+          ...(creditAmount.trim() === "" ? {} : { amount: parseFloat(creditAmount) }),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not issue that credit note. Tap again.");
+        return;
+      }
+      setNote(
+        data.remaining > 0
+          ? `${data.number} issued for ${formatGHS(data.credited)}. ${formatGHS(data.remaining)} of this invoice can still be credited.`
+          : `${data.number} issued for ${formatGHS(data.credited)}. This invoice is now fully credited.`
+      );
+      setCrediting(null);
+      setCreditReason("");
+      setCreditAmount("");
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function act(documentId: string, action: "issue" | "convert", toType?: DocumentType) {
     setBusy(documentId);
     setError(null);
@@ -183,6 +225,12 @@ export default function DocumentWorkspace({
 
   return (
     <div className="space-y-6">
+      {note && (
+        <p className="border border-teal bg-teal-light px-4 py-3 text-sm font-medium text-teal-dark">
+          {note}
+        </p>
+      )}
+
       {error && (
         <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
           {error}
@@ -441,7 +489,54 @@ export default function DocumentWorkspace({
                       {CONVERT_LABEL[target] ?? `Convert to ${target}`}
                     </button>
                   ))}
+                  {/* Crediting an issued invoice is giving money back, so
+                      it asks for a reason before it will do anything. */}
+                  {doc.type === "invoice" && doc.number && (
+                    <button
+                      onClick={() => {
+                        setCrediting(crediting === doc.id ? null : doc.id);
+                        setCreditReason("");
+                        setCreditAmount("");
+                      }}
+                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                    >
+                      Give money back
+                    </button>
+                  )}
                 </div>
+
+                {crediting === doc.id && (
+                  <div className="w-full border-t border-line-soft pt-4">
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                      <input
+                        value={creditReason}
+                        onChange={(e) => setCreditReason(e.target.value)}
+                        placeholder="Why are you giving this back?"
+                        aria-label="Reason for the credit note"
+                        className="w-full border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                      />
+                      <input
+                        value={creditAmount}
+                        onChange={(e) => setCreditAmount(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="Whole invoice"
+                        aria-label="Amount to credit, or blank for the whole invoice"
+                        className="w-full border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:w-36"
+                      />
+                      <button
+                        onClick={() => credit(doc.id)}
+                        disabled={busy === doc.id || creditReason.trim().length < 4}
+                        className="tap flex items-center justify-center rounded-chip bg-teal px-5 text-[13px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
+                      >
+                        {busy === doc.id ? "Issuing..." : "Issue the credit note"}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[12.5px] font-medium text-slate-grey">
+                      Leave the amount blank to credit the whole invoice. The
+                      reason is kept on the record and shows on the credit note.
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}

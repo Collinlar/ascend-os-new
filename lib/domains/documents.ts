@@ -157,3 +157,40 @@ export async function convertDocument(
   if (error) throw new Error(error.message);
   return data.document_id as UUID;
 }
+
+export interface CreditNoteResult {
+  documentId: UUID;
+  number: string;
+  /** What this credit note took off the invoice. */
+  credited: number;
+  /** What is still creditable against it afterwards. */
+  remaining: number;
+}
+
+// A credit note is a business reducing money it is owed, so the reason and
+// the ceiling live in the database rather than here (0053). This is the
+// only path: the invoice-to-credit-note conversion was removed so the
+// rules cannot be walked around.
+export async function issueCreditNote(
+  invoiceId: UUID,
+  reason: string,
+  amount: number | undefined,
+  actorMembershipId?: UUID
+): Promise<CreditNoteResult> {
+  const db = supabaseServer();
+  const { data, error } = await db.rpc("issue_credit_note", {
+    p: {
+      document_id: invoiceId,
+      reason,
+      ...(amount === undefined ? {} : { amount }),
+      actor_membership_id: actorMembershipId ?? "",
+    },
+  });
+  if (error) throw new Error(error.message);
+  return {
+    documentId: data.document_id as UUID,
+    number: data.number as string,
+    credited: Number(data.credited),
+    remaining: Number(data.remaining),
+  };
+}
