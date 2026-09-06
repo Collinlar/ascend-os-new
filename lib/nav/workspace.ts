@@ -39,7 +39,11 @@ export interface Workspace {
 // become tabs and the rest go behind More. Serving customers outranks
 // setting the business up: a shop with orders waiting should not have to
 // open a menu to find them while Tills sits in a tab.
-const DESTINATIONS: Array<NavItem & { requires: string }> = [
+// `requires` is one capability, or several where a destination is earned
+// more than one way. The staff directory is the case that needs it: a till
+// business gets cashier accounts as an embedded essential of POS, and Full
+// Office gets the same screen through people.core.
+const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
   { href: "/pos", label: "Sell at the counter", short: "Sell", requires: "pos.sell" },
   { href: "/orders", label: "Online orders", short: "Orders", requires: "shop.orders" },
   { href: "/bookings", label: "Bookings", short: "Bookings", requires: "services.bookings" },
@@ -63,6 +67,12 @@ const DESTINATIONS: Array<NavItem & { requires: string }> = [
     label: "When you are free",
     short: "Availability",
     requires: "services.basic_availability",
+  },
+  {
+    href: "/team",
+    label: "Your team",
+    short: "Team",
+    requires: ["people.cashiers", "people.core"],
   },
   { href: "/work", label: "People and work", short: "Work", requires: "office.work" },
   { href: "/promote", label: "Get found", short: "Promote", requires: "discover.listing" },
@@ -149,7 +159,10 @@ export async function currentWorkspace(): Promise<Workspace | null> {
   const seen = new Set<string>();
   const items: NavItem[] = [HOME];
   for (const destination of DESTINATIONS) {
-    if (!capabilities.has(destination.requires)) continue;
+    const needed = Array.isArray(destination.requires)
+      ? destination.requires
+      : [destination.requires];
+    if (!needed.some((capability) => capabilities.has(capability))) continue;
     if (seen.has(destination.href)) continue;
     seen.add(destination.href);
     items.push({

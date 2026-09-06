@@ -13,6 +13,11 @@ export interface TaskRow {
   sourceType: string | null;
 }
 
+export interface TeamOption {
+  membershipId: string;
+  name: string;
+}
+
 export interface ApprovalRow {
   id: string;
   kind: string;
@@ -41,10 +46,12 @@ export default function WorkBoard({
   checkedIn,
   tasks,
   approvals,
+  team,
 }: {
   checkedIn: boolean;
   tasks: TaskRow[];
   approvals: ApprovalRow[];
+  team: TeamOption[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,6 +60,51 @@ export default function WorkBoard({
   const [amount, setAmount] = useState("");
   const [detail, setDetail] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [showTask, setShowTask] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDetail, setTaskDetail] = useState("");
+  const [taskAssignee, setTaskAssignee] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+
+  async function addTask() {
+    if (taskTitle.trim().length < 2) {
+      setError("Say what needs doing.");
+      return;
+    }
+    setBusy("new-task");
+    setError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_task",
+          title: taskTitle,
+          detail: taskDetail,
+          assigneeMembershipId: taskAssignee || undefined,
+          // A date with no time means the end of that day, which is what a
+          // person means when they say "by Friday".
+          dueAt: taskDue ? new Date(`${taskDue}T17:00:00`).toISOString() : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not add that. Tap again.");
+        return;
+      }
+      setShowTask(false);
+      setTaskTitle("");
+      setTaskDetail("");
+      setTaskAssignee("");
+      setTaskDue("");
+      setNotice("Added to the list.");
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function post(key: string, payload: Record<string, unknown>) {
     setBusy(key);
@@ -193,7 +245,76 @@ export default function WorkBoard({
       )}
 
       <section>
-        <h2 className="text-sm font-medium text-ink-muted">What you need to do</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium text-ink-muted">What you need to do</h2>
+          {!showTask && (
+            <button
+              onClick={() => setShowTask(true)}
+              className="tap text-sm font-semibold text-teal-dark"
+            >
+              Add something
+            </button>
+          )}
+        </div>
+
+        {showTask && (
+          <div className="mt-3 border border-line bg-white p-4">
+            <input
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder="What needs doing?"
+              aria-label="What needs doing"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <input
+              value={taskDetail}
+              onChange={(e) => setTaskDetail(e.target.value)}
+              placeholder="Anything else worth knowing"
+              aria-label="Task detail"
+              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {/* Unassigned is allowed and common: a small team picks work
+                  up rather than being handed it. */}
+              <select
+                value={taskAssignee}
+                onChange={(e) => setTaskAssignee(e.target.value)}
+                aria-label="Who should do it"
+                className="w-full border border-line bg-white px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+              >
+                <option value="">Anyone on the team</option>
+                {team.map((m) => (
+                  <option key={m.membershipId} value={m.membershipId}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={taskDue}
+                onChange={(e) => setTaskDue(e.target.value)}
+                aria-label="When it is needed by"
+                className="w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={addTask}
+                disabled={busy === "new-task"}
+                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === "new-task" ? "Adding..." : "Add it to the list"}
+              </button>
+              <button
+                onClick={() => setShowTask(false)}
+                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-3 space-y-2">
           {tasks.length === 0 ? (
             <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">

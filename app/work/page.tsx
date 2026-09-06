@@ -4,6 +4,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import WorkBoard, {
   type ApprovalRow,
   type TaskRow,
+  type TeamOption,
 } from "@/components/office/WorkBoard";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ async function load(): Promise<{
   checkedIn: boolean;
   tasks: TaskRow[];
   approvals: ApprovalRow[];
+  team: TeamOption[];
 } | null> {
   try {
     const personId = await currentPersonId();
@@ -27,7 +29,7 @@ async function load(): Promise<{
     const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
     if (!membership) return null;
 
-    const [tasks, approvals, openAttendance] = await Promise.all([
+    const [tasks, approvals, openAttendance, team] = await Promise.all([
       db
         .from("task")
         .select("id, title, detail, status, due_at, source_entity_type, source_entity_id")
@@ -51,12 +53,26 @@ async function load(): Promise<{
         .is("check_out", null)
         .limit(1)
         .maybeSingle(),
+      // Who work can be handed to. Names only: this is a picker, not the
+      // staff directory.
+      db
+        .from("business_membership")
+        .select("id, person:person_id(full_name)")
+        .eq("business_id", membership.business_id)
+        .eq("status", "active")
+        .limit(50),
     ]);
 
     return {
       businessId: membership.business_id as string,
       membershipId: membership.id as string,
       checkedIn: Boolean(openAttendance.data),
+      team: (team.data ?? []).map((m) => ({
+        membershipId: m.id,
+        name:
+          (m.person as unknown as { full_name: string } | null)?.full_name ??
+          "A team member",
+      })),
       tasks: (tasks.data ?? []).map((t) => ({
         id: t.id,
         title: t.title,
@@ -110,6 +126,7 @@ export default async function Work() {
             checkedIn={data.checkedIn}
             tasks={data.tasks}
             approvals={data.approvals}
+            team={data.team}
           />
         )}
       </div>

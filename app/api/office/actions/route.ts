@@ -9,8 +9,16 @@ import { supabaseServer } from "@/lib/supabase";
 import { publishEvent } from "@/lib/domains/events";
 
 interface Body {
-  action?: "complete_task" | "submit_expense" | "decide_approval" | "attendance";
+  action?:
+    | "create_task"
+    | "complete_task"
+    | "submit_expense"
+    | "decide_approval"
+    | "attendance";
   taskId?: string;
+  title?: string;
+  assigneeMembershipId?: string;
+  dueAt?: string;
   amount?: number;
   category?: string;
   detail?: string;
@@ -46,6 +54,61 @@ export async function POST(request: NextRequest) {
 
   const businessId = membership.business_id as string;
   const membershipId = membership.id as string;
+
+  // Work has to be able to get into Office. Until now the board could
+  // complete a task and nothing anywhere could create one, which is why the
+  // table has been empty since it was built.
+  if (body.action === "create_task") {
+    const title = (body.title ?? "").trim();
+    if (title.length < 2) {
+      return NextResponse.json(
+        { error: "Say what needs doing." },
+        { status: 422 }
+      );
+    }
+
+    // An assignee has to be someone on this team. The service-role client
+    // bypasses RLS, so a membership id in a request proves nothing until it
+    // has been checked against the business.
+    let assignee: string | null = null;
+    if (body.assigneeMembershipId) {
+      const { data: member } = await db
+        .from("business_membership")
+        .select("id")
+        .eq("id", body.assigneeMembershipId)
+        .eq("business_id", businessId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!member) {
+        return NextResponse.json(
+          { error: "That person is not on your team." },
+          { status: 422 }
+        );
+      }
+      assignee = member.id;
+    }
+
+    const { data, error } = await db.rpc("create_linked_task", {
+      p: {
+        business_id: businessId,
+        title,
+        detail: (body.detail ?? "").trim() || null,
+        assigned_membership_id: assignee ?? "",
+        due_at: body.dueAt || "",
+        created_by: membershipId,
+      },
+    });
+
+    if (error) {
+      console.error("create_task failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not save that just now. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ taskId: data.task_id, duplicate: data.duplicate });
+  }
 
   if (body.action === "complete_task") {
     if (!body.taskId) {
