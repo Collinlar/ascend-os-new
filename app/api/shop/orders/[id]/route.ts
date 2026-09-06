@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { shopOrderWork } from "@/lib/domains/office-work";
 
 const ALLOWED_TARGETS = [
   "confirmed",
@@ -91,6 +92,11 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  // Office picks the work up from here: a confirmed order needs packing,
+  // a fulfilled one does not. Never allowed to fail the transition that
+  // caused it, so it is awaited but cannot throw.
+  await shopOrderWork(order.id, data.status as string);
 
   return NextResponse.json({ status: data.status, unchanged: data.unchanged });
 }

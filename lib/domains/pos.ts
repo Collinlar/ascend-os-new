@@ -3,6 +3,7 @@
 // outbox; this service is the server side of that contract (POS §18.1).
 
 import { supabaseServer } from "@/lib/supabase";
+import { shiftVarianceWork } from "./office-work";
 import type { CompleteSaleInput, CompleteSaleResult, UUID } from "./types";
 
 // Validates scope then applies the sale atomically and idempotently via the
@@ -189,6 +190,14 @@ export async function closeShift(input: CloseShiftInput): Promise<{
     const transient = isTransient(error.message) || /shift_not_found/.test(error.message);
     throw new SyncRejection(error.message, transient ? "temporary" : "permanent");
   }
+  // A till that does not balance becomes work for somebody in the morning.
+  // Cannot fail the close: a shift that has ended must be recorded as
+  // ended whatever else goes wrong.
+  await shiftVarianceWork(
+    data.shift_id as UUID,
+    data.difference === null ? null : Number(data.difference)
+  );
+
   return {
     shiftId: data.shift_id as UUID,
     expectedCash: Number(data.expected_cash),
