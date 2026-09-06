@@ -14,11 +14,18 @@ interface Body {
     | "complete_task"
     | "submit_expense"
     | "decide_approval"
-    | "attendance";
+    | "attendance"
+    | "request_leave"
+    | "create_project";
   taskId?: string;
   title?: string;
   assigneeMembershipId?: string;
   dueAt?: string;
+  startsAt?: string;
+  endsAt?: string;
+  name?: string;
+  dueOn?: string;
+  milestones?: Array<{ title?: string; dueOn?: string }>;
   amount?: number;
   category?: string;
   detail?: string;
@@ -251,6 +258,73 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ action: data.action });
+  }
+
+  // Asking for time off. The record and its approval are made together in
+  // the database, so a request can never exist without the decision that
+  // governs it.
+  if (body.action === "request_leave") {
+    if (!body.startsAt || !body.endsAt) {
+      return NextResponse.json(
+        { error: "Say which days you need off." },
+        { status: 422 }
+      );
+    }
+    const { data, error } = await db.rpc("request_time_off", {
+      p: {
+        business_id: businessId,
+        membership_id: membershipId,
+        starts_at: body.startsAt,
+        ends_at: body.endsAt,
+        reason: body.detail ?? "",
+      },
+    });
+    if (error) {
+      if (/leave_overlaps_existing/.test(error.message)) {
+        return NextResponse.json(
+          { error: "You already have time off booked over those days." },
+          { status: 409 }
+        );
+      }
+      if (/leave_ends_before_it_starts/.test(error.message)) {
+        return NextResponse.json(
+          { error: "The last day cannot be before the first." },
+          { status: 422 }
+        );
+      }
+      console.error("request_leave failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not send that request. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ timeOffId: data.time_off_id });
+  }
+
+  if (body.action === "create_project") {
+    const { data, error } = await db.rpc("create_project", {
+      p: {
+        business_id: businessId,
+        name: body.name ?? "",
+        detail: body.detail ?? "",
+        due_on: body.dueOn ?? "",
+        created_by: membershipId,
+        milestones: (body.milestones ?? [])
+          .filter((m) => (m.title ?? "").trim())
+          .map((m) => ({ title: m.title, due_on: m.dueOn ?? "" })),
+      },
+    });
+    if (error) {
+      if (/project_needs_a_name/.test(error.message)) {
+        return NextResponse.json({ error: "Give the job a name." }, { status: 422 });
+      }
+      console.error("create_project failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not save that job. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ projectId: data.project_id, milestones: data.milestones });
   }
 
   return NextResponse.json({ error: "That is not an action we handle." }, { status: 422 });

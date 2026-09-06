@@ -1,8 +1,12 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
+import { loadCommandCentre, type CommandCentre } from "@/lib/office/command-centre";
+import CommandCentreView from "@/components/office/CommandCentre";
 import WorkBoard, {
   type ApprovalRow,
+  type LeaveRow,
+  type ProjectRow,
   type TaskRow,
   type TeamOption,
 } from "@/components/office/WorkBoard";
@@ -20,6 +24,9 @@ async function load(): Promise<{
   tasks: TaskRow[];
   approvals: ApprovalRow[];
   team: TeamOption[];
+  centre: CommandCentre;
+  leave: LeaveRow[];
+  projects: ProjectRow[];
 } | null> {
   try {
     const personId = await currentPersonId();
@@ -29,7 +36,8 @@ async function load(): Promise<{
     const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
     if (!membership) return null;
 
-    const [tasks, approvals, openAttendance, team] = await Promise.all([
+    const [tasks, approvals, openAttendance, team, centre, leave, projects] =
+      await Promise.all([
       db
         .from("task")
         .select("id, title, detail, status, due_at, source_entity_type, source_entity_id")
@@ -61,12 +69,38 @@ async function load(): Promise<{
         .eq("business_id", membership.business_id)
         .eq("status", "active")
         .limit(50),
+      loadCommandCentre(membership.business_id as string),
+      db.rpc("staff_leave", { p_business: membership.business_id }),
+      db.rpc("business_projects", { p_business: membership.business_id }),
     ]);
 
     return {
       businessId: membership.business_id as string,
       membershipId: membership.id as string,
       checkedIn: Boolean(openAttendance.data),
+      centre,
+      leave: ((leave.data ?? []) as Array<Record<string, unknown>>).map((l) => ({
+        id: l.id as string,
+        staffName: l.staff_name as string,
+        startsAt: l.starts_at as string,
+        endsAt: l.ends_at as string,
+        reason: (l.reason as string) ?? null,
+        status: l.status as string,
+        isSelf: l.membership_id === membership.id,
+      })),
+      projects: ((projects.data ?? []) as Array<Record<string, unknown>>).map((p) => ({
+        id: p.id as string,
+        name: p.name as string,
+        detail: (p.detail as string) ?? null,
+        customerName: (p.customer_name as string) ?? null,
+        dueOn: (p.due_on as string) ?? null,
+        tasksTotal: Number(p.tasks_total ?? 0),
+        tasksDone: Number(p.tasks_done ?? 0),
+        milestonesTotal: Number(p.milestones_total ?? 0),
+        milestonesReached: Number(p.milestones_reached ?? 0),
+        nextMilestone: (p.next_milestone as string) ?? null,
+        nextMilestoneDue: (p.next_milestone_due as string) ?? null,
+      })),
       team: (team.data ?? []).map((m) => ({
         membershipId: m.id,
         name:
@@ -111,7 +145,7 @@ export default async function Work() {
         <div className="mx-auto max-w-2xl px-5 py-4">
           <h1 className="text-lg font-semibold text-ink">Your work</h1>
           <p className="text-sm text-ink-muted">
-            Decisions waiting on you, then what you need to do.
+            What is late, who is here, and what needs deciding.
           </p>
         </div>
       </header>
@@ -122,12 +156,20 @@ export default async function Work() {
             Verify your WhatsApp number to see your work.
           </p>
         ) : (
-          <WorkBoard
-            checkedIn={data.checkedIn}
-            tasks={data.tasks}
-            approvals={data.approvals}
-            team={data.team}
-          />
+          <div className="space-y-6">
+            <CommandCentreView
+              data={data.centre}
+              approvalsWaiting={data.approvals.length}
+            />
+            <WorkBoard
+              checkedIn={data.checkedIn}
+              tasks={data.tasks}
+              approvals={data.approvals}
+              team={data.team}
+              leave={data.leave}
+              projects={data.projects}
+            />
+          </div>
         )}
       </div>
     </main>

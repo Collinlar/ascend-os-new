@@ -18,6 +18,30 @@ export interface TeamOption {
   name: string;
 }
 
+export interface LeaveRow {
+  id: string;
+  staffName: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+  status: string;
+  isSelf: boolean;
+}
+
+export interface ProjectRow {
+  id: string;
+  name: string;
+  detail: string | null;
+  customerName: string | null;
+  dueOn: string | null;
+  tasksTotal: number;
+  tasksDone: number;
+  milestonesTotal: number;
+  milestonesReached: number;
+  nextMilestone: string | null;
+  nextMilestoneDue: string | null;
+}
+
 export interface ApprovalRow {
   id: string;
   kind: string;
@@ -47,11 +71,15 @@ export default function WorkBoard({
   tasks,
   approvals,
   team,
+  leave,
+  projects,
 }: {
   checkedIn: boolean;
   tasks: TaskRow[];
   approvals: ApprovalRow[];
   team: TeamOption[];
+  leave: LeaveRow[];
+  projects: ProjectRow[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -65,6 +93,92 @@ export default function WorkBoard({
   const [taskDetail, setTaskDetail] = useState("");
   const [taskAssignee, setTaskAssignee] = useState("");
   const [taskDue, setTaskDue] = useState("");
+  const [showLeave, setShowLeave] = useState(false);
+  const [leaveFrom, setLeaveFrom] = useState("");
+  const [leaveTo, setLeaveTo] = useState("");
+  const [leaveReason, setLeaveReason] = useState("");
+  const [showProject, setShowProject] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDue, setProjectDue] = useState("");
+  const [projectSteps, setProjectSteps] = useState("");
+
+  async function askForLeave() {
+    if (!leaveFrom || !leaveTo) {
+      setError("Say which days you need off.");
+      return;
+    }
+    setBusy("leave");
+    setError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "request_leave",
+          // A day off means the whole day, so the range covers both ends.
+          startsAt: new Date(`${leaveFrom}T00:00:00`).toISOString(),
+          endsAt: new Date(`${leaveTo}T23:59:59`).toISOString(),
+          detail: leaveReason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not send that request. Tap again.");
+        return;
+      }
+      setShowLeave(false);
+      setLeaveFrom("");
+      setLeaveTo("");
+      setLeaveReason("");
+      setNotice("Asked. Your manager decides it.");
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function addProject() {
+    if (projectName.trim().length < 2) {
+      setError("Give the job a name.");
+      return;
+    }
+    setBusy("project");
+    setError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_project",
+          name: projectName,
+          dueOn: projectDue || undefined,
+          // One step per line, which is how somebody writes a list when
+          // nobody has given them a form for it.
+          milestones: projectSteps
+            .split(/\r?\n/)
+            .map((line) => ({ title: line.trim() }))
+            .filter((m) => m.title),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not save that job. Tap again.");
+        return;
+      }
+      setShowProject(false);
+      setProjectName("");
+      setProjectDue("");
+      setProjectSteps("");
+      setNotice("Job added.");
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function addTask() {
     if (taskTitle.trim().length < 2) {
@@ -348,6 +462,187 @@ export default function WorkBoard({
             ))
           )}
         </div>
+      </section>
+
+      {/* Jobs with more than one step to them. A caterer with a wedding in
+          three weeks needs to know what is left, not a Gantt chart. */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium text-ink-muted">Jobs on</h2>
+          {!showProject && (
+            <button
+              onClick={() => setShowProject(true)}
+              className="tap text-sm font-semibold text-teal-dark"
+            >
+              Start a job
+            </button>
+          )}
+        </div>
+
+        {showProject && (
+          <div className="mt-3 border border-line bg-white p-4">
+            <input
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="What is the job?"
+              aria-label="Job name"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <input
+              type="date"
+              value={projectDue}
+              onChange={(e) => setProjectDue(e.target.value)}
+              aria-label="When the job is due"
+              className="mt-2 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+            />
+            <textarea
+              value={projectSteps}
+              onChange={(e) => setProjectSteps(e.target.value)}
+              rows={4}
+              placeholder={"The steps, one per line\nBook the venue\nConfirm the menu\nDeliver"}
+              aria-label="Steps, one per line"
+              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={addProject}
+                disabled={busy === "project"}
+                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === "project" ? "Saving..." : "Save the job"}
+              </button>
+              <button
+                onClick={() => setShowProject(false)}
+                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 space-y-2">
+          {projects.length === 0 ? (
+            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
+              No jobs on at the moment.
+            </p>
+          ) : (
+            projects.map((p) => (
+              <div key={p.id} className="border border-line bg-white px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium text-ink">{p.name}</p>
+                  <p className="num text-xs font-bold text-ink-muted">
+                    {p.milestonesReached}/{p.milestonesTotal || 0} steps
+                    {p.tasksTotal > 0 && ` · ${p.tasksDone}/${p.tasksTotal} tasks`}
+                  </p>
+                </div>
+                <p className="text-xs text-ink-muted">
+                  {p.nextMilestone ? `Next: ${p.nextMilestone}` : "Nothing left on the list"}
+                  {p.dueOn && ` · due ${formatDue(p.dueOn)}`}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* Time off. Staff ask constantly and there has never been anywhere
+          to do it, so it was asked for over WhatsApp and forgotten. */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium text-ink-muted">Time off</h2>
+          {!showLeave && (
+            <button
+              onClick={() => setShowLeave(true)}
+              className="tap text-sm font-semibold text-teal-dark"
+            >
+              Ask for days off
+            </button>
+          )}
+        </div>
+
+        {showLeave && (
+          <div className="mt-3 border border-line bg-white p-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="text-xs font-medium text-ink-muted">
+                First day
+                <input
+                  type="date"
+                  value={leaveFrom}
+                  onChange={(e) => setLeaveFrom(e.target.value)}
+                  className="mt-1 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                />
+              </label>
+              <label className="text-xs font-medium text-ink-muted">
+                Last day
+                <input
+                  type="date"
+                  value={leaveTo}
+                  onChange={(e) => setLeaveTo(e.target.value)}
+                  className="mt-1 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                />
+              </label>
+            </div>
+            <input
+              value={leaveReason}
+              onChange={(e) => setLeaveReason(e.target.value)}
+              placeholder="Why, if you want to say"
+              aria-label="Reason"
+              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={askForLeave}
+                disabled={busy === "leave"}
+                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === "leave" ? "Asking..." : "Ask for these days"}
+              </button>
+              <button
+                onClick={() => setShowLeave(false)}
+                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {leave.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {leave.map((l) => (
+              <div
+                key={l.id}
+                className="flex flex-wrap items-center justify-between gap-2 border border-line bg-white px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-ink">
+                    {l.isSelf ? "You" : l.staffName}
+                    {l.reason && `, ${l.reason}`}
+                  </p>
+                  <p className="text-xs text-ink-muted">
+                    {formatDue(l.startsAt)} to {formatDue(l.endsAt)}
+                  </p>
+                </div>
+                <span
+                  className={`whitespace-nowrap px-2.5 py-[3px] text-xs font-bold ${
+                    l.status === "approved"
+                      ? "bg-teal-light text-teal-dark"
+                      : l.status === "declined"
+                        ? "bg-danger-tint text-danger-ink"
+                        : "bg-gold-light text-gold-ink"
+                  }`}
+                >
+                  {l.status === "requested"
+                    ? "Waiting"
+                    : l.status === "approved"
+                      ? "Agreed"
+                      : "Not agreed"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="border border-line bg-white p-5">
