@@ -74,7 +74,24 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     short: "Team",
     requires: ["people.cashiers", "people.core"],
   },
-  { href: "/work", label: "People and work", short: "Work", requires: "office.work" },
+  {
+    href: "/work",
+    label: "People and work",
+    short: "Work",
+    // Full Office is paid, but the PRD embeds parts of it in the anchor
+    // products (31): POS carries attendance and shifts, Shop carries
+    // fulfilment assignment, Services carries provider assignment. A
+    // merchant holding any of those has work to see, and gating the whole
+    // screen on office.work put every one of them behind a door nobody
+    // had a key to. The paid modules are gated inside the page instead.
+    requires: [
+      "office.work",
+      "office.basic_attendance",
+      "office.basic_shifts",
+      "office.basic_order_assignment",
+      "people.provider_assignment",
+    ],
+  },
   { href: "/promote", label: "Get found", short: "Promote", requires: "discover.listing" },
   {
     href: "/readiness",

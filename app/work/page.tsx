@@ -18,10 +18,23 @@ export const dynamic = "force-dynamic";
 // Ascend Office. Decisions waiting on this person come first, then their
 // own work (OFF-008). Tasks show what they came from, because a fulfilment
 // task without its order is just a sentence.
+//
+// The screen is role-aware, which is what Office PRD 27 asks for. It says
+// Business Mobile "should not reproduce the complete Office web
+// application" and lists different priorities for the two audiences: an
+// owner wants approvals, who is in, what is overdue and what is going
+// wrong; a member of staff wants what they have to do, when, where, and
+// what they have asked for. Same URL, different screen.
+//
+// It is also a privacy rule, not only a layout one. A cashier has no
+// business seeing what the team spent this week or who else asked for
+// Friday off (OFF-MOB-026).
 
 async function load(): Promise<{
   businessId: string;
   membershipId: string;
+  /** owner and manager see the business; everybody else sees their own day. */
+  runsThePlace: boolean;
   checkedIn: boolean;
   tasks: TaskRow[];
   approvals: ApprovalRow[];
@@ -36,8 +49,15 @@ async function load(): Promise<{
     if (!personId) return null;
 
     const db = supabaseServer();
-    const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
+    const membership = await activeMembership<{
+      id: string;
+      business_id: string;
+      role: { key: string } | null;
+    }>(personId, "id, business_id, role:role_id(key)");
     if (!membership) return null;
+
+    const roleKey = (membership.role as unknown as { key: string } | null)?.key;
+    const runsThePlace = roleKey === "owner" || roleKey === "manager";
 
     const [
       tasks,
@@ -49,13 +69,25 @@ async function load(): Promise<{
       projects,
       schedule,
     ] = await Promise.all([
-      db
-        .from("task")
-        .select("id, title, detail, status, due_at, source_entity_type, source_entity_id")
-        .eq("business_id", membership.business_id)
-        .in("status", ["open", "in_progress", "blocked"])
-        .order("due_at", { ascending: true, nullsFirst: false })
-        .limit(40),
+      // A manager sees the whole board. Everybody else sees what is theirs
+      // and what nobody has picked up, which is the honest answer to "what
+      // do I need to do" and avoids handing a cashier the team's workload.
+      (runsThePlace
+        ? db
+            .from("task")
+            .select("id, title, detail, status, due_at, source_entity_type, source_entity_id, assigned_membership_id")
+            .eq("business_id", membership.business_id)
+            .in("status", ["open", "in_progress", "blocked"])
+            .order("due_at", { ascending: true, nullsFirst: false })
+            .limit(40)
+        : db
+            .from("task")
+            .select("id, title, detail, status, due_at, source_entity_type, source_entity_id, assigned_membership_id")
+            .eq("business_id", membership.business_id)
+            .in("status", ["open", "in_progress", "blocked"])
+            .or(`assigned_membership_id.eq.${membership.id},assigned_membership_id.is.null`)
+            .order("due_at", { ascending: true, nullsFirst: false })
+            .limit(40)),
       db
         .from("approval_request")
         .select(
@@ -89,6 +121,7 @@ async function load(): Promise<{
     return {
       businessId: membership.business_id as string,
       membershipId: membership.id as string,
+      runsThePlace,
       checkedIn: Boolean(openAttendance.data),
       centre,
       schedule,
@@ -100,7 +133,7 @@ async function load(): Promise<{
         reason: (l.reason as string) ?? null,
         status: l.status as string,
         isSelf: l.membership_id === membership.id,
-      })),
+      })).filter((l) => runsThePlace || l.isSelf),
       projects: ((projects.data ?? []) as Array<Record<string, unknown>>).map((p) => ({
         id: p.id as string,
         name: p.name as string,
@@ -170,10 +203,14 @@ export default async function Work() {
           </p>
         ) : (
           <div className="space-y-6">
-            <CommandCentreView
-              data={data.centre}
-              approvalsWaiting={data.approvals.length}
-            />
+            {/* The business view, for whoever runs it. A cashier gets the
+                counters for their own day instead, further down. */}
+            {data.runsThePlace && (
+              <CommandCentreView
+                data={data.centre}
+                approvalsWaiting={data.approvals.length}
+              />
+            )}
             <Schedule entries={data.schedule} />
             <WorkBoard
               checkedIn={data.checkedIn}
@@ -182,6 +219,7 @@ export default async function Work() {
               team={data.team}
               leave={data.leave}
               projects={data.projects}
+              runsThePlace={data.runsThePlace}
             />
           </div>
         )}

@@ -73,6 +73,7 @@ export default function WorkBoard({
   team,
   leave,
   projects,
+  runsThePlace,
 }: {
   checkedIn: boolean;
   tasks: TaskRow[];
@@ -80,6 +81,9 @@ export default function WorkBoard({
   team: TeamOption[];
   leave: LeaveRow[];
   projects: ProjectRow[];
+  /** Owner or manager. Decides whether this is a view of the business or
+   *  of one person's day (Office PRD 27). */
+  runsThePlace: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -513,7 +517,9 @@ export default function WorkBoard({
       </section>
 
       {/* Jobs with more than one step to them. A caterer with a wedding in
-          three weeks needs to know what is left, not a Gantt chart. */}
+          three weeks needs to know what is left, not a Gantt chart.
+          Management only: staff work through their tasks. */}
+      {runsThePlace && (
       <section>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium text-ink-muted">Jobs on</h2>
@@ -593,12 +599,16 @@ export default function WorkBoard({
           )}
         </div>
       </section>
+      )}
 
       {/* Time off. Staff ask constantly and there has never been anywhere
-          to do it, so it was asked for over WhatsApp and forgotten. */}
+          to do it, so it was asked for over WhatsApp and forgotten.
+          Everybody can ask; only a manager sees the whole roster. */}
       <section>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-medium text-ink-muted">Time off</h2>
+          <h2 className="text-sm font-medium text-ink-muted">
+            {runsThePlace ? "Time off" : "Days you have asked for"}
+          </h2>
           {!showLeave && (
             <button
               onClick={() => setShowLeave(true)}
