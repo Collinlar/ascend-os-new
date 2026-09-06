@@ -26,6 +26,11 @@ export interface OwnerBooking {
   providerName: string | null;
 }
 
+export interface ProviderOption {
+  membershipId: string;
+  name: string;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   requested: "Waiting for you to accept",
   quoted: "Waiting on your price",
@@ -60,11 +65,40 @@ const PROVIDER_COLOURS = [
 
 const DAY_MS = 86_400_000;
 
-export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) {
+export default function BookingList({
+  bookings,
+  providers: team = [],
+}: {
+  bookings: OwnerBooking[];
+  /** Who a booking can be handed to. Empty for a solo provider, where
+   *  assignment is a question with one answer and not worth asking. */
+  providers?: ProviderOption[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  async function assign(bookingId: string, membershipId: string) {
+    setAssignError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assign_booking", bookingId, membershipId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAssignError(data.error ?? "We could not assign that booking.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setAssignError("We could not reach the network just now. Tap again in a moment.");
+    }
+  }
 
   async function act(id: string, to: string) {
     setBusy(id);
@@ -315,7 +349,15 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
           </h2>
           <div className="flex flex-col gap-3.5">
             {waiting.map((b) => (
-              <Card key={b.id} booking={b} busy={busy === b.id} onAct={act} waiting />
+              <Card
+                key={b.id}
+                booking={b}
+                busy={busy === b.id}
+                onAct={act}
+                team={team}
+                onAssign={assign}
+                waiting
+              />
             ))}
           </div>
         </section>
@@ -328,7 +370,14 @@ export default function BookingList({ bookings }: { bookings: OwnerBooking[] }) 
           </h2>
           <div className="flex flex-col gap-3.5">
             {upcoming.map((b) => (
-              <Card key={b.id} booking={b} busy={busy === b.id} onAct={act} />
+              <Card
+                key={b.id}
+                booking={b}
+                busy={busy === b.id}
+                onAct={act}
+                team={team}
+                onAssign={assign}
+              />
             ))}
           </div>
         </section>
@@ -379,11 +428,15 @@ function Card({
   busy,
   onAct,
   waiting = false,
+  team = [],
+  onAssign,
 }: {
   booking: OwnerBooking;
   busy: boolean;
   onAct: (id: string, to: string) => void;
   waiting?: boolean;
+  team?: ProviderOption[];
+  onAssign?: (bookingId: string, membershipId: string) => void;
 }) {
   const next = NEXT_ACTION[booking.status];
 
@@ -429,10 +482,34 @@ function Card({
                   })
                   .replace(" ", "")}`}
             </p>
-            {booking.providerName && (
+            {booking.providerName ? (
               <p className="mt-0.5 text-[12.5px] font-medium text-slate-grey">
                 With {booking.providerName}
               </p>
+            ) : (
+              team.length > 0 && onAssign && (
+                // Handing a booking to somebody. The server refuses anyone
+                // with agreed time off across it, so a manager cannot book
+                // a person who will not be there.
+                <label className="mt-1 block">
+                  <span className="sr-only">Who is doing this booking</span>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      onAssign?.(booking.id, e.target.value);
+                    }}
+                    className="w-full max-w-[220px] border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-slate focus:border-teal focus:outline-none"
+                  >
+                    <option value="">Nobody assigned yet</option>
+                    {team.map((p) => (
+                      <option key={p.membershipId} value={p.membershipId}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )
             )}
             {booking.serviceAddress && (
               <p className="mt-0.5 text-[12.5px] font-medium text-slate-grey">

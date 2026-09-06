@@ -91,6 +91,37 @@ export default function CommandCentreView({
         )}
       </section>
 
+      {/* The shop floor, from Office. An owner away from the counter should
+          not have to open POS to find out whether anyone is selling. */}
+      {data.openShifts.length > 0 && (
+        <section>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+            Selling now
+          </h2>
+          <div className="mt-2 divide-y divide-line-soft rounded-panel border border-line-soft bg-white">
+            {data.openShifts.map((s) => (
+              <div
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-[18px] py-3"
+              >
+                <p className="text-[13.5px] font-bold text-ink">
+                  {s.cashier}
+                  {s.locationName && (
+                    <span className="font-medium text-slate-grey">
+                      {" "}
+                      · {s.locationName}
+                    </span>
+                  )}
+                </p>
+                <p className="text-[12px] font-medium text-slate-grey">
+                  till open since {clock(s.openedAt)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Business Pulse (Office PRD 28). Five facts about the week, not a
           chart: an owner wants to know whether the place ran, not to
           interpret a graph on a 375px screen. */}

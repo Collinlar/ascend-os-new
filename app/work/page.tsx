@@ -3,6 +3,8 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { loadCommandCentre, type CommandCentre } from "@/lib/office/command-centre";
 import CommandCentreView from "@/components/office/CommandCentre";
+import { loadSchedule, type ScheduleEntry } from "@/lib/office/schedule";
+import Schedule from "@/components/office/Schedule";
 import WorkBoard, {
   type ApprovalRow,
   type LeaveRow,
@@ -27,6 +29,7 @@ async function load(): Promise<{
   centre: CommandCentre;
   leave: LeaveRow[];
   projects: ProjectRow[];
+  schedule: ScheduleEntry[];
 } | null> {
   try {
     const personId = await currentPersonId();
@@ -36,8 +39,16 @@ async function load(): Promise<{
     const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
     if (!membership) return null;
 
-    const [tasks, approvals, openAttendance, team, centre, leave, projects] =
-      await Promise.all([
+    const [
+      tasks,
+      approvals,
+      openAttendance,
+      team,
+      centre,
+      leave,
+      projects,
+      schedule,
+    ] = await Promise.all([
       db
         .from("task")
         .select("id, title, detail, status, due_at, source_entity_type, source_entity_id")
@@ -72,6 +83,7 @@ async function load(): Promise<{
       loadCommandCentre(membership.business_id as string),
       db.rpc("staff_leave", { p_business: membership.business_id }),
       db.rpc("business_projects", { p_business: membership.business_id }),
+      loadSchedule(membership.business_id as string),
     ]);
 
     return {
@@ -79,6 +91,7 @@ async function load(): Promise<{
       membershipId: membership.id as string,
       checkedIn: Boolean(openAttendance.data),
       centre,
+      schedule,
       leave: ((leave.data ?? []) as Array<Record<string, unknown>>).map((l) => ({
         id: l.id as string,
         staffName: l.staff_name as string,
@@ -161,6 +174,7 @@ export default async function Work() {
               data={data.centre}
               approvalsWaiting={data.approvals.length}
             />
+            <Schedule entries={data.schedule} />
             <WorkBoard
               checkedIn={data.checkedIn}
               tasks={data.tasks}

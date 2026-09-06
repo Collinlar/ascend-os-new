@@ -35,11 +35,21 @@ export interface Pulse {
   hoursWorked7d: number;
 }
 
+export interface OpenShift {
+  id: string;
+  cashier: string;
+  locationName: string | null;
+  openedAt: string;
+}
+
 export interface CommandCentre {
   dueToday: number;
   atRisk: number;
   inProgress: number;
   teamToday: TeamMemberToday[];
+  /** Tills selling right now. Office should be able to see the shop floor
+   *  without opening POS (Office PRD 26, shift visibility). */
+  openShifts: OpenShift[];
   activity: ActivityItem[];
   pulse: Pulse;
 }
@@ -55,7 +65,7 @@ export async function loadCommandCentre(businessId: string): Promise<CommandCent
   endOfToday.setHours(23, 59, 59, 999);
   const weekAgo = new Date(now.getTime() - 7 * 864e5).toISOString();
 
-  const [openTasks, present, doneTasks, spend, approvals, attendance] =
+  const [openTasks, present, doneTasks, spend, approvals, attendance, shifts] =
     await Promise.all([
       db
         .from("task")
@@ -99,6 +109,13 @@ export async function loadCommandCentre(businessId: string): Promise<CommandCent
         .eq("business_id", businessId)
         .gte("check_in", weekAgo)
         .limit(200),
+      db
+        .from("pos_shift")
+        .select("id, opened_at, location:location_id(name), cashier:cashier_membership_id(person:person_id(full_name))")
+        .eq("business_id", businessId)
+        .eq("status", "open")
+        .order("opened_at", { ascending: true })
+        .limit(20),
     ]);
 
   const tasks = openTasks.data ?? [];
@@ -157,11 +174,19 @@ export async function loadCommandCentre(businessId: string): Promise<CommandCent
       return sum + (new Date(a.check_out).getTime() - new Date(a.check_in).getTime());
     }, 0) / 3600e3;
 
+  const openShifts: OpenShift[] = (shifts.data ?? []).map((s) => ({
+    id: s.id,
+    cashier: nameOf(s.cashier as never),
+    locationName: (s.location as unknown as { name: string } | null)?.name ?? null,
+    openedAt: s.opened_at as string,
+  }));
+
   return {
     dueToday,
     atRisk,
     inProgress,
     teamToday,
+    openShifts,
     activity,
     pulse: {
       tasksDone7d: (doneTasks.data ?? []).length,

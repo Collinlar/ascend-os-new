@@ -97,6 +97,29 @@ const RULES: Partial<Record<BusinessEventType, EvidenceRule>> = {
     evidenceType: "staff_attendance",
     weights: { merchant_declared: 0.5 },
   },
+  // Both of these have been emitted since Office was built and neither had
+  // a rule, so a business that ran its work through the platform earned
+  // nothing for it.
+  //
+  // Finishing work is evidence that the business is organised, not that it
+  // is profitable, so it sits in operational_structure and is weighted
+  // lightly. Volume is not quality: the scoring layer applies diminishing
+  // returns, which matters most here because tasks are the cheapest thing
+  // in the system to create.
+  "office.task.completed": {
+    dimension: "operational_structure",
+    evidenceType: "completed_work",
+    weights: { merchant_declared: 0.4 },
+  },
+  // A business that records what it spends is keeping books, which is a
+  // documentation habit rather than a financial result. It earns more when
+  // the spend went through an approval, because a declared cost nobody
+  // checked is worth less than one somebody signed off.
+  "office.expense.submitted": {
+    dimension: "documentation_compliance",
+    evidenceType: "recorded_spending",
+    weights: { merchant_declared: 0.5, customer_confirmed: 1 },
+  },
 };
 
 interface OutboxEvent {

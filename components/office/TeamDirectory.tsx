@@ -54,6 +54,30 @@ export default function TeamDirectory({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [changing, setChanging] = useState<string | null>(null);
+
+  async function changeRole(membershipId: string, key: string) {
+    setBusy(membershipId);
+    setError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "change_role", membershipId, roleKey: key }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not change that role. Tap again.");
+        return;
+      }
+      setChanging(null);
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function add() {
     if (fullName.trim().length < 2) {
@@ -237,7 +261,30 @@ export default function TeamDirectory({
               </div>
 
               {canManage && !m.isSelf && m.roleKey !== "owner" && (
-                confirming === m.membershipId ? (
+                changing === m.membershipId ? (
+                  <span className="flex w-full flex-wrap gap-1.5">
+                    {["staff", "cashier", "manager", "accountant"].map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => changeRole(m.membershipId, key)}
+                        disabled={busy === m.membershipId || key === m.roleKey}
+                        className={`tap flex items-center rounded-chip border px-3.5 text-[13px] font-bold disabled:opacity-50 ${
+                          key === m.roleKey
+                            ? "border-teal bg-teal-light text-teal-dark"
+                            : "border-line text-ink-slate hover:bg-light-grey"
+                        }`}
+                      >
+                        {ROLE_LABEL[key]}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setChanging(null)}
+                      className="tap flex items-center px-2 text-[13px] font-bold text-slate-grey"
+                    >
+                      Close
+                    </button>
+                  </span>
+                ) : confirming === m.membershipId ? (
                   <span className="flex flex-none gap-2">
                     <button
                       onClick={() => remove(m.membershipId)}
@@ -254,12 +301,20 @@ export default function TeamDirectory({
                     </button>
                   </span>
                 ) : (
-                  <button
-                    onClick={() => setConfirming(m.membershipId)}
-                    className="tap flex flex-none items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
-                  >
-                    They have left
-                  </button>
+                  <span className="flex flex-none gap-2">
+                    <button
+                      onClick={() => setChanging(m.membershipId)}
+                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                    >
+                      Change what they do
+                    </button>
+                    <button
+                      onClick={() => setConfirming(m.membershipId)}
+                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                    >
+                      They have left
+                    </button>
+                  </span>
                 )
               )}
             </PanelRow>

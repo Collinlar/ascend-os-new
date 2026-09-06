@@ -97,10 +97,58 @@ export default function WorkBoard({
   const [leaveFrom, setLeaveFrom] = useState("");
   const [leaveTo, setLeaveTo] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
+  const [showBuy, setShowBuy] = useState(false);
+  const [buyWhat, setBuyWhat] = useState("");
+  const [buyAmount, setBuyAmount] = useState("");
+  const [buyFrom, setBuyFrom] = useState("");
   const [showProject, setShowProject] = useState(false);
+
   const [projectName, setProjectName] = useState("");
   const [projectDue, setProjectDue] = useState("");
   const [projectSteps, setProjectSteps] = useState("");
+
+  // Asking to buy something. On approval this becomes a real purchase
+  // order addressed to the supplier named here, which is the Office half of
+  // a flow whose Documents half already existed.
+  async function askToBuy() {
+    if (buyWhat.trim().length < 3 || !(parseFloat(buyAmount) > 0)) {
+      setError("Say what you need and roughly what it costs.");
+      return;
+    }
+    setBusy("buy");
+    setError(null);
+    try {
+      const res = await fetch("/api/office/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "request_purchase",
+          detail: buyWhat,
+          amount: parseFloat(buyAmount),
+          supplier: buyFrom,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "We could not send that request. Tap again.");
+        return;
+      }
+      setShowBuy(false);
+      setBuyWhat("");
+      setBuyAmount("");
+      setBuyFrom("");
+      setNotice(
+        buyFrom.trim()
+          ? "Asked. Once it is agreed, a purchase order goes to them."
+          : "Asked. Add a supplier next time and we raise the order too."
+      );
+      router.refresh();
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function askForLeave() {
     if (!leaveFrom || !leaveTo) {
@@ -642,6 +690,65 @@ export default function WorkBoard({
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* Buying something, which is a different question from having spent
+          it. This one waits for a yes. */}
+      <section className="border border-line bg-white p-5">
+        <h2 className="font-medium text-ink">Something you need to buy</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Ask first. Once it is agreed we raise the purchase order for you.
+        </p>
+        {showBuy ? (
+          <div className="mt-3">
+            <input
+              value={buyWhat}
+              onChange={(e) => setBuyWhat(e.target.value)}
+              placeholder="What do you need?"
+              aria-label="What you need to buy"
+              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+            />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <input
+                value={buyAmount}
+                onChange={(e) => setBuyAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="Roughly how much?"
+                aria-label="Rough cost"
+                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              />
+              <input
+                value={buyFrom}
+                onChange={(e) => setBuyFrom(e.target.value)}
+                placeholder="Who from?"
+                aria-label="Supplier"
+                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={askToBuy}
+                disabled={busy === "buy"}
+                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === "buy" ? "Asking..." : "Ask to buy it"}
+              </button>
+              <button
+                onClick={() => setShowBuy(false)}
+                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowBuy(true)}
+            className="tap mt-3 border border-line px-4 py-2 text-sm font-medium text-ink"
+          >
+            Ask to buy something
+          </button>
         )}
       </section>
 

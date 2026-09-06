@@ -1,7 +1,10 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import BookingList, { type OwnerBooking } from "@/components/services/BookingList";
+import BookingList, {
+  type OwnerBooking,
+  type ProviderOption,
+} from "@/components/services/BookingList";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +12,10 @@ export const dynamic = "force-dynamic";
 // The provider's day. What is next, what needs a decision, and what is
 // already settled (OFF-008).
 
-async function load(): Promise<OwnerBooking[] | null> {
+async function load(): Promise<{
+  bookings: OwnerBooking[];
+  providers: ProviderOption[];
+} | null> {
   try {
     const personId = await currentPersonId();
     if (!personId) return null;
@@ -17,6 +23,15 @@ async function load(): Promise<OwnerBooking[] | null> {
     const db = supabaseServer();
     const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return null;
+
+    // Who a booking can be handed to. A solo provider gets an empty list
+    // and no picker: assignment is a question with one answer.
+    const providersQuery = db
+      .from("business_membership")
+      .select("id, person:person_id(full_name)")
+      .eq("business_id", membership.business_id)
+      .eq("status", "active")
+      .limit(50);
 
     const { data } = await db
       .from("service_booking")
@@ -27,7 +42,9 @@ async function load(): Promise<OwnerBooking[] | null> {
       .order("scheduled_start", { ascending: true, nullsFirst: false })
       .limit(50);
 
-    return (data ?? []).map((b) => {
+    const providers = await providersQuery;
+
+    const bookings = (data ?? []).map((b) => {
       const customer = b.customer as unknown as {
         display_name: string;
         phone_e164: string | null;
@@ -52,13 +69,23 @@ async function load(): Promise<OwnerBooking[] | null> {
           (b.item as unknown as { name: string } | null)?.name ?? "Service",
       };
     });
+
+    return {
+      bookings,
+      providers: (providers.data ?? []).map((m) => ({
+        membershipId: m.id,
+        name:
+          (m.person as unknown as { full_name: string } | null)?.full_name ??
+          "A team member",
+      })),
+    };
   } catch {
     return null;
   }
 }
 
 export default async function Bookings() {
-  const bookings = await load();
+  const data = await load();
 
   return (
     <PageShell>
@@ -67,18 +94,18 @@ export default async function Bookings() {
         intro="Requests needing an answer come first, then what is coming up."
       />
 
-      {bookings === null ? (
+      {data === null ? (
         <EmptyState
           title="Sign in to see your schedule."
           detail="We send a code to the WhatsApp number your business is set up with."
         />
-      ) : bookings.length === 0 ? (
+      ) : data.bookings.length === 0 ? (
         <EmptyState
           title="Nothing booked yet."
           detail="Share your booking link on WhatsApp and your first request will land here."
         />
       ) : (
-        <BookingList bookings={bookings} />
+        <BookingList bookings={data.bookings} providers={data.providers} />
       )}
     </PageShell>
   );

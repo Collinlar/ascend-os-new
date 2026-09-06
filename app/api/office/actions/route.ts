@@ -16,7 +16,11 @@ interface Body {
     | "decide_approval"
     | "attendance"
     | "request_leave"
-    | "create_project";
+    | "create_project"
+    | "request_purchase"
+    | "change_role"
+    | "save_location"
+    | "assign_booking";
   taskId?: string;
   title?: string;
   assigneeMembershipId?: string;
@@ -26,6 +30,13 @@ interface Body {
   name?: string;
   dueOn?: string;
   milestones?: Array<{ title?: string; dueOn?: string }>;
+  supplier?: string;
+  membershipId?: string;
+  roleKey?: string;
+  locationId?: string;
+  address?: string;
+  city?: string;
+  bookingId?: string;
   amount?: number;
   category?: string;
   detail?: string;
@@ -325,6 +336,116 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json({ projectId: data.project_id, milestones: data.milestones });
+  }
+
+  if (body.action === "request_purchase") {
+    const { data, error } = await db.rpc("request_purchase", {
+      p: {
+        business_id: businessId,
+        membership_id: membershipId,
+        detail: body.detail ?? "",
+        amount: body.amount ?? "",
+        supplier: body.supplier ?? "",
+      },
+    });
+    if (error) {
+      if (/purchase_needs_a_description/.test(error.message)) {
+        return NextResponse.json({ error: "Say what you need to buy." }, { status: 422 });
+      }
+      if (/purchase_needs_an_amount/.test(error.message)) {
+        return NextResponse.json({ error: "Say roughly what it costs." }, { status: 422 });
+      }
+      console.error("request_purchase failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not send that request. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ approvalId: data.approval_id });
+  }
+
+  // Who may change a role is decided in the database, because the rule
+  // (only an owner makes managers, nobody changes the owner) has to hold
+  // whichever screen is asking.
+  if (body.action === "change_role") {
+    const { error } = await db.rpc("change_member_role", {
+      p: {
+        membership_id: body.membershipId ?? "",
+        actor_membership_id: membershipId,
+        role_key: body.roleKey ?? "",
+      },
+    });
+    if (error) {
+      const said: Record<string, string> = {
+        cannot_change_the_owner: "The owner's own role cannot be changed.",
+        cannot_make_another_owner: "A business has one owner.",
+        only_the_owner_makes_managers: "Only the owner can make somebody a manager.",
+        not_allowed: "Only the owner or a manager can change roles.",
+        not_your_business: "That person is not on your team.",
+        unknown_role: "Pick one of the roles listed.",
+      };
+      const key = Object.keys(said).find((k) => error.message.includes(k));
+      return NextResponse.json(
+        { error: key ? said[key] : "We could not change that role. Tap again." },
+        { status: key ? 422 : 500 }
+      );
+    }
+    return NextResponse.json({ changed: true });
+  }
+
+  if (body.action === "save_location") {
+    const { data, error } = await db.rpc("save_location", {
+      p: {
+        business_id: businessId,
+        location_id: body.locationId ?? "",
+        name: body.name ?? "",
+        address: body.address ?? "",
+        city: body.city ?? "",
+      },
+    });
+    if (error) {
+      if (/location_needs_a_name/.test(error.message)) {
+        return NextResponse.json({ error: "Give this place a name." }, { status: 422 });
+      }
+      if (/cannot_close_the_last_location/.test(error.message)) {
+        return NextResponse.json(
+          { error: "You need somewhere to trade from. Add another before closing this one." },
+          { status: 422 }
+        );
+      }
+      console.error("save_location failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not save that. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ locationId: data.location_id });
+  }
+
+  if (body.action === "assign_booking") {
+    const { data, error } = await db.rpc("assign_booking", {
+      p: {
+        booking_id: body.bookingId ?? "",
+        membership_id: body.membershipId ?? "",
+      },
+    });
+    if (error) {
+      if (/provider_is_on_leave/.test(error.message)) {
+        return NextResponse.json(
+          { error: "They have time off agreed over that booking." },
+          { status: 409 }
+        );
+      }
+      if (/not_on_this_team/.test(error.message)) {
+        return NextResponse.json({ error: "That person is not on your team." }, { status: 422 });
+      }
+      console.error("assign_booking failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not assign that booking. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ assignedTo: data.assigned_to });
   }
 
   return NextResponse.json({ error: "That is not an action we handle." }, { status: 422 });

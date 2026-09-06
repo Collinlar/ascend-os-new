@@ -3,6 +3,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import TeamDirectory, { type TeamRow } from "@/components/office/TeamDirectory";
+import Locations, { type LocationRow } from "@/components/office/Locations";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 async function load(): Promise<{
   businessId: string;
   team: TeamRow[];
+  locations: LocationRow[];
   canManage: boolean;
 } | null> {
   try {
@@ -27,12 +29,37 @@ async function load(): Promise<{
     );
     if (!membership) return null;
 
-    const { data } = await db
+    const [{ data }, places, tills, bookings] = await Promise.all([
+      db
       .from("business_membership")
       .select("id, status, person:person_id(full_name, phone_e164), role:role_id(key)")
       .eq("business_id", membership.business_id)
       .in("status", ["active", "invited", "suspended"])
-      .limit(100);
+      .limit(100),
+      db
+        .from("location")
+        .select("id, name, address, city, active")
+        .eq("business_id", membership.business_id)
+        .order("name")
+        .limit(50),
+      // A place with a till or a booking against it is one somebody is
+      // actually using, which is worth saying before they close it.
+      db
+        .from("pos_shift")
+        .select("location_id")
+        .eq("business_id", membership.business_id)
+        .limit(200),
+      db
+        .from("service_booking")
+        .select("location_id")
+        .eq("business_id", membership.business_id)
+        .limit(200),
+    ]);
+
+    const used = new Set<string>();
+    for (const row of [...(tills.data ?? []), ...(bookings.data ?? [])]) {
+      if (row.location_id) used.add(row.location_id as string);
+    }
 
     const rows: TeamRow[] = (data ?? []).map((m) => {
       const person = m.person as unknown as {
@@ -68,6 +95,14 @@ async function load(): Promise<{
     return {
       businessId: membership.business_id,
       team: rows,
+      locations: (places.data ?? []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        address: l.address,
+        city: l.city,
+        active: l.active,
+        inUse: used.has(l.id),
+      })),
       // The same rule the API enforces. This only decides whether to offer
       // the action; the server decides whether to allow it.
       canManage: me?.roleKey === "owner" || me?.roleKey === "manager",
@@ -93,11 +128,14 @@ export default async function Team() {
           detail="We send a code to the WhatsApp number your business is set up with."
         />
       ) : (
-        <TeamDirectory
-          businessId={data.businessId}
-          team={data.team}
-          canManage={data.canManage}
-        />
+        <>
+          <TeamDirectory
+            businessId={data.businessId}
+            team={data.team}
+            canManage={data.canManage}
+          />
+          <Locations locations={data.locations} canManage={data.canManage} />
+        </>
       )}
     </PageShell>
   );
