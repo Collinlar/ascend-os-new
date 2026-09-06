@@ -192,34 +192,29 @@ export async function POST(request: NextRequest) {
   const email = body.customerEmail?.trim() || null;
   const name = body.customerName?.trim();
   if (name && type !== "purchase_order") {
-    if (phone) {
-      const { data: existing } = await db
-        .from("customer")
-        .select("id, email")
-        .eq("business_id", body.businessId)
-        .eq("phone_e164", phone)
-        .maybeSingle();
-      customerId = existing?.id;
-      // A customer who gives an address on a later document should be
-      // reachable at it from then on, without a separate edit screen.
-      if (existing && email && !existing.email) {
-        await db.from("customer").update({ email }).eq("id", existing.id);
-      }
-    }
-    if (!customerId) {
-      const { data: created } = await db
-        .from("customer")
-        .insert({
+    // One way in, shared with Shop and Services (0064). Documents used to
+    // do its own lookup here on the raw phone string, which is how the same
+    // person ended up as two customer records on one business.
+    const { data: found, error: customerError } = await db.rpc(
+      "find_or_create_customer",
+      {
+        p: {
           business_id: body.businessId,
-          display_name: name,
-          phone_e164: phone ?? null,
-          email,
+          name,
+          phone: phone ?? "",
+          email: email ?? "",
           created_via: "documents",
-        })
-        .select("id")
-        .single();
-      customerId = created?.id;
+        },
+      }
+    );
+    if (customerError) {
+      console.error("customer lookup failed:", customerError.message);
+      return NextResponse.json(
+        { error: "We could not save that customer. Tap again in a moment." },
+        { status: 500 }
+      );
     }
+    customerId = (found?.customer_id as string) ?? undefined;
   }
 
   try {

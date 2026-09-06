@@ -59,6 +59,14 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     short: "Documents",
     requires: "documents.issue",
   },
+  {
+    href: "/customers",
+    label: "Who buys from you",
+    short: "Customers",
+    // Earned by any set that creates customers, because the record is
+    // shared and the screen reads all of them at once.
+    requires: ["customers.core", "customers.basic"],
+  },
   { href: "/products", label: "What you sell", short: "Products", requires: "catalogue.core" },
   { href: "/shop", label: "Your shop", short: "Shop", requires: "shop.storefront" },
   { href: "/devices", label: "Tills and team", short: "Tills", requires: "pos.tills" },
