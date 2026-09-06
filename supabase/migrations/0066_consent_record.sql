@@ -219,6 +219,12 @@ grant execute on function has_consent(uuid, text) to service_role;
 -- An applied migration is a record of what happened; changing it would mean
 -- this database and a freshly built one no longer agree.
 -- ---------------------------------------------------------------------------
+-- create or replace cannot change a function's return type: the row shape
+-- defined by its OUT parameters is part of its identity. Adding
+-- marketing_consent changes that shape, so the old one is dropped first.
+-- Same rule that applied to discover_search in 0049.
+drop function if exists business_customers(uuid, text);
+
 create or replace function business_customers(p_business uuid, p_query text default null)
 returns table (
   id uuid,
