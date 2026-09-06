@@ -49,6 +49,7 @@ async function load(query: string): Promise<{
         spent: Number(c.spent ?? 0),
         owed: Number(c.owed ?? 0),
         lastSeen: (c.last_seen as string) ?? null,
+        marketingConsent: Boolean(c.marketing_consent),
       })),
     };
   } catch {

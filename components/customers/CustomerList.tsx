@@ -17,6 +17,7 @@ export interface CustomerRow {
   spent: number;
   owed: number;
   lastSeen: string | null;
+  marketingConsent: boolean;
 }
 
 export interface HistoryRow {
@@ -49,6 +50,31 @@ export default function CustomerList({
   const [openId, setOpenId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, HistoryRow[]>>({});
   const [loading, setLoading] = useState<string | null>(null);
+  // Held here so the switch answers immediately. The record behind it is
+  // what counts, and the server writes that.
+  const [consent, setConsent] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function setMarketing(id: string, granted: boolean) {
+    setSaving(id);
+    setConsent((prev) => ({ ...prev, [id]: granted }));
+    try {
+      const res = await fetch(`/api/customers/${id}/consent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ granted }),
+      });
+      if (!res.ok) {
+        // Put the switch back where it was rather than showing a state the
+        // database does not agree with.
+        setConsent((prev) => ({ ...prev, [id]: !granted }));
+      }
+    } catch {
+      setConsent((prev) => ({ ...prev, [id]: !granted }));
+    } finally {
+      setSaving(null);
+    }
+  }
 
   async function open(id: string) {
     if (openId === id) {
@@ -154,8 +180,34 @@ export default function CustomerList({
                       <p className="text-[13px] font-medium text-slate-grey">
                         Nothing recorded against them yet.
                       </p>
-                    ) : (
-                      <div className="space-y-1.5">
+                    ) : null}
+
+                    {/* Whether this business may market to them, and the
+                        record that proves it either way. */}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+                      <p className="text-[13px] font-medium text-slate-grey">
+                        {(consent[c.id] ?? c.marketingConsent)
+                          ? "Happy to receive offers from you."
+                          : "Only messages about their own orders."}
+                      </p>
+                      <button
+                        onClick={() =>
+                          setMarketing(c.id, !(consent[c.id] ?? c.marketingConsent))
+                        }
+                        disabled={saving === c.id}
+                        aria-pressed={consent[c.id] ?? c.marketingConsent}
+                        className="tap flex items-center rounded-chip border border-line bg-white px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey disabled:opacity-60"
+                      >
+                        {saving === c.id
+                          ? "Saving..."
+                          : (consent[c.id] ?? c.marketingConsent)
+                            ? "They have opted out"
+                            : "They agreed to offers"}
+                      </button>
+                    </div>
+
+                    {(history[c.id] ?? []).length > 0 && (
+                      <div className="mt-3 space-y-1.5">
                         {(history[c.id] ?? []).map((h, n) => (
                           <div
                             key={`${h.kind}-${h.reference}-${n}`}

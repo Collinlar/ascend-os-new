@@ -128,6 +128,12 @@ const GROW: NavItem = {
 // set endpoint will accept.
 const SELF_SERVE: ProductSetKey[] = ["pos", "shop", "services", "documents"];
 
+const BILLING: NavItem = {
+  href: "/billing",
+  label: "What you pay for",
+  short: "Billing",
+};
+
 const HOME: NavItem = { href: "/dashboard", label: "Today at your business", short: "Home" };
 
 export async function currentWorkspace(): Promise<Workspace | null> {
@@ -200,6 +206,10 @@ export async function currentWorkspace(): Promise<Workspace | null> {
   // Only while there is something left to add. A business already running
   // everything does not need a door to nothing.
   if (SELF_SERVE.some((key) => !productSets.includes(key))) items.push(GROW);
+
+  // Every business can see what it pays for, whatever it runs. Last,
+  // because nobody opens it before serving a customer.
+  items.push(BILLING);
 
   return {
     personId,
