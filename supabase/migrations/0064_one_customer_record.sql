@@ -596,7 +596,15 @@ returns table (
 language sql stable security definer
 set search_path = public, pg_temp
 as $fn$
-  select 'Sale', s.receipt_number, s.occurred_at, s.total, s.status::text
+  -- The first branch names the columns for the whole union, so it aliases
+  -- them explicitly. Without that the third column is called occurred_at,
+  -- after the expression it came from, and the order by below cannot see
+  -- happened_at at all.
+  select 'Sale'::text as kind,
+         s.receipt_number as reference,
+         s.occurred_at as happened_at,
+         s.total as amount,
+         s.status::text as status
   from sale s where s.customer_id = p_customer
   union all
   select 'Online order', left(o.id::text, 8), o.placed_at, o.total, o.status::text
