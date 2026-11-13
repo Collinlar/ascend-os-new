@@ -64,11 +64,13 @@ export interface EffectiveAccess {
 
 export async function effectiveAccess(businessId: UUID): Promise<EffectiveAccess> {
   const db = supabaseServer();
-  const { data, error } = await db
-    .from("entitlement")
-    .select("product_set_key, capability_key, capacity, status, grace_until")
-    .eq("business_id", businessId)
-    .in("status", ["active", "grace"]);
+  // The database decides what is in force right now (migration 0069):
+  // starts_at has arrived, expires_at has not passed, or an explicit
+  // grace_until is still holding it open. Reading the table directly and
+  // filtering on status alone is what let a lapsed pass keep working.
+  const { data, error } = await db.rpc("business_entitlements", {
+    p_business: businessId,
+  });
 
   if (error) throw new Error(`Entitlement lookup failed: ${error.message}`);
 
@@ -77,8 +79,13 @@ export async function effectiveAccess(businessId: UUID): Promise<EffectiveAccess
   const capacity: Record<string, number> = {};
   let inGrace = false;
 
-  for (const row of data ?? []) {
-    if (row.status === "grace") inGrace = true;
+  for (const row of (data ?? []) as Array<{
+    product_set_key: string | null;
+    capability_key: string | null;
+    capacity: Record<string, number> | null;
+    in_grace: boolean;
+  }>) {
+    if (row.in_grace) inGrace = true;
     if (row.product_set_key) productSets.add(row.product_set_key as ProductSetKey);
     if (row.capability_key) capabilities.add(row.capability_key);
     if (row.capacity) {
