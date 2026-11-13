@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
+import { effectiveAccess } from "@/lib/domains/entitlements";
+import { canEnterOffice, officeModules, type OfficeModules } from "@/lib/office/access";
 import { activeMembership } from "@/lib/auth/active-business";
 import { loadCommandCentre, type CommandCentre } from "@/lib/office/command-centre";
 import CommandCentreView from "@/components/office/CommandCentre";
@@ -30,7 +33,7 @@ export const dynamic = "force-dynamic";
 // business seeing what the team spent this week or who else asked for
 // Friday off (OFF-MOB-026).
 
-async function load(): Promise<{
+interface WorkData {
   businessId: string;
   membershipId: string;
   /** owner and manager see the business; everybody else sees their own day. */
@@ -39,14 +42,22 @@ async function load(): Promise<{
   tasks: TaskRow[];
   approvals: ApprovalRow[];
   team: TeamOption[];
-  centre: CommandCentre;
+  centre: CommandCentre | null;
   leave: LeaveRow[];
   projects: ProjectRow[];
   schedule: ScheduleEntry[];
-} | null> {
+  /** Which sections this business has. The server refuses the rest too. */
+  modules: OfficeModules;
+}
+
+// Why there is nothing to show, so the page can say the true thing rather
+// than telling someone who is signed in to verify their number.
+type Loaded = WorkData | "signed_out" | "unreadable" | "not_included";
+
+async function load(): Promise<Loaded> {
   try {
     const personId = await currentPersonId();
-    if (!personId) return null;
+    if (!personId) return "signed_out";
 
     const db = supabaseServer();
     const membership = await activeMembership<{
@@ -54,10 +65,19 @@ async function load(): Promise<{
       business_id: string;
       role: { key: string } | null;
     }>(personId, "id, business_id, role:role_id(key)");
-    if (!membership) return null;
+    if (!membership) return "signed_out";
+
+    // The nav only shows this to a business that holds something Office
+    // carries, but a link hidden is not a door shut. Ask the same question
+    // here, from the same table the route uses.
+    const access = await effectiveAccess(membership.business_id).catch(() => null);
+    if (!access) return "unreadable";
+    if (!canEnterOffice(access.capabilities)) return "not_included";
+    const modules = officeModules(access.capabilities);
 
     const roleKey = (membership.role as unknown as { key: string } | null)?.key;
     const runsThePlace = roleKey === "owner" || roleKey === "manager";
+    const none = Promise.resolve({ data: null });
 
     const [
       tasks,
@@ -72,7 +92,9 @@ async function load(): Promise<{
       // A manager sees the whole board. Everybody else sees what is theirs
       // and what nobody has picked up, which is the honest answer to "what
       // do I need to do" and avoids handing a cashier the team's workload.
-      (runsThePlace
+      // Each section is read only if this business has it, so a business
+      // that never took Office is not handed its data either.
+      modules.tasks ? (runsThePlace
         ? db
             .from("task")
             .select("id, title, detail, status, due_at, source_entity_type, source_entity_id, assigned_membership_id")
@@ -87,23 +109,27 @@ async function load(): Promise<{
             .in("status", ["open", "in_progress", "blocked"])
             .or(`assigned_membership_id.eq.${membership.id},assigned_membership_id.is.null`)
             .order("due_at", { ascending: true, nullsFirst: false })
-            .limit(40)),
-      db
-        .from("approval_request")
-        .select(
-          "id, kind, amount, currency_code, created_at, requested_by, requester:requested_by(person:person_id(full_name))"
-        )
-        .eq("business_id", membership.business_id)
-        .eq("status", "requested")
-        .order("created_at", { ascending: true })
-        .limit(20),
-      db
-        .from("attendance_record")
-        .select("id")
-        .eq("membership_id", membership.id)
-        .is("check_out", null)
-        .limit(1)
-        .maybeSingle(),
+            .limit(40)) : none,
+      modules.approvals
+        ? db
+            .from("approval_request")
+            .select(
+              "id, kind, amount, currency_code, created_at, requested_by, requester:requested_by(person:person_id(full_name))"
+            )
+            .eq("business_id", membership.business_id)
+            .eq("status", "requested")
+            .order("created_at", { ascending: true })
+            .limit(20)
+        : none,
+      modules.attendance
+        ? db
+            .from("attendance_record")
+            .select("id")
+            .eq("membership_id", membership.id)
+            .is("check_out", null)
+            .limit(1)
+            .maybeSingle()
+        : none,
       // Who work can be handed to. Names only: this is a picker, not the
       // staff directory.
       db
@@ -112,10 +138,18 @@ async function load(): Promise<{
         .eq("business_id", membership.business_id)
         .eq("status", "active")
         .limit(50),
-      loadCommandCentre(membership.business_id as string),
-      db.rpc("staff_leave", { p_business: membership.business_id }),
-      db.rpc("business_projects", { p_business: membership.business_id }),
-      loadSchedule(membership.business_id as string),
+      modules.commandCentre
+        ? loadCommandCentre(membership.business_id as string)
+        : Promise.resolve(null),
+      modules.leave
+        ? db.rpc("staff_leave", { p_business: membership.business_id })
+        : none,
+      modules.projects
+        ? db.rpc("business_projects", { p_business: membership.business_id })
+        : none,
+      modules.schedule
+        ? loadSchedule(membership.business_id as string)
+        : Promise.resolve([] as ScheduleEntry[]),
     ]);
 
     return {
@@ -125,6 +159,7 @@ async function load(): Promise<{
       checkedIn: Boolean(openAttendance.data),
       centre,
       schedule,
+      modules,
       leave: ((leave.data ?? []) as Array<Record<string, unknown>>).map((l) => ({
         id: l.id as string,
         staffName: l.staff_name as string,
@@ -178,12 +213,16 @@ async function load(): Promise<{
       }),
     };
   } catch {
-    return null;
+    return "unreadable";
   }
 }
 
 export default async function Work() {
   const data = await load();
+
+  // A business that holds nothing Office carries has no work screen. Send it
+  // to the place where it can add something, as Services and Shop do.
+  if (data === "not_included") redirect("/grow");
 
   return (
     <main className="min-h-screen bg-light-grey">
@@ -197,21 +236,25 @@ export default async function Work() {
       </header>
 
       <div className="mx-auto max-w-2xl px-5 py-6">
-        {data === null ? (
+        {data === "signed_out" ? (
           <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to see your work.
+          </p>
+        ) : data === "unreadable" ? (
+          <p className="py-16 text-center text-ink-muted">
+            We could not load your work just now. Refresh in a moment.
           </p>
         ) : (
           <div className="space-y-6">
             {/* The business view, for whoever runs it. A cashier gets the
                 counters for their own day instead, further down. */}
-            {data.runsThePlace && (
+            {data.runsThePlace && data.centre && (
               <CommandCentreView
                 data={data.centre}
                 approvalsWaiting={data.approvals.length}
               />
             )}
-            <Schedule entries={data.schedule} />
+            {data.modules.schedule && <Schedule entries={data.schedule} />}
             <WorkBoard
               checkedIn={data.checkedIn}
               tasks={data.tasks}
@@ -220,6 +263,7 @@ export default async function Work() {
               leave={data.leave}
               projects={data.projects}
               runsThePlace={data.runsThePlace}
+              modules={data.modules}
             />
           </div>
         )}

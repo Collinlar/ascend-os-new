@@ -7,6 +7,8 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { publishEvent } from "@/lib/domains/events";
+import { effectiveAccess } from "@/lib/domains/entitlements";
+import { OFFICE_ACTIONS, actionAllowed } from "@/lib/office/access";
 
 interface Body {
   action?:
@@ -72,6 +74,29 @@ export async function POST(request: NextRequest) {
 
   const businessId = membership.business_id as string;
   const membershipId = membership.id as string;
+
+  // The page is gated the same way, but an endpoint is a door of its own:
+  // hiding a link does not stop a request. Each action names the
+  // capabilities that earn it (lib/office/access.ts), so a till business can
+  // still decide a refund and check in, and a business that never took
+  // Office cannot open a project or ask to buy something by calling this
+  // directly.
+  const action = body.action ?? "";
+  if (action in OFFICE_ACTIONS && OFFICE_ACTIONS[action] !== null) {
+    const access = await effectiveAccess(businessId).catch(() => null);
+    if (!access) {
+      return NextResponse.json(
+        { error: "We could not check what your business has just now. Tap again in a moment." },
+        { status: 503 }
+      );
+    }
+    if (!actionAllowed(access.capabilities, action)) {
+      return NextResponse.json(
+        { error: "That is part of Office, and your business has not added it yet." },
+        { status: 403 }
+      );
+    }
+  }
 
   // Work has to be able to get into Office. Until now the board could
   // complete a task and nothing anywhere could create one, which is why the

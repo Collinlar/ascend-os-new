@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
+import type { OfficeModules } from "@/lib/office/access";
 
 export interface TaskRow {
   id: string;
@@ -74,6 +75,7 @@ export default function WorkBoard({
   leave,
   projects,
   runsThePlace,
+  modules,
 }: {
   checkedIn: boolean;
   tasks: TaskRow[];
@@ -84,6 +86,9 @@ export default function WorkBoard({
   /** Owner or manager. Decides whether this is a view of the business or
    *  of one person's day (Office PRD 27). */
   runsThePlace: boolean;
+  /** Which sections this business has. The server refuses the rest, so this
+   *  only avoids offering a button that would be turned down. */
+  modules: OfficeModules;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -332,6 +337,7 @@ export default function WorkBoard({
         </p>
       )}
 
+      {modules.attendance && (
       <section className="flex flex-wrap items-center justify-between gap-3 border border-line bg-white px-4 py-3">
         <p className="text-sm text-ink">
           {checkedIn ? "You are checked in." : "You are not checked in."}
@@ -348,8 +354,9 @@ export default function WorkBoard({
               : "Check in"}
         </button>
       </section>
+      )}
 
-      {approvals.length > 0 && (
+      {modules.approvals && approvals.length > 0 && (
         <section>
           <h2 className="text-sm font-medium text-ink-muted">Waiting on a decision</h2>
           <div className="mt-3 space-y-2">
@@ -410,10 +417,11 @@ export default function WorkBoard({
         </section>
       )}
 
+      {modules.tasks && (
       <section>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium text-ink-muted">What you need to do</h2>
-          {!showTask && (
+          {modules.projects && !showTask && (
             <button
               onClick={() => setShowTask(true)}
               className="tap text-sm font-semibold text-teal-dark"
@@ -515,11 +523,12 @@ export default function WorkBoard({
           )}
         </div>
       </section>
+      )}
 
       {/* Jobs with more than one step to them. A caterer with a wedding in
           three weeks needs to know what is left, not a Gantt chart.
           Management only: staff work through their tasks. */}
-      {runsThePlace && (
+      {runsThePlace && modules.projects && (
       <section>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium text-ink-muted">Jobs on</h2>
@@ -604,6 +613,7 @@ export default function WorkBoard({
       {/* Time off. Staff ask constantly and there has never been anywhere
           to do it, so it was asked for over WhatsApp and forgotten.
           Everybody can ask; only a manager sees the whole roster. */}
+      {modules.leave && (
       <section>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium text-ink-muted">
@@ -702,9 +712,11 @@ export default function WorkBoard({
           </div>
         )}
       </section>
+      )}
 
       {/* Buying something, which is a different question from having spent
           it. This one waits for a yes. */}
+      {modules.purchases && (
       <section className="border border-line bg-white p-5">
         <h2 className="font-medium text-ink">Something you need to buy</h2>
         <p className="mt-1 text-sm text-ink-muted">
@@ -761,7 +773,9 @@ export default function WorkBoard({
           </button>
         )}
       </section>
+      )}
 
+      {modules.expenses && (
       <section className="border border-line bg-white p-5">
         <h2 className="font-medium text-ink">Money you spent</h2>
         <p className="mt-1 text-sm text-ink-muted">
@@ -809,6 +823,7 @@ export default function WorkBoard({
           </button>
         )}
       </section>
+      )}
     </div>
   );
 }
