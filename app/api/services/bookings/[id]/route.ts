@@ -80,6 +80,12 @@ export async function POST(
         { status: 409 }
       );
     }
+    if (/service_booking_live_needs_provider/.test(error.message)) {
+      return NextResponse.json(
+        { error: "Assign someone to this booking first, then confirm it." },
+        { status: 409 }
+      );
+    }
     if (/illegal transition/.test(error.message)) {
       return NextResponse.json(
         { error: "This booking has already moved on. Refresh to see where it is." },

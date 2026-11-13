@@ -100,6 +100,12 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
+    if (/provider_required|provider_not_on_team/.test(error.message)) {
+      return NextResponse.json(
+        { error: "Pick who you want to see, then choose a time again." },
+        { status: 422 }
+      );
+    }
     if (/service_unavailable/.test(error.message)) {
       return NextResponse.json(
         { error: "That service is no longer offered. Pick another." },
