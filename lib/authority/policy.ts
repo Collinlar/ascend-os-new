@@ -24,7 +24,8 @@ export type BusinessFrom =
   | "active" // the business the person is currently working in
   | "body" // body.businessId
   | "query" // ?businessId=
-  | { table: string; param: string }; // the business that owns /[param]
+  | { table: string; param: string } // the business that owns /[param]
+  | { table: string; bodyField: string }; // the business that owns the record named in the body
 
 export interface MemberRule {
   /** Any one of these permissions is enough. Empty means membership only. */
@@ -102,14 +103,13 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "documents/branding": { POST: member("body", { permission: ["business.settings"] }) },
   "devices/pairing-code": {
     POST: member("body", { permission: ["staff.manage"], capability: ["pos.tills"] }),
-    DELETE: member("body", { permission: ["staff.manage"], capability: ["pos.tills"] }),
+    DELETE: member({ table: "device_registration", bodyField: "deviceId" }, { permission: ["staff.manage"], capability: ["pos.tills"] }),
   },
 
   // ----- catalogue and stock -----
   "catalogue/items": {
-    GET: member("query", {
-      gap: "No permission covers reading the product list; every member can today",
-    }),
+    // Owners and managers only, as the route allows today.
+    GET: member("query", { permission: ["catalogue.manage"] }),
     PATCH: member("body", {
       permission: ["catalogue.manage"],
       when: (b) =>
@@ -146,13 +146,15 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "documents/[id]": { POST: member({ table: "document", param: "id" }, { permission: ["documents.create"] }) },
   "documents/[id]/pdf": { GET: member({ table: "document", param: "id" }, { permission: ["documents.view"] }) },
   "payments/initiate": {
+    // A signed-in member only ever tops up Ascend Balance here, which is
+    // billing. Paying a document, booking or order is done by the customer
+    // from a link, with no session.
     POST: member("body", {
-      permission: ["documents.create"],
-      // A customer paying from a document link has a token, not a session.
-      when: (b) => (b.documentToken ? "public" : null),
+      permission: ["business.settings"],
+      when: (b) => (b.purpose === "balance_topup" ? null : "public"),
     }),
   },
-  "payments/refund": { POST: member("body", { permission: ["refunds.approve"] }) },
+  "payments/refund": { POST: member({ table: "payment", bodyField: "paymentId" }, { permission: ["refunds.approve"] }) },
 
   // ----- shop orders -----
   "shop/orders/[id]": {
@@ -172,7 +174,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
     // A provider manages their own hours; anyone's needs bookings.manage. The
     // "own" half is contextual and stays with the route until step 1c.
     POST: member("body", { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] }),
-    DELETE: member("body", { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] }),
+    DELETE: member({ table: "staff_time_off", bodyField: "timeOffId" }, { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] }),
   },
   "services/bookings/[id]": {
     POST: member({ table: "service_booking", param: "id" }, {
@@ -211,11 +213,11 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   },
 
   // ----- growth and readiness -----
-  "discover/promote": { POST: member("body", { permission: ["campaigns.send"], capability: ["discover.listing"] }) },
-  "readiness/mot": { POST: member("body", { permission: ["reports.view"], capability: ["readiness.score"] }) },
+  "discover/promote": { POST: member("active", { permission: ["campaigns.send"], capability: ["discover.listing"] }) },
+  "readiness/mot": { POST: member("active", { permission: ["reports.view"], capability: ["readiness.score"] }) },
   sharing: {
-    POST: member("body", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
-    DELETE: member("body", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
+    POST: member("active", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
+    DELETE: member("active", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
   },
 };
 

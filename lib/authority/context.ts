@@ -40,7 +40,10 @@ const EMPTY = (personId: string | null, whyNot: string, businessId: string | nul
 
 // Only these tables can name the business in a route's [param]. A fixed list,
 // so a policy typo cannot turn into a query against an arbitrary table.
-const ENTITY_TABLES = new Set(["customer", "document", "shop_order", "service_booking"]);
+const ENTITY_TABLES = new Set([
+  "customer", "document", "shop_order", "service_booking",
+  "device_registration", "payment", "staff_time_off",
+]);
 
 export async function resolveBusinessId(
   from: BusinessFrom,
@@ -58,7 +61,8 @@ export async function resolveBusinessId(
     return m?.business_id ?? null;
   }
   if (!ENTITY_TABLES.has(from.table)) return null;
-  const id = input.params?.[from.param];
+  const raw = "bodyField" in from ? input.body[from.bodyField] : input.params?.[from.param];
+  const id = typeof raw === "string" ? raw : null;
   if (!id) return null;
   const { data } = await supabaseServer()
     .from(from.table)
