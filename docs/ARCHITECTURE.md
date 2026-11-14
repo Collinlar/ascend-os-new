@@ -53,25 +53,67 @@ table is the canonical register (ARC-015).
 
 ## Invariants enforced in schema
 
-- Append-only: `stock_movement`, `ledger_entry`, `balance_entry`,
-  `evidence_record`, `score_result`, `audit_log`, `report_access_log`
-  (update/delete revoked).
-- Idempotency: `client_ref` unique columns on everything a device can create
-  offline; `(source_event_id, evidence_type)` unique on evidence.
-- Verification confidence: `payment.verification` enum keeps
-  merchant-declared distinct from provider-confirmed everywhere (PAY-006).
-- Separation of duties: `approval_request` check constraint blocks
-  self-approval (IDN-016).
+Rewritten 14 Nov 2026 to say what is actually enforced. Until then this list
+described intentions as if they were facts. Each line below was checked
+against the code and, where marked, proved against the live database.
+
+**The app talks to Postgres as the service role.** The service role bypasses
+row level security and ignores `revoke`, so neither of those is a boundary
+here. Anything listed as enforced is enforced by a trigger, a constraint, a
+unique index, or the body of a `security definer` function, because those
+apply to the service role too.
+
+Enforced:
+
+- Append-only history (0072): `stock_movement`, `ledger_entry`,
+  `balance_entry`, `evidence_record`, `score_result`, `audit_log` and
+  `report_access_log` refuse UPDATE, DELETE and TRUNCATE by trigger.
+  Corrections are new rows. The one way through is `erase_history()`, which
+  needs a table, a business, a reason and a requester, and records the
+  erasure in `audit_log` (with `business_id` empty and the business in the
+  detail, so the record never blocks removing the business).
+- Issued documents cannot change in substance (0014,
+  `document_immutable_after_issue`).
+- Idempotency, per business (0070): `client_ref` is unique on
+  `(business_id, client_ref)` on the nine tables a device or a retried
+  request can create, and every replay lookup includes the business.
+  `(source_event_id, evidence_type)` is unique on evidence.
+- Events are written in the same transaction as the change they describe
+  (0071). There is no TypeScript helper that writes an event.
+- One customer record per phone number per business (0064).
+- A confirmed or in-progress booking has a provider (0068), and a provider
+  cannot hold two overlapping live bookings (0018).
+- An entitlement grants access only inside its dates (0069,
+  `entitlement_in_force`).
+- Verification confidence: `payment.verification` keeps merchant-declared
+  distinct from provider-confirmed (PAY-006).
+- Separation of duties: `approval_request` has a check constraint blocking
+  self-approval (IDN-016), and the decision functions refuse it too.
 - One open shift per device: partial unique index (POS-SHF-010).
-- Tenant isolation: RLS enabled on all business-scoped tables with
-  membership-based policies (SEC-001).
+
+Not enforced, despite earlier versions of this document:
+
+- Tenant isolation is not provided by RLS. RLS is enabled on 32 tables, but
+  `is_business_member()` keys on `auth.uid()`, which the custom WhatsApp OTP
+  sessions never set, and the service role bypasses RLS regardless. Tenant
+  isolation depends on every route and function scoping by business. That
+  is Phase 1 of `docs/planning/2026-11-foundation-alignment/`.
+- Role permissions are stored on `role.permissions` and not checked by any
+  route or function. Also Phase 1.
+- Capability gates exist on the server for Services, Shop and Office only;
+  most other screens are gated by the nav link alone (alignment item 11).
+- `sale` and `payment` are not append-only: a reversal changes a sale's
+  status and a customer merge moves `customer_id`. The rule they need
+  (amounts and lines never change once recorded) belongs to the commerce
+  core in Phase 2.
 
 ## What deliberately does not exist
 
 - No per-product-set customer, product or payment tables.
 - No score inputs from product purchases, login frequency or paid promotion
   (RDY-005, EVT-016, EVT-017).
-- No hard delete paths for financial or evidence history.
+- No hard delete paths for financial or evidence history, except the one
+  audited `erase_history()` path for data protection requests and test data.
 - No prices in code; the country price book owns them (ENT-018).
 
 ## Auth and onboarding (phase 2, built)
