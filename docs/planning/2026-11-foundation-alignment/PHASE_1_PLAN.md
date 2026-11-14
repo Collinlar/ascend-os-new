@@ -86,13 +86,15 @@ Taken from the spec's list (section 6) and what the product does today. **This i
 | staff.manage | high | ✓ | ✓ (not managers or owner) | | | |
 | roles.change | high | ✓ | | | | |
 | approvals.decide | medium | ✓ | ✓ | | | |
-| tasks.own | low | ✓ | ✓ | ✓ | | ✓ |
-| attendance.own | low | ✓ | ✓ | ✓ | | ✓ |
+| tasks.own | low | ✓ | ✓ | ✓ | ✓ | ✓ |
+| attendance.own | low | ✓ | ✓ | ✓ | ✓ | ✓ |
 | reports.view | medium | ✓ | ✓ (their locations) | | ✓ | |
 | data.export | high | ✓ | | | ✓ | |
 | campaigns.send | medium | ✓ | ✓ | | | |
 | external_access.authorize | high | ✓ | | | | |
 | business.settings | high | ✓ | | | | |
+
+Amended 14 Nov 2026 (migration 0076): accountants also hold tasks.own and attendance.own, decided by Collins after the step 1b run showed accountants check in today.
 
 "Own shift", "assigned" and "their locations" are contextual policies on top of the permission (spec section 6: RBAC with contextual checks). They are applied in the resolver using membership location scope and the record's assignment.
 
