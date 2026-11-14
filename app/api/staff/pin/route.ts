@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 // Handing someone a till PIN is granting access to the money drawer, so it
 // is an owner or manager action (IDN-016).
@@ -90,6 +91,10 @@ async function handlePOST(request: NextRequest) {
   });
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     return NextResponse.json(
       { error: "We could not save that PIN just now. Tap again in a moment." },
       { status: 500 }
@@ -138,9 +143,16 @@ async function handleDELETE(request: NextRequest) {
   }
 
   const { error } = await db.rpc("clear_staff_pin", {
-    p: { membership_id: body.membershipId },
+    // Who is clearing it and for which business, so the database can check (0079).
+    p: {
+      membership_id: body.membershipId,
+      business_id: body.businessId,
+      actor_membership_id: actor.membershipId,
+    },
   });
   if (error) {
+    const denied = deniedByDatabase(error);
+    if (denied) return denied;
     return NextResponse.json(
       { error: "We could not remove that PIN just now. Tap again in a moment." },
       { status: 500 }

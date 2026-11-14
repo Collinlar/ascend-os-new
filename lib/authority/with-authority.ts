@@ -19,8 +19,9 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { currentAdmin } from "@/lib/auth/admin";
-import { ROUTE_POLICY, type Method, type MemberRule } from "./policy";
-import { resolveAuthority, resolveBusinessId, recordColumn, membershipRole } from "./context";
+import { ROUTE_POLICY, HIGH_RISK, type Method, type MemberRule } from "./policy";
+import { resolveAuthority, resolveBusinessId, recordColumn, membershipRole, type AuthorityContext } from "./context";
+import { supabaseServer } from "@/lib/supabase";
 import { decideMember, mergeRules, needsAssignment, type Outcome } from "./decide";
 import { recordDecision } from "./log";
 import { routeEnforced, refusal, checkUnavailable } from "./enforce";
@@ -44,7 +45,8 @@ async function evaluate(
   method: Method,
   request: NextRequest,
   context: RouteContext,
-  enforced: boolean
+  enforced: boolean,
+  facts?: AuditFacts
 ): Promise<Outcome | null> {
   const refuse = enforced ? "deny" : "would_deny";
   const mode = enforced ? "enforce" : "shadow";
@@ -154,7 +156,49 @@ async function evaluate(
     role: ctx?.role ?? null,
     outcome,
   });
+  if (facts) Object.assign(facts, { rule, ctx, action, body, outcome });
   return outcome;
+}
+
+// What the audit needs to know about a member request, filled in by evaluate.
+interface AuditFacts {
+  rule?: MemberRule;
+  ctx?: AuthorityContext | null;
+  action?: string | null;
+  body?: Record<string, unknown>;
+  outcome?: Outcome;
+}
+
+// A high-risk action that ran is written to audit_log (Identity spec 13,
+// PHASE_1_PLAN.md 3.7): who did it, under what authority, and why if they
+// said. In shadow mode a high-risk action by someone the check would refuse
+// is recorded too, marked as not authorised, because that is exactly what an
+// owner would want to see. Never the reason a request fails.
+async function auditHighRisk(route: string, method: Method, facts: AuditFacts, status: number): Promise<void> {
+  try {
+    if (status >= 400 || !facts.rule || !facts.outcome) return;
+    const highRisk = (facts.rule.permission ?? []).filter((p) => HIGH_RISK.has(p));
+    if (!highRisk.length) return;
+    const ctx = facts.ctx;
+    const held = highRisk.filter((p) => ctx?.permissions.has(p));
+    const reason = typeof facts.body?.reason === "string" ? facts.body.reason : null;
+    await supabaseServer().rpc("record_audit", {
+      p: {
+        business_id: ctx?.businessId ?? "",
+        actor_person_id: ctx?.personId ?? "",
+        actor_membership_id: ctx?.membershipId ?? "",
+        action: "high_risk:" + route + ":" + method + (facts.action ? ":" + facts.action : ""),
+        reason: reason ?? "",
+        authorization_source:
+          facts.outcome.decision === "allow"
+            ? "role:" + (ctx?.role ?? "unknown") + " (" + held.join(", ") + ")"
+            : "not authorised (" + (facts.outcome.reason ?? "refused") + ", shadow)",
+        detail: { route, method, action: facts.action ?? null, status, required: highRisk },
+      },
+    });
+  } catch {
+    // Swallowed on purpose; see above.
+  }
 }
 
 export function withAuthority<C extends RouteContext>(
@@ -164,8 +208,9 @@ export function withAuthority<C extends RouteContext>(
 ): (request: NextRequest, context: C) => Promise<Response> {
   return async (request: NextRequest, context: C) => {
     const enforced = routeEnforced(route);
+    const facts: AuditFacts = {};
     try {
-      const outcome = await evaluate(route, method, request, context, enforced);
+      const outcome = await evaluate(route, method, request, context, enforced, facts);
       if (enforced && outcome?.decision === "deny") return refusal(outcome.reason);
     } catch (e) {
       await recordDecision({
@@ -179,6 +224,8 @@ export function withAuthority<C extends RouteContext>(
       // An enforced route that cannot check access does not guess.
       if (enforced) return checkUnavailable();
     }
-    return handler(request, context);
+    const response = await handler(request, context);
+    await auditHighRisk(route, method, facts, response.status);
+    return response;
   };
 }

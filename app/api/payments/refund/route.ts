@@ -7,6 +7,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { paymentProvider } from "@/lib/payments/provider";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
@@ -85,6 +86,10 @@ async function handlePOST(request: NextRequest) {
   });
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/exceeds_refundable_amount/.test(error.message)) {
       return NextResponse.json(
         { error: "That is more than is left to refund on this payment." },

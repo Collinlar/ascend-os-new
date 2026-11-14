@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,11 @@ async function handleGET(request: NextRequest) {
     p_business: businessId,
     p_location: locationId,
   });
-  if (error) {
+  if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     return NextResponse.json(
       { error: "We could not load your products just now. Tap again in a moment." },
       { status: 500 }
@@ -146,7 +151,11 @@ async function handlePATCH(request: NextRequest) {
 
   const db = supabaseServer();
   const { error } = await db.rpc("update_catalogue_item", { p: payload });
-  if (error) {
+  if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/barcode_taken/.test(error.message)) {
       return NextResponse.json(
         { error: "Another product already uses that barcode." },
@@ -194,6 +203,8 @@ async function handlePATCH(request: NextRequest) {
       p: {
         business_id: body.businessId,
         item_id: body.itemId,
+        // Who is changing it, so the database can check (0079).
+        actor_membership_id: scoped?.membershipId ?? "",
         channel: "shop",
         visible: body.shopVisible,
         price_override:
@@ -204,7 +215,11 @@ async function handlePATCH(request: NextRequest) {
               : String(body.shopPriceOverride),
       },
     });
-    if (channelError) {
+    if (channelError) {
+
+      const denied = deniedByDatabase(channelError);
+
+      if (denied) return denied;
       return NextResponse.json(
         { error: "Saved, but we could not change where it sells. Tap again." },
         { status: 502 }

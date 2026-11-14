@@ -19,6 +19,19 @@ import { OFFICE_ACTIONS } from "@/lib/office/access";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+/** The high-risk permissions (risk = 'high' in the 0074 catalogue). A route
+ *  action that uses one of these and succeeds is written to audit_log. */
+export const HIGH_RISK: ReadonlySet<string> = new Set([
+  "refunds.approve",
+  "prices.change",
+  "settlement.change_destination",
+  "staff.manage",
+  "roles.change",
+  "data.export",
+  "external_access.authorize",
+  "business.settings",
+]);
+
 /** Where the business a request acts on comes from. */
 export type BusinessFrom =
   | "active" // the business the person is currently working in

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,10 @@ async function handlePOST(request: NextRequest) {
   );
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/cannot_disable_last_set/.test(error.message)) {
       return NextResponse.json(
         {

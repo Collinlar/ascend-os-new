@@ -9,6 +9,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { OFFICE_ACTIONS, actionAllowed } from "@/lib/office/access";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 interface Body {
   action?:
@@ -143,6 +144,10 @@ async function handlePOST(request: NextRequest) {
     });
 
     if (error) {
+
+      const denied = deniedByDatabase(error);
+
+      if (denied) return denied;
       console.error("create_task failed:", error.message);
       return NextResponse.json(
         { error: "We could not save that just now. Tap again in a moment." },
@@ -167,6 +172,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/task_not_found|invalid input syntax/.test(error.message)) {
         return NextResponse.json({ error: "We could not find that task." }, { status: 404 });
       }
@@ -204,6 +211,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       return NextResponse.json(
         { error: "We could not record that just now. Tap again in a moment." },
         { status: 500 }
@@ -238,6 +247,10 @@ async function handlePOST(request: NextRequest) {
     });
 
     if (error) {
+
+      const denied = deniedByDatabase(error);
+
+      if (denied) return denied;
       if (/cannot_approve_own_request/.test(error.message)) {
         return NextResponse.json(
           { error: "You cannot approve your own request. Someone else must." },
@@ -269,6 +282,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       return NextResponse.json(
         { error: "We could not record that. Tap again in a moment." },
         { status: 500 }
@@ -300,6 +315,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/leave_overlaps_existing/.test(error.message)) {
         return NextResponse.json(
           { error: "You already have time off booked over those days." },
@@ -335,6 +352,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/project_needs_a_name/.test(error.message)) {
         return NextResponse.json({ error: "Give the job a name." }, { status: 422 });
       }
@@ -358,6 +377,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/purchase_needs_a_description/.test(error.message)) {
         return NextResponse.json({ error: "Say what you need to buy." }, { status: 422 });
       }
@@ -385,6 +406,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       const said: Record<string, string> = {
         cannot_change_the_owner: "The owner's own role cannot be changed.",
         cannot_make_another_owner: "A business has one owner.",
@@ -406,6 +429,8 @@ async function handlePOST(request: NextRequest) {
     const { data, error } = await db.rpc("save_location", {
       p: {
         business_id: businessId,
+        // Who is changing it, so the database can check (0079).
+        actor_membership_id: membershipId,
         location_id: body.locationId ?? "",
         name: body.name ?? "",
         address: body.address ?? "",
@@ -413,6 +438,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/location_needs_a_name/.test(error.message)) {
         return NextResponse.json({ error: "Give this place a name." }, { status: 422 });
       }
@@ -439,6 +466,8 @@ async function handlePOST(request: NextRequest) {
       },
     });
     if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
       if (/provider_is_on_leave/.test(error.message)) {
         return NextResponse.json(
           { error: "They have time off agreed over that booking." },

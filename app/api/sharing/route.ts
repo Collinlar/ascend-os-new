@@ -7,6 +7,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { hashShareToken, newShareToken, shareUrl } from "@/lib/sharing/share";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 async function ownerMembership(personId: string) {
   const data = await activeMembership<{
@@ -80,6 +81,10 @@ async function handlePOST(request: NextRequest) {
   });
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/field_not_shareable/.test(error.message)) {
       return NextResponse.json(
         { error: "One of those cannot be shared. Refresh and choose again." },
@@ -141,6 +146,8 @@ async function handleDELETE(request: NextRequest) {
     p: { share_id: share.id, actor_membership_id: owner.membershipId },
   });
   if (error) {
+    const denied = deniedByDatabase(error);
+    if (denied) return denied;
     return NextResponse.json(
       { error: "We could not stop that share. Tap again in a moment." },
       { status: 500 }

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +88,10 @@ async function handlePOST(request: NextRequest) {
   });
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/already_a_member/.test(error.message)) {
       return NextResponse.json(
         { error: "That person is already on your team." },
@@ -157,6 +162,10 @@ async function handleDELETE(request: NextRequest) {
   });
 
   if (error) {
+
+    const denied = deniedByDatabase(error);
+
+    if (denied) return denied;
     if (/cannot_remove_owner/.test(error.message)) {
       return NextResponse.json(
         { error: "The owner cannot be removed from their own business." },
