@@ -36,6 +36,10 @@ export interface MemberRule {
    *  others in the list), the record the route acts on must be assigned to
    *  them: its `column` must be their membership. */
   assigned?: { permission: string; column: string };
+  /** When the membership the request changes (named by `bodyField`) has one
+   *  of the `elevated` roles, the person must also hold `requires`. A
+   *  manager can manage staff, but not another manager or the owner. */
+  target?: { bodyField: string; elevated: string[]; requires: string };
   gap?: string;
 }
 
@@ -66,6 +70,9 @@ const officeCap = (action: string) => {
   const caps = OFFICE_ACTIONS[action];
   return caps ? [...caps] : undefined;
 };
+
+// Changing a manager or the owner needs roles.change, which only owners hold.
+const MANAGED = { bodyField: "membershipId", elevated: ["owner", "manager"], requires: "roles.change" };
 
 export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // ----- signing in, and choosing a business -----
@@ -192,13 +199,17 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   },
 
   // ----- team -----
+  // A manager manages staff, not another manager or the owner (matrix 3.4).
   "staff/team": {
-    POST: member("body", { permission: ["staff.manage"] }),
-    DELETE: member("body", { permission: ["staff.manage"] }),
+    POST: member("body", {
+      permission: ["staff.manage"],
+      when: (b) => (b.roleKey === "manager" ? { permission: ["roles.change"] } : null),
+    }),
+    DELETE: member("body", { permission: ["staff.manage"], target: MANAGED }),
   },
   "staff/pin": {
-    POST: member("body", { permission: ["staff.manage"] }),
-    DELETE: member("body", { permission: ["staff.manage"] }),
+    POST: member("body", { permission: ["staff.manage"], target: MANAGED }),
+    DELETE: member("body", { permission: ["staff.manage"], target: MANAGED }),
   },
 
   // ----- office -----

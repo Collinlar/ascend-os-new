@@ -49,6 +49,7 @@ export function mergeRules(base: MemberRule, specific: MemberRule | null | undef
     permission: specific.permission ?? base.permission,
     capability: specific.capability ?? base.capability,
     assigned: specific.assigned ?? base.assigned,
+    target: specific.target ?? base.target,
     gap: specific.gap ?? base.gap,
   };
 }

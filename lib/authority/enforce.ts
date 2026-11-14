@@ -30,6 +30,10 @@ const ROUTE_GROUP: Record<string, string> = {
   "catalogue/items": "catalogue",
   "catalogue/photo": "catalogue",
   "catalogue/stock": "catalogue",
+  "staff/team": "team",
+  "staff/pin": "team",
+  "devices/pairing-code": "team",
+  "business/product-sets": "team",
 };
 
 /** Pages in each group. */
@@ -43,6 +47,9 @@ const PAGE_GROUP: Record<string, string> = {
   "/documents": "documents",
   "/products": "catalogue",
   "/products/add": "catalogue",
+  "/team": "team",
+  "/devices": "team",
+  "/billing": "team",
 };
 
 function enforcedGroups(): Set<string> {
@@ -87,6 +94,11 @@ export function refusal(reason: string | null): NextResponse {
     case "business_lacks_capability":
       return NextResponse.json(
         { error: "That is part of a product your business has not added yet." },
+        { status: 403 }
+      );
+    case "cannot_manage_that_role":
+      return NextResponse.json(
+        { error: "Only the owner can change a manager or the owner." },
         { status: 403 }
       );
     case "not_assigned_to_you":

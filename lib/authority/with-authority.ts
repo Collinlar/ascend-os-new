@@ -20,7 +20,7 @@ import type { NextRequest } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { currentAdmin } from "@/lib/auth/admin";
 import { ROUTE_POLICY, type Method, type MemberRule } from "./policy";
-import { resolveAuthority, resolveBusinessId, recordColumn } from "./context";
+import { resolveAuthority, resolveBusinessId, recordColumn, membershipRole } from "./context";
 import { decideMember, mergeRules, needsAssignment, type Outcome } from "./decide";
 import { recordDecision } from "./log";
 import { routeEnforced, refusal, checkUnavailable } from "./enforce";
@@ -90,6 +90,7 @@ async function evaluate(
     permission: policy.permission,
     capability: policy.capability,
     assigned: policy.assigned,
+    target: policy.target,
     gap: policy.gap,
   };
   if (policy.byAction) {
@@ -128,6 +129,17 @@ async function evaluate(
       });
       if (!assignee || assignee !== ctx.membershipId) {
         outcome = { ...outcome, decision: refuse, reason: "not_assigned_to_you" };
+      }
+    }
+
+    // Changing a manager or the owner needs more than managing staff.
+    if (outcome.decision === "allow" && rule.target && ctx.businessId && !ctx.permissions.has(rule.target.requires)) {
+      const targetId = body[rule.target.bodyField];
+      if (typeof targetId === "string") {
+        const targetRole = await membershipRole(targetId, ctx.businessId);
+        if (targetRole && rule.target.elevated.includes(targetRole)) {
+          outcome = { ...outcome, decision: refuse, reason: "cannot_manage_that_role" };
+        }
       }
     }
   }

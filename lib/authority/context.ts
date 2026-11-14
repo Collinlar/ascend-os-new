@@ -88,6 +88,17 @@ export async function recordColumn(
   return typeof value === "string" ? value : null;
 }
 
+/** The role key of a membership in a business, or null if it is not one. */
+export async function membershipRole(membershipId: string, businessId: string): Promise<string | null> {
+  const { data } = await supabaseServer()
+    .from("business_membership")
+    .select("role:role_id(key)")
+    .eq("id", membershipId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  return ((data?.role as unknown as { key: string } | null)?.key) ?? null;
+}
+
 export async function resolveAuthority(
   personId: string | null,
   businessId: string | null
