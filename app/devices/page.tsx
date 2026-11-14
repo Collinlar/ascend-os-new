@@ -4,7 +4,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import DeviceManager, { type DeviceRow } from "@/components/pos/DeviceManager";
 import StaffPinManager, { type StaffRow } from "@/components/pos/StaffPinManager";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
-import { shadowPageAccess } from "@/lib/authority/page";
+import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -109,9 +109,9 @@ async function load(): Promise<PageData | null> {
 }
 
 export default async function Devices() {
-  // Phase 1 step 1b, shadow mode: records what the authority check would
-  // decide here and changes nothing about the page.
-  await shadowPageAccess("/devices");
+  // Phase 1 authority check: records what it decides here, and acts on it
+  // only once this page's group is enforced (lib/authority/enforce.ts).
+  await checkPageAccess("/devices");
 
   const data = await load();
 

@@ -1,17 +1,26 @@
 import "server-only";
 
-// The authority check for signed-in pages (Phase 1, step 1b), in shadow mode:
-// it records what it would decide and changes nothing about the page. In
-// step 1c it becomes requireAccess and redirects when the answer is no.
+// The authority check for signed-in pages (Phase 1).
+//
+// Shadow (the default): records what it would decide and changes nothing.
+// Enforced (the page's group is in AUTHORITY_ENFORCE, see enforce.ts): a
+// person without access is sent to /grow, where a business can add what it is
+// missing, as the Services and Shop pages already do. If the check itself
+// cannot run on an enforced page, the person is sent there too rather than
+// shown the page.
 
+import { redirect } from "next/navigation";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { PAGE_POLICY } from "./policy";
 import { resolveAuthority } from "./context";
 import { decideMember } from "./decide";
-import { recordDecision, AUTHORITY_MODE } from "./log";
+import { recordDecision } from "./log";
+import { pageEnforced } from "./enforce";
 
-export async function shadowPageAccess(path: string): Promise<void> {
+export async function checkPageAccess(path: string): Promise<void> {
+  const enforced = pageEnforced(path);
+  let refuse = false;
   try {
     const rule = PAGE_POLICY[path];
     if (!rule) return;
@@ -19,25 +28,31 @@ export async function shadowPageAccess(path: string): Promise<void> {
     if (!personId) return; // the page itself asks a signed-out visitor to sign in
     const membership = await activeMembership<{ business_id: string }>(personId);
     const ctx = await resolveAuthority(personId, membership?.business_id ?? null);
-    const outcome = decideMember(ctx, rule, AUTHORITY_MODE === "shadow" ? "would_deny" : "deny");
+    const outcome = decideMember(ctx, rule, enforced ? "deny" : "would_deny");
     await recordDecision({
       surface: "page",
       route: path,
+      mode: enforced ? "enforce" : "shadow",
       personId,
       businessId: ctx.businessId,
       membershipId: ctx.membershipId,
       role: ctx.role,
       outcome,
     });
+    refuse = enforced && outcome.decision === "deny";
   } catch (e) {
     await recordDecision({
       surface: "page",
       route: path,
+      mode: enforced ? "enforce" : "shadow",
       outcome: {
         decision: "error",
         reason: (e instanceof Error ? e.message : String(e)).slice(0, 200),
         required: {},
       },
     });
+    refuse = enforced;
   }
+  // Outside the try: redirect() works by throwing, and must not be caught.
+  if (refuse) redirect("/grow");
 }

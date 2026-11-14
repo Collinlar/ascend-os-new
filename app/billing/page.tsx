@@ -3,7 +3,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, PageHeader, PageShell, Panel, PanelRow } from "@/components/shell/Page";
 import { formatMoney } from "@/lib/money";
-import { shadowPageAccess } from "@/lib/authority/page";
+import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +50,9 @@ async function load() {
 }
 
 export default async function Billing() {
-  // Phase 1 step 1b, shadow mode: records what the authority check would
-  // decide here and changes nothing about the page.
-  await shadowPageAccess("/billing");
+  // Phase 1 authority check: records what it decides here, and acts on it
+  // only once this page's group is enforced (lib/authority/enforce.ts).
+  await checkPageAccess("/billing");
 
   const data = await load();
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import { shadowPageAccess } from "@/lib/authority/page";
+import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -107,9 +107,9 @@ async function load() {
 }
 
 export default async function Readiness() {
-  // Phase 1 step 1b, shadow mode: records what the authority check would
-  // decide here and changes nothing about the page.
-  await shadowPageAccess("/readiness");
+  // Phase 1 authority check: records what it decides here, and acts on it
+  // only once this page's group is enforced (lib/authority/enforce.ts).
+  await checkPageAccess("/readiness");
 
   const data = await load();
 

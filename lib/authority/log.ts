@@ -3,12 +3,11 @@ import "server-only";
 import { supabaseServer } from "@/lib/supabase";
 import type { Outcome } from "./decide";
 
-/** Phase 1 runs in shadow mode until the log and the route-by-role test
- *  agree with today's behaviour (PHASE_1_PLAN.md section 4). */
-export const AUTHORITY_MODE: "shadow" | "enforce" = "shadow";
 
 export interface DecisionRecord {
   surface: "api" | "page";
+  /** shadow: recorded only. enforce: the route or page acted on it. */
+  mode?: "shadow" | "enforce";
   route: string;
   method?: string;
   action?: string | null;
@@ -25,7 +24,7 @@ export async function recordDecision(r: DecisionRecord): Promise<void> {
     await supabaseServer()
       .from("authority_decision")
       .insert({
-        mode: AUTHORITY_MODE,
+        mode: r.mode ?? "shadow",
         surface: r.surface,
         route: r.route,
         method: r.method ?? null,
