@@ -17,11 +17,17 @@ import { NextResponse } from "next/server";
 /** API routes in each group. */
 const ROUTE_GROUP: Record<string, string> = {
   "office/actions": "office",
+  "services/offerings": "services",
+  "services/availability": "services",
+  "services/bookings/[id]": "services",
 };
 
 /** Pages in each group. */
 const PAGE_GROUP: Record<string, string> = {
   "/work": "office",
+  "/services": "services",
+  "/bookings": "services",
+  "/availability": "services",
 };
 
 function enforcedGroups(): Set<string> {
@@ -66,6 +72,11 @@ export function refusal(reason: string | null): NextResponse {
     case "business_lacks_capability":
       return NextResponse.json(
         { error: "That is part of a product your business has not added yet." },
+        { status: 403 }
+      );
+    case "not_assigned_to_you":
+      return NextResponse.json(
+        { error: "This one is not assigned to you. Ask the owner or a manager." },
         { status: 403 }
       );
     case "missing_permission":

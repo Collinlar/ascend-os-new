@@ -4,10 +4,10 @@ import "server-only";
 //
 // Shadow (the default): records what it would decide and changes nothing.
 // Enforced (the page's group is in AUTHORITY_ENFORCE, see enforce.ts): a
-// person without access is sent to /grow, where a business can add what it is
-// missing, as the Services and Shop pages already do. If the check itself
-// cannot run on an enforced page, the person is sent there too rather than
-// shown the page.
+// person whose business lacks the product is sent to /grow, where it can be
+// added; a person whose role does not allow the page, or whose access has
+// ended, is sent to the dashboard. If the check itself cannot run on an
+// enforced page, the person is sent to the dashboard rather than shown it.
 
 import { redirect } from "next/navigation";
 import { currentPersonId } from "@/lib/auth/session";
@@ -21,6 +21,7 @@ import { pageEnforced } from "./enforce";
 export async function checkPageAccess(path: string): Promise<void> {
   const enforced = pageEnforced(path);
   let refuse = false;
+  let reason: string | null = null;
   try {
     const rule = PAGE_POLICY[path];
     if (!rule) return;
@@ -40,6 +41,7 @@ export async function checkPageAccess(path: string): Promise<void> {
       outcome,
     });
     refuse = enforced && outcome.decision === "deny";
+    reason = outcome.reason;
   } catch (e) {
     await recordDecision({
       surface: "page",
@@ -54,5 +56,7 @@ export async function checkPageAccess(path: string): Promise<void> {
     refuse = enforced;
   }
   // Outside the try: redirect() works by throwing, and must not be caught.
-  if (refuse) redirect("/grow");
+  // Missing a product: /grow, where it can be added. Anything else (the role
+  // does not allow it, access has ended): back to the dashboard.
+  if (refuse) redirect(reason === "business_lacks_capability" ? "/grow" : "/dashboard");
 }

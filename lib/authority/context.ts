@@ -60,16 +60,32 @@ export async function resolveBusinessId(
     const m = await activeMembership<{ business_id: string }>(personId);
     return m?.business_id ?? null;
   }
-  if (!ENTITY_TABLES.has(from.table)) return null;
+  return recordColumn(from, "business_id", input);
+}
+
+// One column of the record a route acts on (the record named in its [param]
+// or in the body). Used for the business it belongs to and, for "assigned"
+// permissions, who it is assigned to. Table and column come from code, never
+// from the request.
+const READABLE_COLUMNS = new Set(["business_id", "assigned_membership_id"]);
+
+export async function recordColumn(
+  from: BusinessFrom,
+  column: string,
+  input: { body: Record<string, unknown>; params: Record<string, string> | undefined }
+): Promise<string | null> {
+  if (typeof from === "string") return null;
+  if (!ENTITY_TABLES.has(from.table) || !READABLE_COLUMNS.has(column)) return null;
   const raw = "bodyField" in from ? input.body[from.bodyField] : input.params?.[from.param];
   const id = typeof raw === "string" ? raw : null;
   if (!id) return null;
   const { data } = await supabaseServer()
     .from(from.table)
-    .select("business_id")
+    .select(column)
     .eq("id", id)
     .maybeSingle();
-  return (data?.business_id as string | undefined) ?? null;
+  const value = (data as Record<string, unknown> | null)?.[column];
+  return typeof value === "string" ? value : null;
 }
 
 export async function resolveAuthority(

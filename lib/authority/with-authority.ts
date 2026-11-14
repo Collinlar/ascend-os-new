@@ -20,8 +20,8 @@ import type { NextRequest } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { currentAdmin } from "@/lib/auth/admin";
 import { ROUTE_POLICY, type Method, type MemberRule } from "./policy";
-import { resolveAuthority, resolveBusinessId } from "./context";
-import { decideMember, mergeRules, type Outcome } from "./decide";
+import { resolveAuthority, resolveBusinessId, recordColumn } from "./context";
+import { decideMember, mergeRules, needsAssignment, type Outcome } from "./decide";
 import { recordDecision } from "./log";
 import { routeEnforced, refusal, checkUnavailable } from "./enforce";
 
@@ -86,7 +86,12 @@ async function evaluate(
   const whenResult = policy.when ? policy.when(body) : null;
   if (whenResult === "public") return null;
 
-  let rule: MemberRule = { permission: policy.permission, capability: policy.capability, gap: policy.gap };
+  let rule: MemberRule = {
+    permission: policy.permission,
+    capability: policy.capability,
+    assigned: policy.assigned,
+    gap: policy.gap,
+  };
   if (policy.byAction) {
     const actionRule = action ? policy.byAction[action] : undefined;
     if (!actionRule) {
@@ -113,6 +118,18 @@ async function evaluate(
     });
     ctx = await resolveAuthority(personId, businessId);
     outcome = decideMember(ctx, rule, refuse);
+
+    // Holding only the "assigned" form of a permission means the record must
+    // be assigned to this person (staff and their own bookings or orders).
+    if (outcome.decision === "allow" && needsAssignment(ctx, rule)) {
+      const assignee = await recordColumn(policy.business, rule.assigned!.column, {
+        body,
+        params: context?.params,
+      });
+      if (!assignee || assignee !== ctx.membershipId) {
+        outcome = { ...outcome, decision: refuse, reason: "not_assigned_to_you" };
+      }
+    }
   }
 
   await recordDecision({

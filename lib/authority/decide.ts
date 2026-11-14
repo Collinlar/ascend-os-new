@@ -33,6 +33,14 @@ export function decideMember(ctx: AuthorityContext, rule: MemberRule, refuse: De
   return { decision: "allow", reason: rule.gap ? "allowed_membership_only_gap" : null, required };
 }
 
+/** True when the person can act only through the "assigned" permission, so
+ *  the record must be theirs. */
+export function needsAssignment(ctx: AuthorityContext, rule: MemberRule): boolean {
+  if (!rule.assigned) return false;
+  const others = (rule.permission ?? []).filter((p) => p !== rule.assigned!.permission);
+  return ctx.permissions.has(rule.assigned.permission) && !others.some((p) => ctx.permissions.has(p));
+}
+
 /** Merge a route's base rule with an action- or body-specific one. The more
  *  specific rule replaces the base where it says something. */
 export function mergeRules(base: MemberRule, specific: MemberRule | null | undefined): MemberRule {
@@ -40,6 +48,7 @@ export function mergeRules(base: MemberRule, specific: MemberRule | null | undef
   return {
     permission: specific.permission ?? base.permission,
     capability: specific.capability ?? base.capability,
+    assigned: specific.assigned ?? base.assigned,
     gap: specific.gap ?? base.gap,
   };
 }

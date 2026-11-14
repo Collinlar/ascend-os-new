@@ -32,6 +32,10 @@ export interface MemberRule {
   permission?: string[];
   /** The business must hold at least one of these capabilities. */
   capability?: string[];
+  /** When the person holds only this "assigned" permission (and none of the
+   *  others in the list), the record the route acts on must be assigned to
+   *  them: its `column` must be their membership. */
+  assigned?: { permission: string; column: string };
   gap?: string;
 }
 
@@ -161,6 +165,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
     POST: member({ table: "shop_order", param: "id" }, {
       permission: ["orders.manage", "orders.manage_assigned"],
       capability: ["shop.orders"],
+      assigned: { permission: "orders.manage_assigned", column: "assigned_membership_id" },
     }),
   },
 
@@ -180,6 +185,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
     POST: member({ table: "service_booking", param: "id" }, {
       permission: ["bookings.manage", "bookings.manage_assigned"],
       capability: ["services.bookings"],
+      assigned: { permission: "bookings.manage_assigned", column: "assigned_membership_id" },
     }),
   },
 
