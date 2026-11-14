@@ -7,6 +7,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { businessStatus } from "@/lib/authority/business-status";
 
 interface Body {
   slug?: string;
@@ -52,6 +53,14 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(
       { error: "This booking link is not active. Check with the business." },
       { status: 404 }
+    );
+  }
+
+  // A suspended or closed business takes no new bookings (Phase 1 step 1f).
+  if ((await businessStatus(business.id)) !== "active") {
+    return NextResponse.json(
+      { error: "This business is not taking bookings on Ascend right now." },
+      { status: 403 }
     );
   }
 

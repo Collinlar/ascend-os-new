@@ -17,7 +17,7 @@ import "server-only";
 // scripts/check-authority.mjs fails the build check if one is not.
 
 import type { NextRequest } from "next/server";
-import { currentPersonId } from "@/lib/auth/session";
+import { currentSession } from "@/lib/auth/session";
 import { currentAdmin } from "@/lib/auth/admin";
 import { ROUTE_POLICY, HIGH_RISK, type Method, type MemberRule } from "./policy";
 import { resolveAuthority, resolveBusinessId, recordColumn, membershipRole, type AuthorityContext } from "./context";
@@ -27,6 +27,8 @@ import { recordDecision } from "./log";
 import { routeEnforced, refusal, checkUnavailable } from "./enforce";
 
 type RouteContext = { params?: Record<string, string> } | undefined;
+
+const STEP_UP_WINDOW_MS = 10 * 60 * 1000;
 
 async function readBody(request: NextRequest, method: string): Promise<Record<string, unknown>> {
   if (method === "GET") return {};
@@ -62,7 +64,8 @@ async function evaluate(
     return null;
   }
 
-  const personId = await currentPersonId();
+  const session = await currentSession();
+  const personId = session?.personId ?? null;
 
   if (policy.kind === "session") {
     const outcome: Outcome = personId
@@ -94,6 +97,7 @@ async function evaluate(
     assigned: policy.assigned,
     target: policy.target,
     location: policy.location,
+    stepUp: policy.stepUp,
     gap: policy.gap,
   };
   if (policy.byAction) {
@@ -133,6 +137,20 @@ async function evaluate(
       if (!assignee || assignee !== ctx.membershipId) {
         outcome = { ...outcome, decision: refuse, reason: "not_assigned_to_you" };
       }
+    }
+
+    // A business that is suspended or closed can read and export, but not
+    // change anything (step 1f). Applied in every group, shadow or not: no
+    // business is in this state unless a platform admin put it there.
+    if (ctx.active && ctx.businessStatus !== "active" && method !== "GET") {
+      outcome = { ...outcome, decision: "deny", reason: "business_" + ctx.businessStatus };
+    }
+
+    // The most sensitive actions need a code confirmed in the last 10
+    // minutes (step 1f). Signing in counts.
+    if (outcome.decision === "allow" && rule.stepUp) {
+      const fresh = session && Date.now() - session.confirmedAt.getTime() <= STEP_UP_WINDOW_MS;
+      if (!fresh) outcome = { ...outcome, decision: refuse, reason: "step_up_required" };
     }
 
     // A member limited to certain locations acts only in those (step 1e).
@@ -220,7 +238,10 @@ export function withAuthority<C extends RouteContext>(
     const facts: AuditFacts = {};
     try {
       const outcome = await evaluate(route, method, request, context, enforced, facts);
-      if (enforced && outcome?.decision === "deny") return refusal(outcome.reason);
+      // A suspended or closed business is refused in every group; everything
+      // else only where the group is enforced.
+      const businessHold = outcome?.reason === "business_suspended" || outcome?.reason === "business_closed";
+      if ((enforced || businessHold) && outcome?.decision === "deny") return refusal(outcome.reason);
     } catch (e) {
       await recordDecision({
         surface: "api", route, method, mode: enforced ? "enforce" : "shadow",

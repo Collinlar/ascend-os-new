@@ -6,6 +6,21 @@
 
 ---
 
+## Build status (15 Nov 2026)
+
+All six steps are built and tested. What remains is deploying and switching on.
+
+| Step | Status | Where |
+|---|---|---|
+| 1a Permission catalogue and role matrix | Live | 0074, 0076 (accountants gain tasks.own and attendance.own) |
+| 1b One check on every route and page, shadow mode | Built | lib/authority, 0075; shadow week starts at deploy |
+| 1c Enforcement per route group | Built and tested, all 7 groups off | AUTHORITY_ENFORCE (office, services, shop, documents, catalogue, team, growth) |
+| 1d High-risk actions checked in the database, automatic audit | Live except 0079 | 0077, 0078 live; **0079 runs after the deploy** |
+| 1e Expiry, location scope, delegation | Live | 0080 and app changes |
+| 1f Business status, step-up | Live | 0081 and app changes; step-up applies to sharing now, and to payouts, ownership transfer and export when they are built |
+
+Additions decided along the way: a manager cannot add, remove or reset the PIN of another manager (target-role rule); staff act only on bookings and orders assigned to them; a manager can set their own PIN.
+
 ## 1. What Phase 1 is for
 
 The spec's rule is short: *authority is explicit, contextual, revocable and auditable; authentication does not equal authorization.* Today the platform authenticates well (WhatsApp OTP, server-side sessions, device tokens) and then mostly stops. Who may do what is decided route by route, by hand.

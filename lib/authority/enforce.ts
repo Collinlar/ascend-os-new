@@ -103,6 +103,21 @@ export function refusal(reason: string | null): NextResponse {
         { error: "That is part of a product your business has not added yet." },
         { status: 403 }
       );
+    case "business_suspended":
+      return NextResponse.json(
+        { error: "This business is paused on Ascend. You can still see and export its records. Contact Ascend support." },
+        { status: 403 }
+      );
+    case "business_closed":
+      return NextResponse.json(
+        { error: "This business is closed on Ascend. You can still see and export its records." },
+        { status: 403 }
+      );
+    case "step_up_required":
+      return NextResponse.json(
+        { error: "Confirm it is you first. We will send a code to your WhatsApp.", stepUp: true },
+        { status: 401 }
+      );
     case "outside_your_locations":
       return NextResponse.json(
         { error: "That location is not one of yours. Ask the owner." },

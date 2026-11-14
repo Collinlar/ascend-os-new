@@ -28,6 +28,11 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newLink, setNewLink] = useState<string | null>(null);
+  // Sharing your record outside the business needs a fresh WhatsApp code
+  // (Phase 1 step 1f). When the server asks for one, this holds the prompt.
+  const [stepUp, setStepUp] = useState<null | "sending" | "sent">(null);
+  const [code, setCode] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   function toggle(key: string) {
     setSelected((prev) =>
@@ -57,19 +62,77 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
         }),
       });
       const data = await res.json();
+      if (!res.ok && data.stepUp) {
+        await sendCode();
+        return;
+      }
       if (!res.ok) {
         setError(data.error ?? "We could not create that share. Tap again.");
         return;
       }
+      setStepUp(null);
       setNewLink(data.url);
       setCreating(false);
       setPurpose("");
-      router.refresh();
+      // The list is refreshed when they dismiss the link, not now: refreshing
+      // while the one-time link is on screen could rebuild this component and
+      // lose the link before they have copied it.
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
     } finally {
       setBusy(null);
     }
+  }
+
+  async function sendCode() {
+    setStepUp("sending");
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/step-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "request" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStepUp(null);
+        setError(data.error ?? "We could not send your code. Tap again in a moment.");
+        return;
+      }
+      setDevCode(data.devCode ?? null);
+      setStepUp("sent");
+    } catch {
+      setStepUp(null);
+      setError("We could not reach the network just now. Tap again in a moment.");
+    }
+  }
+
+  async function confirmCode() {
+    setBusy("confirm");
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/step-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", code: code.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "That code did not work. Check it and tap again.");
+        setBusy(null);
+        return;
+      }
+      setCode("");
+      setStepUp(null);
+      setBusy(null);
+    } catch {
+      setError("We could not reach the network just now. Tap again in a moment.");
+      setBusy(null);
+      return;
+    }
+    // Confirmed: make the share they asked for. Nothing here updates state
+    // after this, so the new link stays on screen.
+    await create();
   }
 
   async function revoke(shareId: string) {
@@ -102,6 +165,50 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
         </p>
       )}
 
+      {stepUp && (
+        <div className="border border-teal bg-teal-light px-5 py-5">
+          <p className="text-sm font-medium text-teal-dark">
+            Confirm it is you before sharing your record.
+          </p>
+          {stepUp === "sending" ? (
+            <p className="mt-2 text-sm text-ink">Sending a code to your WhatsApp...</p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-ink">
+                We sent a 6 digit code to your WhatsApp.
+                {devCode ? " Code: " + devCode : ""}
+              </p>
+              <label className="mt-3 block text-sm font-medium text-ink" htmlFor="stepup-code">
+                What is the code?
+              </label>
+              <input
+                id="stepup-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                className="mt-1 w-full border border-line bg-white px-3 py-2.5 text-base text-ink focus:border-teal focus:outline-none"
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => { setStepUp(null); setCode(""); }}
+                  className="tap flex-1 border border-line bg-white py-3 font-medium text-ink"
+                >
+                  Not now
+                </button>
+                <button
+                  onClick={confirmCode}
+                  disabled={code.length !== 6 || busy === "confirm"}
+                  className="tap flex-[2] bg-teal py-3 font-medium text-white disabled:opacity-60"
+                >
+                  {busy === "confirm" ? "Checking your code..." : "Confirm and share"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {newLink && (
         <div className="border border-teal bg-teal-light px-5 py-5">
           <p className="text-sm font-medium text-teal-dark">
@@ -111,7 +218,10 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
             {newLink}
           </p>
           <button
-            onClick={() => setNewLink(null)}
+            onClick={() => {
+              setNewLink(null);
+              router.refresh();
+            }}
             className="tap mt-3 text-sm font-medium text-teal-dark underline"
           >
             I have copied it

@@ -10,6 +10,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import type { BusinessFrom } from "./policy";
+import { businessStatus, type BusinessStatus } from "./business-status";
 
 export interface AuthorityContext {
   personId: string | null;
@@ -24,6 +25,8 @@ export interface AuthorityContext {
   permissions: Set<string>;
   capabilities: Set<string>;
   locationScope: string[] | null;
+  /** active, suspended or closed (0081). Not active: read and export only. */
+  businessStatus: BusinessStatus;
 }
 
 const EMPTY = (personId: string | null, whyNot: string, businessId: string | null = null): AuthorityContext => ({
@@ -36,6 +39,7 @@ const EMPTY = (personId: string | null, whyNot: string, businessId: string | nul
   permissions: new Set(),
   capabilities: new Set(),
   locationScope: null,
+  businessStatus: "active",
 });
 
 // Only these tables can name the business in a route's [param]. A fixed list,
@@ -117,9 +121,10 @@ export async function resolveAuthority(
     .maybeSingle();
   if (!membership) return EMPTY(personId, "not_a_member", businessId);
 
-  const [{ data: authority, error }, access] = await Promise.all([
+  const [{ data: authority, error }, access, status] = await Promise.all([
     db.rpc("membership_authority", { p_membership: membership.id }),
     effectiveAccess(businessId).catch(() => null),
+    businessStatus(businessId),
   ]);
   if (error || !authority) throw new Error(`membership_authority failed: ${error?.message ?? "no row"}`);
 
@@ -141,6 +146,7 @@ export async function resolveAuthority(
     permissions: new Set(a.permissions ?? []),
     capabilities: access?.capabilities ?? new Set(),
     locationScope: a.location_scope ?? null,
+    businessStatus: status,
   };
 }
 

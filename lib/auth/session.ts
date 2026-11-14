@@ -39,9 +39,17 @@ export async function createSession(personId: string): Promise<void> {
   });
 }
 
-// Returns the authenticated person id, or null. Checks signature first,
-// then the server-side row for expiry and revocation.
-export async function currentPersonId(): Promise<string | null> {
+export interface CurrentSession {
+  sessionId: string;
+  personId: string;
+  /** When this session last confirmed a fresh WhatsApp code: signing in, or
+   *  the latest step-up (Phase 1 step 1f). */
+  confirmedAt: Date;
+}
+
+// The authenticated session, or null. Checks signature first, then the
+// server-side row for expiry and revocation.
+export async function currentSession(): Promise<CurrentSession | null> {
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
 
@@ -55,15 +63,45 @@ export async function currentPersonId(): Promise<string | null> {
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
   const db = supabaseServer();
-  const { data } = await db
+  let { data, error } = await db
     .from("auth_session")
-    .select("person_id, expires_at, revoked_at")
+    .select("person_id, expires_at, revoked_at, created_at, step_up_at")
     .eq("id", sessionId)
     .single();
+  // step_up_at arrives with migration 0081. If this code runs first, ask
+  // without it rather than treat every session as signed out.
+  if (error && /step_up_at/.test(error.message)) {
+    ({ data, error } = await db
+      .from("auth_session")
+      .select("person_id, expires_at, revoked_at, created_at")
+      .eq("id", sessionId)
+      .single());
+  }
 
   if (!data || data.revoked_at) return null;
   if (new Date(data.expires_at) < new Date()) return null;
-  return data.person_id;
+  const created = new Date(data.created_at as string);
+  const steppedUp = data.step_up_at ? new Date(data.step_up_at as string) : null;
+  return {
+    sessionId,
+    personId: data.person_id as string,
+    confirmedAt: steppedUp && steppedUp > created ? steppedUp : created,
+  };
+}
+
+// Returns the authenticated person id, or null.
+export async function currentPersonId(): Promise<string | null> {
+  return (await currentSession())?.personId ?? null;
+}
+
+// Records that this session has just confirmed a fresh code (step-up).
+// Returns false if it could not be recorded.
+export async function markSessionConfirmed(sessionId: string): Promise<boolean> {
+  const { error } = await supabaseServer()
+    .from("auth_session")
+    .update({ step_up_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  return !error;
 }
 
 export async function endSession(): Promise<void> {

@@ -51,6 +51,7 @@ export function mergeRules(base: MemberRule, specific: MemberRule | null | undef
     assigned: specific.assigned ?? base.assigned,
     target: specific.target ?? base.target,
     location: specific.location ?? base.location,
+    stepUp: specific.stepUp ?? base.stepUp,
     gap: specific.gap ?? base.gap,
   };
 }

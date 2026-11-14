@@ -57,6 +57,10 @@ export interface MemberRule {
    *  or the query). A member limited to certain locations is refused
    *  outside them (Identity spec 3, Phase 1 step 1e). */
   location?: "body" | "query";
+  /** The person must have confirmed a fresh WhatsApp code in the last 10
+   *  minutes (signing in counts). For the most sensitive actions
+   *  (Identity spec 5, PHASE_1_PLAN.md 3.9). */
+  stepUp?: boolean;
   gap?: string;
 }
 
@@ -98,6 +102,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "auth/signout": { POST: { kind: "public", why: "Signing out; harmless without a session" } },
   // Choosing which business to open: you must be a member of it.
   "auth/current-business": { POST: member("body") },
+  "auth/step-up": { POST: { kind: "session", why: "Confirming a fresh code for a sensitive action" } },
   "business/create": { POST: { kind: "session", why: "Creating a business makes you its owner" } },
 
   // ----- customer-facing, no account -----
@@ -252,7 +257,8 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "discover/promote": { POST: member("active", { permission: ["campaigns.send"], capability: ["discover.listing"] }) },
   "readiness/mot": { POST: member("active", { permission: ["reports.view"], capability: ["readiness.score"] }) },
   sharing: {
-    POST: member("active", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
+    // Sharing the business record outside it needs a fresh code (step-up).
+    POST: member("active", { permission: ["external_access.authorize"], capability: ["readiness.score"], stepUp: true }),
     DELETE: member("active", { permission: ["external_access.authorize"], capability: ["readiness.score"] }),
   },
 };
