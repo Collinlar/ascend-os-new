@@ -20,6 +20,13 @@ const ROUTE_GROUP: Record<string, string> = {
   "services/offerings": "services",
   "services/availability": "services",
   "services/bookings/[id]": "services",
+  "shop/catalogue": "shop",
+  "shop/catalogue-suggest": "shop",
+  "shop/orders/[id]": "shop",
+  documents: "documents",
+  "documents/[id]": "documents",
+  "documents/[id]/pdf": "documents",
+  "documents/branding": "documents",
 };
 
 /** Pages in each group. */
@@ -28,6 +35,9 @@ const PAGE_GROUP: Record<string, string> = {
   "/services": "services",
   "/bookings": "services",
   "/availability": "services",
+  "/orders": "shop",
+  "/shop": "shop",
+  "/documents": "documents",
 };
 
 function enforcedGroups(): Set<string> {
