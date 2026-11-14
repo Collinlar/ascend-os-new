@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
-import { publishEvent } from "@/lib/domains/events";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { OFFICE_ACTIONS, actionAllowed } from "@/lib/office/access";
 
@@ -157,34 +156,27 @@ export async function POST(request: NextRequest) {
     if (!body.taskId) {
       return NextResponse.json({ error: "Pick a task." }, { status: 422 });
     }
-    const { data: task } = await db
-      .from("task")
-      .select("id, business_id, status")
-      .eq("id", body.taskId)
-      .maybeSingle();
-    if (!task || task.business_id !== businessId) {
-      return NextResponse.json({ error: "We could not find that task." }, { status: 404 });
-    }
-    if (task.status === "done") {
-      return NextResponse.json({ status: "done", unchanged: true });
-    }
-
-    await db
-      .from("task")
-      .update({ status: "done", updated_at: new Date().toISOString() })
-      .eq("id", task.id);
-
-    await publishEvent({
-      eventType: "office.task.completed",
-      businessId,
-      actorMembershipId: membershipId,
-      channel: "business_mobile",
-      productSet: "office",
-      entityType: "task",
-      entityId: task.id,
+    // The change and its event in one transaction, and a task from another
+    // business is refused in the database, not just here (0071).
+    const { data, error } = await db.rpc("complete_task", {
+      p: {
+        business_id: businessId,
+        task_id: body.taskId,
+        actor_membership_id: membershipId,
+      },
     });
+    if (error) {
+      if (/task_not_found|invalid input syntax/.test(error.message)) {
+        return NextResponse.json({ error: "We could not find that task." }, { status: 404 });
+      }
+      console.error("complete_task failed:", error.message);
+      return NextResponse.json(
+        { error: "We could not mark that done just now. Tap again in a moment." },
+        { status: 500 }
+      );
+    }
 
-    return NextResponse.json({ status: "done", unchanged: false });
+    return NextResponse.json({ status: "done", unchanged: Boolean(data.unchanged) });
   }
 
   if (body.action === "submit_expense") {
@@ -282,17 +274,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await publishEvent({
-      eventType: "office.attendance.recorded",
-      businessId,
-      actorMembershipId: membershipId,
-      channel: "business_mobile",
-      productSet: "office",
-      entityType: "attendance_record",
-      entityId: data.record_id,
-      payload: { action: data.action },
-    });
-
+    // The event is written by record_attendance, in the same transaction as
+    // the check-in itself (0071).
     return NextResponse.json({ action: data.action });
   }
 

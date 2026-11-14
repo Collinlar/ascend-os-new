@@ -1,10 +1,11 @@
-// Business event contracts and the outbox publisher (Master PRD §13).
+// Business event contracts (Master PRD §13).
 // Every meaningful business change produces a standard event (EVT-001).
-// Events are written in the same transaction as the domain change wherever
-// the domain service is a Postgres function; this helper covers TS-side
-// domain services that already hold a committed record.
+// Events are written by the Postgres function that makes the change, in the
+// same transaction, so a change and its event either both exist or neither
+// does. There is deliberately no way to write one from TypeScript: the last
+// helper that did was removed in 0071, because a second call after the change
+// can fail on its own and leave a change with no event.
 
-import { supabaseServer } from "@/lib/supabase";
 import type { Channel, ProductSetKey, UUID } from "./types";
 
 // Governed event naming: {product_set}.{entity}.{action} (ANA-011)
@@ -62,35 +63,4 @@ export interface BusinessEvent {
   payload?: Record<string, unknown>;
   businessDate?: string;
   occurredAt?: string;
-}
-
-// Publish to the transactional outbox. The relay dispatches asynchronously;
-// consumers (evidence engine, analytics, messaging) process idempotently
-// keyed on event_id (ARC-006, ARC-007).
-export async function publishEvent(event: BusinessEvent): Promise<UUID> {
-  const db = supabaseServer();
-  const { data, error } = await db
-    .from("event_outbox")
-    .insert({
-      event_type: event.eventType,
-      business_id: event.businessId,
-      location_id: event.locationId ?? null,
-      actor_membership_id: event.actorMembershipId ?? null,
-      channel: event.channel,
-      product_set: event.productSet,
-      entity_type: event.entityType,
-      entity_id: event.entityId,
-      amount: event.amount ?? null,
-      currency_code: event.currencyCode ?? null,
-      verification: event.verification ?? null,
-      correction_of: event.correctionOf ?? null,
-      payload: event.payload ?? {},
-      business_date: event.businessDate ?? null,
-      occurred_at: event.occurredAt ?? new Date().toISOString(),
-    })
-    .select("event_id")
-    .single();
-
-  if (error) throw new Error(`Event publish failed: ${error.message}`);
-  return data.event_id as UUID;
 }
