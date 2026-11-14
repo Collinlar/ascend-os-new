@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
   slug?: string;
@@ -18,7 +19,7 @@ interface Body {
   serviceAddress?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: Body;
   try {
     body = await request.json();
@@ -132,3 +133,5 @@ export async function POST(request: NextRequest) {
     businessName: business.name,
   });
 }
+
+export const POST = withAuthority("services/book", "POST", handlePOST);

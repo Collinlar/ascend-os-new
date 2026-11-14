@@ -5,11 +5,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
 // 360dialog verifies a webhook endpoint with a challenge on setup.
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const challenge = request.nextUrl.searchParams.get("hub.challenge");
   const token = request.nextUrl.searchParams.get("hub.verify_token");
   if (token && token === process.env.WHATSAPP_VERIFY_TOKEN) {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ error: "not verified" }, { status: 403 });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const secret = process.env.WHATSAPP_VERIFY_TOKEN;
   // Fail closed: an unauthenticated caller must not be able to open a
   // messaging window for an arbitrary number.
@@ -65,3 +66,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
+
+export const GET = withAuthority("messaging/inbound", "GET", handleGET);
+export const POST = withAuthority("messaging/inbound", "POST", handlePOST);

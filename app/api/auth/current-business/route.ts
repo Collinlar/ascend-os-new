@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { chooseBusiness } from "@/lib/auth/current-business";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 // The cookie is only a selector, so this is where it earns the right to be
 // one: membership is checked here on the way in, and checked again on every
 // read. Naming a business you do not belong to gets you nothing.
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -48,3 +49,5 @@ export async function POST(request: NextRequest) {
   chooseBusiness(body.businessId);
   return NextResponse.json({ businessId: body.businessId });
 }
+
+export const POST = withAuthority("auth/current-business", "POST", handlePOST);

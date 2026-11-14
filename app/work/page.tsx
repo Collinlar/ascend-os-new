@@ -8,6 +8,7 @@ import { loadCommandCentre, type CommandCentre } from "@/lib/office/command-cent
 import CommandCentreView from "@/components/office/CommandCentre";
 import { loadSchedule, type ScheduleEntry } from "@/lib/office/schedule";
 import Schedule from "@/components/office/Schedule";
+import { shadowPageAccess } from "@/lib/authority/page";
 import WorkBoard, {
   type ApprovalRow,
   type LeaveRow,
@@ -218,6 +219,10 @@ async function load(): Promise<Loaded> {
 }
 
 export default async function Work() {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/work");
+
   const data = await load();
 
   // A business that holds nothing Office carries has no work screen. Send it

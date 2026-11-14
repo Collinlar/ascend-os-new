@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { endSession } from "@/lib/auth/session";
 import { forgetBusinessChoice } from "@/lib/auth/current-business";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,10 @@ export const dynamic = "force-dynamic";
 //
 // The server side row is revoked as well as the cookie cleared, so a token
 // copied before signing out stops working too (SEC-005).
-export async function POST() {
+async function handlePOST() {
   await endSession();
   forgetBusinessChoice();
   return NextResponse.json({ signedOut: true });
 }
+
+export const POST = withAuthority("auth/signout", "POST", handlePOST);

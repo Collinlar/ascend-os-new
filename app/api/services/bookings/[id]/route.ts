@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 const TARGETS = [
   "quoted",
@@ -15,7 +16,7 @@ const TARGETS = [
   "no_show",
 ] as const;
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -100,3 +101,5 @@ export async function POST(
 
   return NextResponse.json({ status: data.status, unchanged: data.unchanged });
 }
+
+export const POST = withAuthority("services/bookings/[id]", "POST", handlePOST);

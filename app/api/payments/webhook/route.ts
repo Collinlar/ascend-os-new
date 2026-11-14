@@ -8,10 +8,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 import { paymentProvider } from "@/lib/payments/provider";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   // Read the body as text: any re-serialisation would change the bytes and
   // break signature verification.
   const rawBody = await request.text();
@@ -100,3 +101,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, deferred: true });
   }
 }
+
+export const POST = withAuthority("payments/webhook", "POST", handlePOST);

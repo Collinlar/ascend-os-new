@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ async function actor(personId: string, businessId: string) {
   return { membershipId: data.id as string };
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -97,3 +98,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ productSet: key, enabled: turningOn });
 }
+
+export const POST = withAuthority("business/product-sets", "POST", handlePOST);

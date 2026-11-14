@@ -3,6 +3,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import CustomerList, { type CustomerRow } from "@/components/customers/CustomerList";
+import { shadowPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,10 @@ export default async function Customers({
 }: {
   searchParams: { q?: string };
 }) {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/customers");
+
   const data = await load(searchParams.q ?? "");
 
   return (

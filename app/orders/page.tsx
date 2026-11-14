@@ -3,6 +3,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import OrderList, { OwnerOrder } from "@/components/shop/OrderList";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import { shadowPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,10 @@ async function loadOrders(): Promise<OwnerOrder[] | null> {
 }
 
 export default async function Orders() {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/orders");
+
   const orders = await loadOrders();
 
   return (

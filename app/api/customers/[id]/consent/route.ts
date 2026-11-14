@@ -10,10 +10,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -76,3 +77,5 @@ export async function POST(
 
   return NextResponse.json({ granted: data.granted });
 }
+
+export const POST = withAuthority("customers/[id]/consent", "POST", handlePOST);

@@ -12,7 +12,8 @@
     "dev:lan": "next dev -H 0.0.0.0",
     "dev:https": "next dev --experimental-https -H 0.0.0.0",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "check": "npm run typecheck && npm run check:contrast"
+    "check": "npm run typecheck && npm run check:contrast && npm run check:authority",
+    "check:authority": "node scripts/check-authority.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

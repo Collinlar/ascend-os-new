@@ -6,8 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -50,3 +51,5 @@ export async function POST(request: NextRequest) {
     actionCount: Array.isArray(data.actions) ? data.actions.length : 0,
   });
 }
+
+export const POST = withAuthority("readiness/mot", "POST", handlePOST);

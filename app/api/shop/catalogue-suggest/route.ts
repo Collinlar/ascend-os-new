@@ -5,13 +5,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { AiUnavailable, suggestCatalogueFromPhoto } from "@/lib/groq";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const maxDuration = 60;
 
 const SUPPORTED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   // Naming the missing piece. Without this the route fails on every photo
   // and the merchant is told to try again in a moment, forever.
   if (!process.env.GROQ_API_KEY) {
@@ -92,3 +93,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withAuthority("shop/catalogue-suggest", "POST", handlePOST);

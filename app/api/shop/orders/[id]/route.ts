@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { shopOrderWork } from "@/lib/domains/office-work";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 const ALLOWED_TARGETS = [
   "confirmed",
@@ -19,7 +20,7 @@ const ALLOWED_TARGETS = [
 
 type Target = (typeof ALLOWED_TARGETS)[number];
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -100,3 +101,5 @@ export async function POST(
 
   return NextResponse.json({ status: data.status, unchanged: data.unchanged });
 }
+
+export const POST = withAuthority("shop/orders/[id]", "POST", handlePOST);

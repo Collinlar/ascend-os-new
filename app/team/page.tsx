@@ -4,6 +4,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import TeamDirectory, { type TeamRow } from "@/components/office/TeamDirectory";
 import Locations, { type LocationRow } from "@/components/office/Locations";
+import { shadowPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,10 @@ async function load(): Promise<{
 }
 
 export default async function Team() {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/team");
+
   const data = await load();
 
   return (

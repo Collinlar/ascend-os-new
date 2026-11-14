@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface OrderBody {
   slug?: string;
@@ -17,7 +18,7 @@ interface OrderBody {
   lines?: Array<{ itemId: string; quantity: number }>;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: OrderBody;
   try {
     body = await request.json();
@@ -117,3 +118,5 @@ export async function POST(request: NextRequest) {
     duplicate: Boolean(data.duplicate),
   });
 }
+
+export const POST = withAuthority("shop/orders", "POST", handlePOST);

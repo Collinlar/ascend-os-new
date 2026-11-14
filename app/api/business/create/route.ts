@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import type { ProductSetKey } from "@/lib/domains/types";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 const ENTRY_SETS: ProductSetKey[] = ["pos", "shop", "services", "documents"];
 
@@ -15,7 +16,7 @@ const ARCHETYPE_BY_ENTRY: Record<string, string> = {
 // Creates the business through the create_business transaction: business,
 // first location, roles, owner membership, free Start entitlement, event
 // and audit in one commit.
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -86,3 +87,5 @@ export async function POST(request: NextRequest) {
     membershipId: data.membership_id,
   });
 }
+
+export const POST = withAuthority("business/create", "POST", handlePOST);

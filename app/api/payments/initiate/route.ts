@@ -10,6 +10,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { hashAccessToken } from "@/lib/messaging/send";
 import { newPaymentReference, paymentProvider } from "@/lib/payments/provider";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
   purpose?: "document" | "balance_topup" | "service_booking";
@@ -20,7 +21,7 @@ interface Body {
   payerContact?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: Body;
   try {
     body = await request.json();
@@ -179,3 +180,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ checkoutUrl: result.checkoutUrl, reference });
 }
+
+export const POST = withAuthority("payments/initiate", "POST", handlePOST);

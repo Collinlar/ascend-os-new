@@ -3,10 +3,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const db = supabaseServer();
 
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ results: data ?? [] });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: { listingId?: string; campaignId?: string; sessionRef?: string };
   try {
     body = await request.json();
@@ -70,3 +71,6 @@ export async function POST(request: NextRequest) {
   }
   return NextResponse.json({ recorded: true });
 }
+
+export const GET = withAuthority("discover", "GET", handleGET);
+export const POST = withAuthority("discover", "POST", handlePOST);

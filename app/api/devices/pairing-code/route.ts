@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { hashPairingCode, newPairingCode } from "@/lib/pos/device-auth";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 const CODE_TTL_MINUTES = 30;
 
@@ -24,7 +25,7 @@ async function ownerContext(personId: string, businessId: string) {
   return { membershipId: data.id as string };
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ code, expiresInMinutes: CODE_TTL_MINUTES });
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -133,3 +134,6 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ revoked: true });
 }
+
+export const POST = withAuthority("devices/pairing-code", "POST", handlePOST);
+export const DELETE = withAuthority("devices/pairing-code", "DELETE", handleDELETE);

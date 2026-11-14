@@ -16,6 +16,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ function attributes(body: Body) {
   };
 }
 
-export async function GET() {
+async function handleGET() {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json({ error: "Your session timed out." }, { status: 401 });
@@ -111,7 +112,7 @@ export async function GET() {
   return NextResponse.json({ services: (data ?? []).map(toRow) });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ service: toRow(item) });
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json({ error: "Your session timed out." }, { status: 401 });
@@ -261,3 +262,7 @@ function toRow(item: {
     active: item.active,
   };
 }
+
+export const GET = withAuthority("services/offerings", "GET", handleGET);
+export const POST = withAuthority("services/offerings", "POST", handlePOST);
+export const PATCH = withAuthority("services/offerings", "PATCH", handlePATCH);

@@ -10,6 +10,7 @@ import {
   issueDocument,
 } from "@/lib/domains/documents";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
   action?: "issue" | "convert" | "credit";
@@ -20,7 +21,7 @@ interface Body {
   amount?: number;
 }
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -182,3 +183,5 @@ export async function POST(
 
   return NextResponse.json({ error: "That is not a document action." }, { status: 422 });
 }
+
+export const POST = withAuthority("documents/[id]", "POST", handlePOST);

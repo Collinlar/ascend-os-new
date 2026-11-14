@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 import {
   hashPairingCode,
   hashToken,
@@ -11,7 +12,7 @@ import {
   LEASE_DAYS,
 } from "@/lib/pos/device-auth";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: { code?: string; deviceFingerprint?: string; model?: string };
   try {
     body = await request.json();
@@ -65,3 +66,5 @@ export async function POST(request: NextRequest) {
     deviceNumber: data.device_number ?? null,
   });
 }
+
+export const POST = withAuthority("pos/pair", "POST", handlePOST);

@@ -6,6 +6,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { createDraft, issueDocument, type DocumentLine } from "@/lib/domains/documents";
 import type { DocumentType } from "@/lib/domains/types";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 const CREATABLE: DocumentType[] = [
   "quotation",
@@ -34,7 +35,7 @@ interface Body {
   issueNow?: boolean;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -241,3 +242,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withAuthority("documents", "POST", handlePOST);

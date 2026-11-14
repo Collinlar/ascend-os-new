@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ async function scope(personId: string, businessId: string) {
   return { membershipId: data.id as string };
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ items: (data ?? []).map(toRow) });
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -251,3 +252,6 @@ function toRow(row: {
         : Number(row.shop_price_override),
   };
 }
+
+export const GET = withAuthority("catalogue/items", "GET", handleGET);
+export const PATCH = withAuthority("catalogue/items", "PATCH", handlePATCH);

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth/admin";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ interface Body {
   restore?: boolean;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const admin = await currentAdmin();
   if (!admin) {
     // The same answer whether somebody is signed out, signed in as a
@@ -104,3 +105,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ done: true });
 }
+
+export const POST = withAuthority("admin/discover", "POST", handlePOST);

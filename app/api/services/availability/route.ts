@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface DayInput {
   dayOfWeek: number;
@@ -44,7 +45,7 @@ async function authorize(
   return { actingId: data.id as string };
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ openDays: data.open_days });
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -211,3 +212,6 @@ export async function DELETE(request: NextRequest) {
   await db.from("staff_time_off").delete().eq("id", timeOff.id);
   return NextResponse.json({ removed: true });
 }
+
+export const POST = withAuthority("services/availability", "POST", handlePOST);
+export const DELETE = withAuthority("services/availability", "DELETE", handleDELETE);

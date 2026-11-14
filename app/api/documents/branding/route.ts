@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ interface Body {
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
   const db = supabaseServer();
   const { data: membership } = await db
     .from("business_membership")
-    .select("id, role")
+    .select("id")
     .eq("business_id", body.businessId)
     .eq("person_id", personId)
     .eq("status", "active")
@@ -88,3 +89,5 @@ export async function POST(request: NextRequest) {
   // the look it was sent with, which is the point of freezing it.
   return NextResponse.json({ saved: true });
 }
+
+export const POST = withAuthority("documents/branding", "POST", handlePOST);

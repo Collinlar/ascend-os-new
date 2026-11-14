@@ -8,10 +8,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { buildDocumentPdf } from "@/lib/documents/build-pdf";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -62,3 +63,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withAuthority("documents/[id]/pdf", "GET", handleGET);

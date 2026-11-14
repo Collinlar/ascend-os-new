@@ -8,6 +8,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { OFFICE_ACTIONS, actionAllowed } from "@/lib/office/access";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
   action?:
@@ -46,7 +47,7 @@ interface Body {
   note?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -458,3 +459,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ error: "That is not an action we handle." }, { status: 422 });
 }
+
+export const POST = withAuthority("office/actions", "POST", handlePOST);

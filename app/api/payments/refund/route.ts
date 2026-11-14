@@ -6,8 +6,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
 import { paymentProvider } from "@/lib/payments/provider";
+import { withAuthority } from "@/lib/authority/with-authority";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -131,3 +132,5 @@ export async function POST(request: NextRequest) {
     note: "The customer gets their money back once Mobile Money confirms it. We will update the record then.",
   });
 }
+
+export const POST = withAuthority("payments/refund", "POST", handlePOST);

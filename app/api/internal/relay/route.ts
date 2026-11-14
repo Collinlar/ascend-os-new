@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { processOutboxBatch } from "@/lib/relay";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,13 @@ async function run(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   return run(request);
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   return run(request);
 }
+
+export const GET = withAuthority("internal/relay", "GET", handleGET);
+export const POST = withAuthority("internal/relay", "POST", handlePOST);

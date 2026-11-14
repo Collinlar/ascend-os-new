@@ -16,6 +16,7 @@ import {
 import { authenticateDevice } from "@/lib/pos/device-auth";
 import { supabaseServer } from "@/lib/supabase";
 import type { CompleteSaleInput } from "@/lib/domains/types";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 // The terminal never sends business, location or device: those are the
 // server's to decide from the token.
@@ -71,7 +72,7 @@ interface SyncItemResult {
   error?: string;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const device = await authenticateDevice(request);
   if (!device) {
     // A revoked or unknown till must stop, not retry forever.
@@ -231,3 +232,5 @@ export async function POST(request: NextRequest) {
     health,
   });
 }
+
+export const POST = withAuthority("pos/sync", "POST", handlePOST);

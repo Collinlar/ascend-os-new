@@ -2,6 +2,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
+import { shadowPageAccess } from "@/lib/authority/page";
 import AvailabilityEditor, {
   type DaySchedule,
   type TimeOffRow,
@@ -72,6 +73,10 @@ async function load(): Promise<{
 }
 
 export default async function Availability() {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/availability");
+
   const data = await load();
 
   return (

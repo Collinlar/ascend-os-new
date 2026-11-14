@@ -8,10 +8,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function handleGET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -65,3 +66,5 @@ export async function GET(
     })),
   });
 }
+
+export const GET = withAuthority("customers/[id]/history", "GET", handleGET);

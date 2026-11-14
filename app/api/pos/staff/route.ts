@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateDevice } from "@/lib/pos/device-auth";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 // a merchant ends up adding products and watching a counter show yesterday.
 const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const device = await authenticateDevice(request);
   if (!device) {
     return NextResponse.json(
@@ -54,3 +55,5 @@ export async function GET(request: NextRequest) {
     ),
   }, { headers: NO_STORE });
 }
+
+export const GET = withAuthority("pos/staff", "GET", handleGET);

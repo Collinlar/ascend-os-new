@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ interface Slot {
   slot_end: string;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const itemId = params.get("itemId");
   const membershipId = params.get("membershipId");
@@ -103,3 +104,5 @@ export async function GET(request: NextRequest) {
     slots: Array.from(merged.values()).sort((a, b) => a.start.localeCompare(b.start)),
   });
 }
+
+export const GET = withAuthority("services/slots", "GET", handleGET);

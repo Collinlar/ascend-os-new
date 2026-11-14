@@ -3,10 +3,11 @@ import { normalizePhone } from "@/lib/auth/phone";
 import { releaseOtpChallenge, verifyOtpChallenge } from "@/lib/auth/otp";
 import { createSession } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 // Verifies the WhatsApp code, then finds or creates the person identity
 // (one person across all contexts, IDN-001) and opens a session.
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: {
     phone?: string;
     code?: string;
@@ -153,3 +154,5 @@ async function completeSignIn(
     businesses,
   });
 }
+
+export const POST = withAuthority("auth/verify-otp", "POST", handlePOST);

@@ -5,8 +5,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateDevice } from "@/lib/pos/device-auth";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const device = await authenticateDevice(request);
   if (!device) {
     return NextResponse.json(
@@ -76,3 +77,5 @@ export async function POST(request: NextRequest) {
       : "Sent. The owner decides, and the customer gets their money once it is approved.",
   });
 }
+
+export const POST = withAuthority("pos/refund-request", "POST", handlePOST);

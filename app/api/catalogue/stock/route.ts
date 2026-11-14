@@ -7,12 +7,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentPersonId } from "@/lib/auth/session";
 import { supabaseServer } from "@/lib/supabase";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 type Kind = "opening_balance" | "restock" | "damage_loss" | "count_correction";
 
 const KINDS: Kind[] = ["opening_balance", "restock", "damage_loss", "count_correction"];
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -103,3 +104,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(data ?? { saved: true });
 }
+
+export const POST = withAuthority("catalogue/stock", "POST", handlePOST);

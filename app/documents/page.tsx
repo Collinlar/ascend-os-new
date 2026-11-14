@@ -7,6 +7,7 @@ import DocumentWorkspace, {
   type DocumentRow,
 } from "@/components/documents/DocumentWorkspace";
 import BrandingPanel, { type Branding } from "@/components/documents/BrandingPanel";
+import { shadowPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,10 @@ async function load(): Promise<{
 }
 
 export default async function Documents() {
+  // Phase 1 step 1b, shadow mode: records what the authority check would
+  // decide here and changes nothing about the page.
+  await shadowPageAccess("/documents");
+
   const data = await load();
 
   return (

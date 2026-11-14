@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/auth/phone";
 import { createOtpChallenge } from "@/lib/auth/otp";
+import { withAuthority } from "@/lib/authority/with-authority";
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   let body: { phone?: string };
   try {
     body = await request.json();
@@ -32,3 +33,5 @@ export async function POST(request: NextRequest) {
     ...(result.devCode ? { devCode: result.devCode } : {}),
   });
 }
+
+export const POST = withAuthority("auth/request-otp", "POST", handlePOST);

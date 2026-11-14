@@ -6,6 +6,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { supabaseServer } from "@/lib/supabase";
 import { hashShareToken, newShareToken, shareUrl } from "@/lib/sharing/share";
+import { withAuthority } from "@/lib/authority/with-authority";
 
 async function ownerMembership(personId: string) {
   const data = await activeMembership<{
@@ -19,7 +20,7 @@ async function ownerMembership(personId: string) {
   return { membershipId: data.id as string, businessId: data.business_id as string };
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
   });
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDELETE(request: NextRequest) {
   const personId = await currentPersonId();
   if (!personId) {
     return NextResponse.json(
@@ -148,3 +149,6 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ revoked: true });
 }
+
+export const POST = withAuthority("sharing", "POST", handlePOST);
+export const DELETE = withAuthority("sharing", "DELETE", handleDELETE);
