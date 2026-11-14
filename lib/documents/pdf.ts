@@ -228,6 +228,7 @@ const TYPE_TITLE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   paid: "Paid in full",
   partially_paid: "Part paid",
+  credited: "Credited in full",
   overdue: "Overdue",
   issued: "Issued",
   sent: "Sent",

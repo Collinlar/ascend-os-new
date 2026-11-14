@@ -64,9 +64,28 @@ async function handlePOST(request: NextRequest) {
     if (doc.status === "paid") {
       return NextResponse.json({ error: "This document is already paid." }, { status: 409 });
     }
+    if (doc.status === "credited") {
+      return NextResponse.json(
+        { error: "This invoice was credited in full. Nothing is owed." },
+        { status: 409 }
+      );
+    }
+
+    // Charge what is still owed after payments, refunds and credit notes
+    // (0086), not the face value. If the database cannot say, fall back to
+    // the total, as before.
+    let owed = Number(doc.total);
+    const { data: amounts, error: amountsError } = await db.rpc("document_amounts", {
+      p_document: doc.id,
+    });
+    const row = Array.isArray(amounts) ? amounts[0] : null;
+    if (!amountsError && row) owed = Number(row.outstanding);
+    if (!(owed > 0)) {
+      return NextResponse.json({ error: "Nothing is owed on this document." }, { status: 409 });
+    }
 
     businessId = doc.business_id;
-    amount = Number(doc.total);
+    amount = owed;
     customerId = doc.customer_id;
     sourceType = "document";
     sourceId = doc.id;

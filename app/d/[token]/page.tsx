@@ -67,11 +67,24 @@ async function load(token: string) {
       .eq("token_hash", hashAccessToken(token))
       .then(() => {});
 
+    // What is still owed after payments, refunds and credit notes (0086).
+    // If the database cannot say, the page falls back to the total, as it
+    // did before.
+    let owed: { credited: number; outstanding: number } | null = null;
+    const { data: amounts, error: amountsError } = await db.rpc("document_amounts", {
+      p_document: doc.id,
+    });
+    const row = Array.isArray(amounts) ? amounts[0] : null;
+    if (!amountsError && row) {
+      owed = { credited: Number(row.credited), outstanding: Number(row.outstanding) };
+    }
+
     return {
       businessName:
         (doc.business as unknown as { name: string } | null)?.name ?? "The business",
       status: doc.status as string,
       snapshot: doc.issued_snapshot as unknown as Snapshot,
+      owed,
     };
   } catch {
     return null;
@@ -86,7 +99,8 @@ export default async function CustomerDocument({
   const data = await load(params.token);
   if (!data) notFound();
 
-  const { snapshot, businessName, status } = data;
+  const { snapshot, businessName, status, owed } = data;
+  const toPay = owed ? owed.outstanding : Number(snapshot.total);
   const label = TYPE_LABEL[snapshot.type] ?? snapshot.type;
 
   return (
@@ -137,13 +151,27 @@ export default async function CustomerDocument({
           <p className="mt-6 bg-teal-light px-4 py-3 text-sm text-teal-dark">
             Paid. Thank you.
           </p>
+        ) : status === "credited" ? (
+          <p className="mt-6 bg-teal-light px-4 py-3 text-sm text-teal-dark">
+            {businessName} has credited this in full. Nothing is owed.
+          </p>
         ) : status === "partially_paid" ? (
           <p className="mt-6 bg-gold-light px-4 py-3 text-sm text-gold-ink">
-            Part of this has been paid. Talk to {businessName} about the balance.
+            Part of this has been paid
+            {owed && owed.outstanding > 0 ? `, and ${formatGHS(owed.outstanding)} is still owed` : ""}.
+            {" "}Talk to {businessName} about the balance.
           </p>
-        ) : (
-          <PayButton token={params.token} amount={snapshot.total} />
-        )}
+        ) : toPay > 0 ? (
+          <>
+            {owed && owed.credited > 0 && (
+              <p className="mt-6 bg-info-light px-4 py-3 text-sm text-ink">
+                {businessName} has credited {formatGHS(owed.credited)} against this.
+                You owe {formatGHS(owed.outstanding)}.
+              </p>
+            )}
+            <PayButton token={params.token} amount={toPay} />
+          </>
+        ) : null}
 
         {/* A customer needs a copy they can keep, forward to a bank, or
             show at a counter. The same link authorises it, so there is

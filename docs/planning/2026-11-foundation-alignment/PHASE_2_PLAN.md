@@ -146,6 +146,7 @@ Products keep writing their own tables throughout. Nothing a merchant sees chang
 | 2c | 0084 commerce reconciliation | Built, live, committed (`2188d35`) | Zero differences on live; a deliberate break caught; 7/7 |
 | 2e | 0085 refunds, credits and reversals | Built, live, committed | The real 400 credit note recorded; refunds, credits and a reversal through the real functions; reconciliation zero; 11/11 |
 | 2d | readers move to the core | Not started | Waits on the clean week |
+| (fix) | 0086 invoices settled by payments and credits | Built, live, committed | Real credited invoice reads credited; reconciliation zero; customer page and pay route checked; 10/10 |
 
 **Order changed, with Collins's agreement:** 2e was built before 2d, so the clean week measures the finished core rather than restarting after 2e.
 
@@ -166,7 +167,7 @@ Products keep writing their own tables throughout. Nothing a merchant sees chang
 | Issue | Status |
 |---|---|
 | After a refund, an invoice stayed "paid" (complete_refund and confirm_payment_intent counted only confirmed payments) | Fixed in 0085 |
-| Credit notes never reduce the invoice's receivable, so the dashboard overstates what is owed (live: 400 GHS) | Fixed for readers by 2d (the dashboard reads the core) |
+| Credit notes never reduce the invoice's receivable, so the dashboard overstates what is owed (live: 400 GHS) | Reminders and the owed list fixed in 0086; the dashboard fixed by 2d (it reads the core) |
 | A proforma converted to an invoice creates a second receivable, counted twice on the dashboard (none on live yet) | Fixed for readers by 2d |
-| An invoice part paid and part credited stays "partially paid" in Documents, though nothing is owed | Open: needs a change to how Documents works out an invoice's status |
+| An invoice part paid and part credited stayed "partially paid" in Documents, though nothing was owed; one credited in full stayed "issued" and could go overdue; overdue reminders, the owed list and the customer pay page all asked for credited money | Fixed in 0086 (one rule: paid less refunds, plus credits). The live 400 GHS invoice now reads "credited" |
 | Shop orders and till sales cannot record why they were cancelled | Open: Phase 6 |
