@@ -2,7 +2,7 @@
 
 **Prepared:** 14 Nov 2026, against `main` at `c33aa7a` (migrations through 0081)
 **Source:** `Platform Foundation Specification/02_Commerce_Transaction_Core_Specification_v1.0.md`, and the Phase 2 section of `FOUNDATION_ALIGNMENT.md`
-**Status:** Proposal for approval. No code changes until Collins approves the decisions in section 9.
+**Status:** Approved by Collins on 14 Nov 2026, with every recommendation in section 9. Steps 2a, 2b, 2c and 2e are built and live; 2d waits on the clean week (section 10).
 
 ---
 
@@ -134,3 +134,39 @@ Products keep writing their own tables throughout. Nothing a merchant sees chang
 4. **Bookings owe a deposit, then a balance.** Recommended: a deposit obligation when the booking is made (if the service asks for one), and a balance obligation when the service is completed.
 5. **The canonical state table in section 3.** Particularly: a booking no-show counts as cancelled, and a superseded document as reversed.
 6. **When the readers switch.** Recommended: after one week of the reconciliation returning zero on live traffic, the same discipline as Phase 1's shadow week.
+
+---
+
+## 10. Build status (14 Nov 2026)
+
+| Step | Migration | Status | Verified on live |
+|---|---|---|---|
+| 2a | 0082 commerce core tables | Built, live, committed (`2f00128`) | Tables, constraints, 38 product statuses mapped; 15/15 |
+| 2b | 0083 products fill the commerce core | Built, live, committed (`3ebf551`) | Backfill: 20 transactions, 0 failures; every channel through the real writers; 18/18 |
+| 2c | 0084 commerce reconciliation | Built, live, committed (`2188d35`) | Zero differences on live; a deliberate break caught; 7/7 |
+| 2e | 0085 refunds, credits and reversals | Built, live, committed | The real 400 credit note recorded; refunds, credits and a reversal through the real functions; reconciliation zero; 11/11 |
+| 2d | readers move to the core | Not started | Waits on the clean week |
+
+**Order changed, with Collins's agreement:** 2e was built before 2d, so the clean week measures the finished core rather than restarting after 2e.
+
+**The clean week** runs from 14 Nov 2026. If `select * from commerce_reconciliation_summary();` stays empty, 2d starts on 21 Nov 2026 (decision 9.6).
+
+### Decisions made during the build
+
+- **A projection never blocks a product write.** A failure is recorded in `commerce_projection_error` and reported by the reconciliation (0083).
+- **Old lines say their price source is `unknown`**, rather than guessing catalogue or override after the fact (0083).
+- **Where a product kept no cancellation, refund, credit or reversal reason, the core says so in words** ("no reason recorded") rather than leaving it blank. Shop orders and till sales have nowhere to keep a cancellation reason: a product gap for Phase 6.
+- **A `credit` tender (sold on account) is not money received**: the sale stays owed (0083).
+- **A document status nothing sets today, `archived`, maps to completed** until a product uses it (0082).
+- **A proforma converted to an invoice keeps one transaction**, which passes to the invoice when it is issued (0083).
+- **A credit on an already paid invoice is kept against the transaction**, as money the customer is owed (0085).
+
+### Product issues found
+
+| Issue | Status |
+|---|---|
+| After a refund, an invoice stayed "paid" (complete_refund and confirm_payment_intent counted only confirmed payments) | Fixed in 0085 |
+| Credit notes never reduce the invoice's receivable, so the dashboard overstates what is owed (live: 400 GHS) | Fixed for readers by 2d (the dashboard reads the core) |
+| A proforma converted to an invoice creates a second receivable, counted twice on the dashboard (none on live yet) | Fixed for readers by 2d |
+| An invoice part paid and part credited stays "partially paid" in Documents, though nothing is owed | Open: needs a change to how Documents works out an invoice's status |
+| Shop orders and till sales cannot record why they were cancelled | Open: Phase 6 |
