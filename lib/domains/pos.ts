@@ -153,6 +153,10 @@ export interface TillExpenseInput {
 }
 
 export interface CloseShiftInput {
+  /** Which business the shift belongs to. A shift's reference is unique
+   *  within a business, not across them, so the database needs to be told
+   *  (migration 0070). */
+  businessId: UUID;
   shiftClientRef: string;
   declaredCash?: number;
   deviceExpectedCash?: number;
@@ -171,6 +175,7 @@ export async function closeShift(input: CloseShiftInput): Promise<{
   const db = supabaseServer();
   const { data, error } = await db.rpc("close_pos_shift", {
     p: {
+      business_id: input.businessId,
       shift_client_ref: input.shiftClientRef,
       declared_cash: input.declaredCash ?? "",
       device_expected_cash: input.deviceExpectedCash ?? "",

@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
         });
       } else if (item.kind === "shift.closed") {
         const result = await closeShift({
+          businessId: device.businessId,
           shiftClientRef: item.payload.shiftClientRef,
           declaredCash: item.payload.declaredCash,
           deviceExpectedCash: item.payload.deviceExpectedCash,
