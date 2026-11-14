@@ -1,6 +1,7 @@
 import AddProducts from "@/components/catalogue/AddProducts";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import Link from "next/link";
+import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,10 @@ export const dynamic = "force-dynamic";
 // than assuming a Shop.
 
 export default async function AddProductsPage() {
+  // Phase 1 authority check: records what it decides here, and acts on it
+  // only once this page's group is enforced (lib/authority/enforce.ts).
+  await checkPageAccess("/products/add");
+
   const workspace = await currentWorkspace().catch(() => null);
 
   // Without a business there is nothing to add products to. Saying so beats

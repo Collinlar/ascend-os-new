@@ -113,17 +113,19 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // ----- catalogue and stock -----
   "catalogue/items": {
     // Owners and managers only, as the route allows today.
-    GET: member("query", { permission: ["catalogue.manage"] }),
+    GET: member("query", { permission: ["catalogue.manage"], capability: ["catalogue.core"] }),
     PATCH: member("body", {
       permission: ["catalogue.manage"],
+      capability: ["catalogue.core"],
       when: (b) =>
         b.price !== undefined || b.basePrice !== undefined || b.base_price !== undefined
           ? { permission: ["prices.change"] }
           : null,
     }),
   },
-  "catalogue/photo": { POST: member("body", { permission: ["catalogue.manage"] }) },
-  "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"] }) },
+  "catalogue/photo": { POST: member("body", { permission: ["catalogue.manage"], capability: ["catalogue.core"] }) },
+  // Stock is kept by POS (inventory.basic) or read by Shop (inventory.connection).
+  "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
   },
@@ -237,6 +239,7 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/documents": { permission: ["documents.view"], capability: ["documents.issue"] },
   "/customers": { capability: ["customers.core", "customers.basic"], gap: "No customer permission yet (customers.view)" },
   "/products": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
+  "/products/add": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/shop": { permission: ["catalogue.manage"], capability: ["shop.storefront"] },
   "/devices": { permission: ["staff.manage"], capability: ["pos.tills"] },
   "/availability": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] },
