@@ -135,7 +135,9 @@ async function evaluate(
     // Changing a manager or the owner needs more than managing staff.
     if (outcome.decision === "allow" && rule.target && ctx.businessId && !ctx.permissions.has(rule.target.requires)) {
       const targetId = body[rule.target.bodyField];
-      if (typeof targetId === "string") {
+      // Changing yourself (a manager setting their own PIN) is not changing
+      // "another manager".
+      if (typeof targetId === "string" && targetId !== ctx.membershipId) {
         const targetRole = await membershipRole(targetId, ctx.businessId);
         if (targetRole && rule.target.elevated.includes(targetRole)) {
           outcome = { ...outcome, decision: refuse, reason: "cannot_manage_that_role" };
