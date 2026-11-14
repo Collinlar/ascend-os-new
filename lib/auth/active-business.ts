@@ -20,6 +20,8 @@ export async function activeMembership<T = { business_id: string }>(
     .select(select)
     .eq("person_id", personId)
     .eq("status", "active")
+    // An expired membership does not open the business (Phase 1, step 1e).
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order("created_at", { ascending: true });
 
   const rows = (data ?? []) as unknown as Array<T & { business_id: string }>;

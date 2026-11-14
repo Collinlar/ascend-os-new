@@ -50,6 +50,7 @@ export function mergeRules(base: MemberRule, specific: MemberRule | null | undef
     capability: specific.capability ?? base.capability,
     assigned: specific.assigned ?? base.assigned,
     target: specific.target ?? base.target,
+    location: specific.location ?? base.location,
     gap: specific.gap ?? base.gap,
   };
 }

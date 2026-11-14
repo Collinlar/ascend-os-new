@@ -53,6 +53,10 @@ export interface MemberRule {
    *  of the `elevated` roles, the person must also hold `requires`. A
    *  manager can manage staff, but not another manager or the owner. */
   target?: { bodyField: string; elevated: string[]; requires: string };
+  /** Where the route names the location it acts on (locationId in the body
+   *  or the query). A member limited to certain locations is refused
+   *  outside them (Identity spec 3, Phase 1 step 1e). */
+  location?: "body" | "query";
   gap?: string;
 }
 
@@ -126,14 +130,14 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "business/product-sets": { POST: member("body", { permission: ["business.settings"] }) },
   "documents/branding": { POST: member("body", { permission: ["business.settings"] }) },
   "devices/pairing-code": {
-    POST: member("body", { permission: ["staff.manage"], capability: ["pos.tills"] }),
+    POST: member("body", { permission: ["staff.manage"], capability: ["pos.tills"], location: "body" }),
     DELETE: member({ table: "device_registration", bodyField: "deviceId" }, { permission: ["staff.manage"], capability: ["pos.tills"] }),
   },
 
   // ----- catalogue and stock -----
   "catalogue/items": {
     // Owners and managers only, as the route allows today.
-    GET: member("query", { permission: ["catalogue.manage"], capability: ["catalogue.core"] }),
+    GET: member("query", { permission: ["catalogue.manage"], capability: ["catalogue.core"], location: "query" }),
     PATCH: member("body", {
       permission: ["catalogue.manage"],
       capability: ["catalogue.core"],
@@ -145,7 +149,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   },
   "catalogue/photo": { POST: member("body", { permission: ["catalogue.manage"], capability: ["catalogue.core"] }) },
   // Stock is kept by POS (inventory.basic) or read by Shop (inventory.connection).
-  "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
+  "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
   },

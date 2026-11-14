@@ -157,6 +157,8 @@ export async function currentWorkspace(): Promise<Workspace | null> {
     .select("business_id, created_at, business:business_id(name)")
     .eq("person_id", personId)
     .eq("status", "active")
+    // An expired membership does not open the business (Phase 1, step 1e).
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order("created_at", { ascending: true });
 
   if (!memberships || memberships.length === 0) return null;

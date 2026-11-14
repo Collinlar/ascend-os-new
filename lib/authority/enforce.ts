@@ -103,6 +103,11 @@ export function refusal(reason: string | null): NextResponse {
         { error: "That is part of a product your business has not added yet." },
         { status: 403 }
       );
+    case "outside_your_locations":
+      return NextResponse.json(
+        { error: "That location is not one of yours. Ask the owner." },
+        { status: 403 }
+      );
     case "cannot_manage_that_role":
       return NextResponse.json(
         { error: "Only the owner can change a manager or the owner." },

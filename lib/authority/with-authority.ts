@@ -93,6 +93,7 @@ async function evaluate(
     capability: policy.capability,
     assigned: policy.assigned,
     target: policy.target,
+    location: policy.location,
     gap: policy.gap,
   };
   if (policy.byAction) {
@@ -131,6 +132,14 @@ async function evaluate(
       });
       if (!assignee || assignee !== ctx.membershipId) {
         outcome = { ...outcome, decision: refuse, reason: "not_assigned_to_you" };
+      }
+    }
+
+    // A member limited to certain locations acts only in those (step 1e).
+    if (outcome.decision === "allow" && rule.location && ctx.locationScope?.length) {
+      const loc = rule.location === "body" ? body.locationId : new URL(request.url).searchParams.get("locationId");
+      if (typeof loc === "string" && loc && !ctx.locationScope.includes(loc)) {
+        outcome = { ...outcome, decision: refuse, reason: "outside_your_locations" };
       }
     }
 
