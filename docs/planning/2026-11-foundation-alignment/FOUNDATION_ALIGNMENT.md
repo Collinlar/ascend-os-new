@@ -169,7 +169,9 @@ Exit gate: every item verified against the database, not just run.
    **Item 6 (events in the same transaction) done as 0071, 14 Nov 2026.** `complete_task` and `publish_catalogue_item` are new, `record_attendance` writes its own event, and the TypeScript `publishEvent` helper is gone. 12 of 12 locally (including a forced half-way failure that left nothing behind), 6 of 6 on live.
    **Items 7 and 8 (append-only history, honest ARCHITECTURE.md) done as 0072, 14 Nov 2026.** The seven history tables refuse UPDATE, DELETE and TRUNCATE by trigger, which binds the service role. Scope and the exception were decided with Collins: the seven tables only (sale and payment wait for Phase 2), and one audited `erase_history()` path for data protection requests and test data. `docs/ARCHITECTURE.md` now lists what is enforced and, separately, what is not (RLS, role permissions, most capability gates). 19 of 19 locally, 10 of 10 on live.
 
-   **Phase 0 is complete except item 10** (availability is not checked by `book_service`).
+   **Item 10 (availability) done as 0073, 14 Nov 2026.** `book_service` accepts a confirmed booking only at a time `available_slots` offers, so working hours, time off and buffers apply to direct API calls too. `available_slots` also stopped letting declined or cancelled leave block the calendar (time off has had a status since 0061 and it never looked). Requested time off still blocks, because a provider's own blocked time is stored as requested. 10 of 10 locally, 8 of 8 on live. `assign_booking` reassigning to a busy provider (the other half of item 10) is not changed.
+
+   **Phase 0 is complete.**
 
 *Status: items 1 and 2 (consent on merge) shipped as 0067 on 11 Nov 2026 (20 checks); item 9 shipped as 0068 on 13 Nov 2026; item 4 done as above. All verified against the live database with test data removed.*
 
