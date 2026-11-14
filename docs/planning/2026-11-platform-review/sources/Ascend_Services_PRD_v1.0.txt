@@ -1,0 +1,2101 @@
+ASCEND SERVICES
+Product Requirements Document
+Bookings, service delivery and customer relationship management for African service businesses
+
+Document field
+Value
+Version
+1.0
+Status
+Product definition baseline
+Parent document
+AscendSME Master Platform PRD v1.0
+Product family
+AscendSME modular operating sets
+Primary launch market
+Ghana
+Prepared for
+Bold Vision MultiTech
+Date
+12 July 2026
+Classification
+Confidential working document
+Core product promiseLet customers book, request or confirm services, pay deposits and receive updates while Ascend Services keeps the provider’s schedule, customers, work and earnings organised.
+
+
+Document Control
+Version
+Date
+Change
+Owner
+1.0
+12 July 2026
+Initial complete product requirements baseline
+BVM Product
+This PRD defines the ideal Ascend Services product experience. It inherits shared platform, identity, entitlement, evidence, security and reporting principles from the AscendSME Master Platform PRD. Detailed technical implementation choices belong in subsequent architecture specifications.
+Table of Contents
+1. Executive Summary
+2. Product Vision and Positioning
+3. Problem Definition
+4. Goals and Non-Goals
+5. Target Market and Personas
+6. Service Operating Models
+7. Product Principles
+8. Product Architecture
+9. Merchant Onboarding
+10. AI-Assisted Service Setup
+11. Service Catalogue
+12. Availability and Calendar
+13. Public Booking Experience
+14. Booking Lifecycle
+15. Request-to-Book
+16. Quotes and Custom Work
+17. Classes and Group Sessions
+18. Field and Home Services
+19. Project-Based Services
+20. Payments, Deposits and Balances
+21. Cancellations, Refunds and No-Shows
+22. Customers and CRM
+23. Staff and Resources
+24. Locations
+25. Service Delivery and Job Records
+26. Notifications and Communication
+27. Documents and Receipts
+28. Reports and Analytics
+29. Business Evidence and MOT
+30. Ascend Discover for Services
+31. Roles and Permissions
+32. Offline and Connectivity Resilience
+33. Integrations and APIs
+34. Monetization and Entitlements
+35. Account Manager and Assisted Setup
+36. Administration and Support
+37. Security, Privacy and Consent
+38. Non-Functional Requirements
+39. Data Model
+40. Success Metrics
+41. Rollout and Pilot
+42. Risks and Mitigations
+43. Dependencies
+44. Out of Scope
+45. Open Decisions
+46. Acceptance Scenarios
+47. Appendices
+
+1. Executive Summary
+Ascend Services is the AscendSME operating set for businesses that sell time, expertise, appointments, sessions, scheduled work, field visits or projects. It replaces fragmented WhatsApp chats, notebooks, personal calendars and informal payment follow-up with a simple service operating system designed for Ghanaian and African businesses.
+The product must not assume that every service is a fixed salon appointment. It must support six primary operating models: fixed time-slot booking, request-to-book, quote-before-confirmation, classes and group sessions, field or home services, and project-based engagements.
+Ascend Services will provide an immediate customer-facing booking or enquiry page while quietly creating structured operational evidence from confirmed appointments, deposits, completed work, repeat customers, fulfilment, cancellations and verified payments.
+Strategic roleAscend Services completes AscendSME’s three principal customer-facing entry points: Ascend POS for walk-in commerce, Ascend Shop for online product commerce, and Ascend Services for bookable or requested work.
+
+2. Product Vision and Positioning
+Vision: Make it simple for any African service business to become bookable, organised, paid and credible.
+Positioning: Ascend Services is a lightweight service operating system that helps businesses publish services, manage availability, confirm work, collect deposits, communicate with customers and document service revenue.
+Primary promise: Customers can book or request the service. The business can manage the work from enquiry to completion. AscendSME captures reliable evidence of business activity in the process.
+Audience
+Primary value
+Solo provider
+A professional booking page, fewer missed appointments and clearer payment follow-up.
+Small service team
+Shared schedules, staff assignment, permissions and service performance visibility.
+Field-service business
+Request intake, visit scheduling, location details, job status and proof of completion.
+Training provider
+Sessions, classes, capacity, attendance and participant payments.
+Professional firm
+Requests, quotations, milestones, documents, clients and engagement history.
+Institutional programme
+Cohort onboarding, adoption visibility, authorised aggregate outcomes and support.
+3. Problem Definition
+Service businesses often receive enquiries through WhatsApp, calls and social media with no structured path to confirmation.
+Availability is held in memory or personal calendars, increasing double booking and missed work.
+Deposits and outstanding balances are tracked manually and are difficult to reconcile.
+Providers lose time answering repetitive questions about price, location, duration and availability.
+Customers receive inconsistent confirmations, reminders and cancellation information.
+Staff calendars, service locations and shared resources are difficult to coordinate.
+Custom and project-based services do not fit rigid appointment software.
+Completed work and service revenue leave little structured evidence for financial reporting or readiness.
+4. Goals and Non-Goals
+Product goals
+Enable a provider to publish a credible service page in one focused session.
+Support multiple service operating models without cluttering the first-use experience.
+Reduce manual scheduling, confirmation and payment follow-up.
+Make deposits, balances, cancellations and rescheduling understandable.
+Create shared customer, payment, document and evidence records across AscendSME.
+Support low-literacy, mobile-first and weak-connectivity environments.
+Create monetizable value through subscriptions, bookings, messaging, promotion, assisted setup and institutional programmes.
+Non-goals for the initial release
+Operating as the legal service provider or employer of listed professionals.
+Guaranteeing provider quality, attendance or customer outcomes.
+Building a full workforce marketplace with central fulfilment.
+Providing payroll, advanced accounting or enterprise resource planning inside the Services set.
+Automating complex professional estimates without merchant approval.
+Supporting emergency dispatch or regulated clinical scheduling in the first release.
+
+5. Target Market and Personas
+Ascend Services targets informal, semi-formal and formal service businesses that need a simple customer-facing path and a reliable operational record.
+Persona
+Primary need
+Barber or salon owner
+Fixed time slots; staff calendars; deposits; reminders; repeat visits.
+Makeup artist
+Request-to-book; event date; location; deposit; portfolio.
+Photographer
+Quote before confirmation; packages; locations; milestones; balance.
+Tailor or fashion designer
+Consultation booking; measurements; custom quote; fittings; completion.
+Tutor
+Recurring sessions; learner records; attendance; prepaid packages.
+Training centre
+Classes; capacity; cohorts; attendance; instalments; certificates.
+Consultant
+Discovery call; proposal; engagement milestones; invoices.
+Accountant
+Consultation requests; document intake; recurring client work.
+Cleaning company
+Location-based request; team assignment; quote; proof of completion.
+Repair technician
+Issue description; photo upload; field visit; estimate; parts and labour.
+Event planner
+Request intake; budget; proposal; milestone payments; suppliers.
+Fitness coach
+One-to-one sessions; classes; packages; recurring bookings.
+Home baker or caterer
+Date request; capacity; custom quote; deposit; delivery.
+Creative agency
+Brief intake; proposal; projects; milestones; approvals.
+Mobile beautician
+Travel zones; buffer time; deposits; home-service scheduling.
+Provider staff member
+Assigned calendar; customer details; service status; notes.
+Business owner or manager
+Cross-team schedule, revenue, exceptions and performance.
+Customer
+Clear service information, available times, deposits and confirmation.
+Account Manager
+Assisted service setup, migration, training and issue resolution.
+Institutional sponsor
+Cohort adoption, authorised outcomes and programme support.
+6. Service Operating Models
+Operating model
+How it works
+Examples
+Fixed appointment
+Customer selects a defined service, date and available time.
+Barber, consultation, tutoring, massage.
+Request-to-book
+Customer submits preferred date, details and location. Provider accepts, adjusts or declines.
+Makeup, photography, catering.
+Quote-before-confirmation
+Customer submits a brief. Provider prepares a quote before the work becomes confirmed.
+Repairs, design, events, accounting.
+Class or group session
+Customer joins a scheduled session with capacity and attendance.
+Training, fitness, workshops.
+Field or home service
+Service occurs at customer location and requires travel, assignment and completion proof.
+Cleaning, repairs, installation.
+Project-based engagement
+Work has phases, milestones, documents, payments and approvals.
+Consulting, creative agency, event planning.
+Configuration principleThe merchant chooses the operating model at service level. A single business may offer fixed appointments, request-based services and classes from one account.
+
+7. Product Principles
+Value before completeness: publish the first service before requesting full readiness information.
+Service language before software language: use Book, Request, Confirm, Start, Complete and Pay.
+One clear path per service: customers should not see irrelevant booking options.
+Merchant approval is authoritative: AI and automation may suggest, but must not commit custom work without approval.
+Deposits are commitments, not hidden charges.
+Availability must account for people, locations, resources and travel.
+Customer communication must be consistent and consented.
+Every meaningful operational event should be auditable.
+Private notes and public service information must remain clearly separated.
+The product must work for solo providers and small teams without feeling enterprise-heavy.
+
+8. Product Architecture
+Ascend Services sits on the shared AscendSME Core and uses common business identity, customers, locations, users, payments, documents, ledger, notifications, Business Evidence Ledger and entitlements.
+Layer
+Primary components
+Shared Core
+Business, users, customers, locations, payments, documents, ledger, evidence, notifications.
+Services Core
+Service catalogue, availability, resources, booking requests, appointments, classes, jobs and engagement records.
+Customer Surface
+Public service page, provider profile, booking flow, request form, quote approval and customer self-service.
+Merchant Surface
+Today view, calendar, requests, customers, service delivery, payments, staff and reports.
+Growth Layer
+Ascend Discover, promotion, referrals, packages, memberships and customer follow-up.
+Readiness Layer
+Verified activity, operational consistency, revenue evidence and readiness reports.
+9. Merchant Onboarding
+The default onboarding should move the provider from an empty state to a bookable or requestable service page within minutes.
+Choose what customers should do: book a time, request a date, ask for a quote, join a class or request a visit.
+Add the first service manually, from a template or with AI-assisted setup.
+Add price or choose starting price, quote required or contact for price.
+Add duration, capacity or expected response time only where relevant.
+Set basic availability or indicate manual confirmation.
+Preview the public service page.
+Add business or provider name, contact, location and payment preference.
+Accept required terms and activate.
+Share the booking or request link.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-ONB-001
+Provide operating-model selection using simple customer outcomes rather than technical terminology.
+MVP
+The merchant can identify the right starting path without product training.
+SRV-ONB-002
+Allow the merchant to publish the first service before completing non-essential business profile fields.
+MVP
+Registration, TIN, staffing and readiness details do not block activation.
+SRV-ONB-003
+Save progress after every meaningful action.
+MVP
+The merchant can resume from the last completed step.
+SRV-ONB-004
+Generate a private preview before activation.
+MVP
+The preview reflects current service information and is not publicly indexed.
+SRV-ONB-005
+Require only service name, customer action, price treatment, merchant name, verified contact and required consent for basic activation.
+MVP
+A simple request-based service can be activated without a full calendar.
+SRV-ONB-006
+Recommend post-activation improvements progressively.
+MVP
+Prompts explain the benefit and do not block primary service operations.
+SRV-ONB-007
+Support Account Manager-assisted onboarding with attribution and merchant approval.
+MVP
+The assisting user is recorded and the merchant remains the owner.
+SRV-ONB-008
+Support import from structured service lists.
+Next
+Imported services enter review before publication.
+SRV-ONB-009
+Allow a merchant to start from an industry template.
+MVP
+Template fields remain editable and irrelevant fields are hidden.
+SRV-ONB-010
+Measure time to first service preview and activation.
+MVP
+Analytics use documented event definitions.
+10. AI-Assisted Service Setup
+AI assistance should help providers describe and structure services, not invent prices, qualifications, availability or promises.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-AI-001
+Allow the merchant to describe a service in plain language, voice transcription or short notes.
+MVP
+The system generates an editable draft.
+SRV-AI-002
+Allow optional image upload to inform service title, category and public description.
+Next
+Images remain private until the merchant approves publication.
+SRV-AI-003
+Suggest service name, short description, category, customer action and relevant setup fields.
+MVP
+Suggestions are clearly labelled and editable.
+SRV-AI-004
+Never infer price, qualification, regulatory approval, guaranteed outcome or availability without merchant input.
+MVP
+Unsupported values remain blank.
+SRV-AI-005
+Suggest likely duration, buffer or questions only as reviewable recommendations.
+MVP
+The merchant must approve each operational value.
+SRV-AI-006
+Provide low-confidence and manual-entry states.
+MVP
+The merchant can continue when generation fails.
+SRV-AI-007
+Record model version and generated output for authorised quality review.
+MVP
+Merchant-approved content remains the source of truth.
+SRV-AI-008
+Prevent later regeneration from overwriting merchant edits without permission.
+MVP
+Approved merchant content is preserved.
+SRV-AI-009
+Apply provider, cost, timeout, retry and safety controls server-side.
+MVP
+Client applications expose no provider secrets.
+SRV-AI-010
+Obtain consent for AI-assisted content generation and optional image processing.
+MVP
+Consent and purpose are recorded.
+
+11. Service Catalogue
+The service catalogue is the shared definition of what the business offers. It must support simple appointments and complex custom work without forcing every service to use every field.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-CAT-001
+Create, edit, duplicate, archive and restore services.
+MVP
+Historical bookings retain their original service details.
+SRV-CAT-002
+Support service name, description, category, images and public status.
+MVP
+Published pages show approved public fields only.
+SRV-CAT-003
+Support fixed price, starting price, price range, free, quote required and contact for price.
+MVP
+Customer-facing price treatment matches merchant configuration.
+SRV-CAT-004
+Support fixed duration, flexible duration, multi-day work and duration not applicable.
+MVP
+Calendar logic uses only relevant duration values.
+SRV-CAT-005
+Support preparation and cleanup buffer time.
+MVP
+Buffers prevent adjacent conflicting bookings.
+SRV-CAT-006
+Support service delivery mode: business location, online, customer location or flexible.
+MVP
+The booking flow requests appropriate location information.
+SRV-CAT-007
+Support fixed appointment, request-to-book, quote, class, field service and project operating models.
+MVP
+Each service activates the correct workflow.
+SRV-CAT-008
+Support deposits as amount or percentage.
+MVP
+Deposit is calculated and shown before confirmation.
+SRV-CAT-009
+Support service variants and add-ons.
+Next
+Variant selection updates price, duration or capacity correctly.
+SRV-CAT-010
+Support customer preparation instructions.
+MVP
+Instructions appear after booking or at approved points.
+SRV-CAT-011
+Support internal delivery instructions not visible to customers.
+MVP
+Private notes remain access-controlled.
+SRV-CAT-012
+Support service-specific cancellation and rescheduling policies.
+MVP
+Customer self-service applies the correct policy.
+SRV-CAT-013
+Support product or material requirements for future inventory linkage.
+Next
+Linked items can affect cost and stock without altering historical records.
+SRV-CAT-014
+Support service bundles or packages.
+Next
+Package entitlement and usage are tracked.
+SRV-CAT-015
+Support memberships and recurring service plans.
+Later
+Billing and entitlement follow approved recurring-payment rules.
+SRV-CAT-016
+Support bulk status, category and price actions.
+Next
+Changes are validated and audited.
+SRV-CAT-017
+Support public ordering and featured status.
+MVP
+Merchants can control service presentation.
+SRV-CAT-018
+Prevent deletion of services referenced by historical records.
+MVP
+Referenced services are archived instead.
+SRV-CAT-019
+Support service-specific customer intake questions.
+MVP
+Responses attach to the request or booking.
+SRV-CAT-020
+Allow required files or images in service requests where appropriate.
+Next
+Uploads follow size, type, privacy and retention rules.
+12. Availability and Calendar
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-CAL-001
+Provide day, week, month and agenda views.
+MVP
+Views display appointments, requests, blocks and classes consistently.
+SRV-CAL-002
+Support recurring weekly availability.
+MVP
+The merchant can define working days and hours.
+SRV-CAL-003
+Support date-specific overrides, holidays and closures.
+MVP
+Overrides take precedence over recurring availability.
+SRV-CAL-004
+Support staff-specific availability.
+MVP
+Only eligible available staff appear for a time.
+SRV-CAL-005
+Support location-specific availability.
+MVP
+Bookings cannot exceed location capacity or opening hours.
+SRV-CAL-006
+Support resource constraints such as chair, room, vehicle or equipment.
+Next
+A resource cannot be double-booked.
+SRV-CAL-007
+Support service-specific availability windows.
+MVP
+A service can be limited to selected days or hours.
+SRV-CAL-008
+Support minimum notice and maximum advance booking.
+MVP
+Invalid times are unavailable to customers.
+SRV-CAL-009
+Support booking interval configuration.
+MVP
+Available start times follow the configured interval.
+SRV-CAL-010
+Apply preparation, cleanup and travel buffers.
+MVP
+Conflicting times are excluded.
+SRV-CAL-011
+Allow merchant-created time blocks.
+MVP
+Blocked time is not publicly bookable.
+SRV-CAL-012
+Allow manual overbooking only with permission and warning.
+Next
+The override is attributed and audited.
+SRV-CAL-013
+Support external calendar read or write integration.
+Next
+Sync rules prevent loops and duplicate events.
+SRV-CAL-014
+Show timezone clearly for online and cross-border services.
+MVP
+Customer and merchant see the effective timezone.
+SRV-CAL-015
+Support recurring appointments.
+Next
+Series and individual occurrences can be managed safely.
+SRV-CAL-016
+Provide waitlist support for full times or classes.
+Next
+Customers can join and be notified when capacity opens.
+SRV-CAL-017
+Support calendar conflict detection before confirmation.
+MVP
+The final confirmation revalidates availability.
+SRV-CAL-018
+Keep sensitive customer details hidden from unauthorised calendar users.
+MVP
+Role permissions control visible fields.
+
+13. Public Booking Experience
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-PUB-001
+Provide a mobile-first public service page accessible without an account.
+MVP
+Customers can view and begin the configured service flow.
+SRV-PUB-002
+Show merchant identity, service details, price treatment, location mode and policies.
+MVP
+Information is clear before commitment.
+SRV-PUB-003
+Use the customer action appropriate to the service: Book, Request, Get Quote, Join Class or Request Visit.
+MVP
+Irrelevant steps are omitted.
+SRV-PUB-004
+Support guest booking with verified phone or email where required.
+MVP
+The customer can recover and manage the booking.
+SRV-PUB-005
+Collect only service-relevant intake information.
+MVP
+The form avoids unrelated business or customer questions.
+SRV-PUB-006
+Display deposit, balance and cancellation terms before payment.
+MVP
+The customer provides informed consent.
+SRV-PUB-007
+Provide clear confirmation or pending-review status.
+MVP
+Request-based services are not represented as confirmed prematurely.
+SRV-PUB-008
+Support merchant branding within entitlements.
+MVP
+Public page reflects approved logo, colours and content.
+SRV-PUB-009
+Support accessibility and low-bandwidth operation.
+MVP
+Core booking works without large media downloads.
+SRV-PUB-010
+Support sharing through link, QR code and approved social channels.
+MVP
+Shared links open the correct service or profile.
+SRV-PUB-011
+Provide customer self-service for viewing, rescheduling or cancelling when allowed.
+MVP
+Policy and security checks apply.
+SRV-PUB-012
+Show merchant contact path for exceptional questions.
+MVP
+Contact action follows merchant settings.
+SRV-PUB-013
+Prevent public exposure of internal notes, staff private details and readiness data.
+MVP
+Only approved public fields are returned.
+SRV-PUB-014
+Support analytics source attribution.
+MVP
+Bookings retain campaign or referral source where available.
+SRV-PUB-015
+Show availability in the merchant’s configured local context.
+MVP
+Date and time formatting is understandable.
+14. Booking Lifecycle
+Status
+Meaning
+Draft
+Merchant-created record not yet sent or confirmed.
+Requested
+Customer submitted a request requiring provider action.
+Quote pending
+Provider must prepare or revise a quote.
+Awaiting deposit
+Booking approved but deposit remains unpaid.
+Confirmed
+Required confirmation and payment conditions are met.
+Checked in
+Customer or provider has arrived.
+In progress
+Service delivery has started.
+Completed
+Provider records that the service was delivered.
+No-show
+Customer did not attend under the applicable rule.
+Cancelled
+Booking ended before completion.
+Refunded
+Approved money was returned in whole or part.
+Disputed
+A customer or merchant issue requires review.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-BKG-001
+Create bookings from public flow, merchant dashboard, POS or approved integration.
+MVP
+Source is recorded.
+SRV-BKG-002
+Assign a unique human-readable booking reference.
+MVP
+The reference appears in communication and search.
+SRV-BKG-003
+Validate service, staff, location, resource, capacity and policy before confirmation.
+MVP
+Conflicting bookings are prevented.
+SRV-BKG-004
+Allow merchant confirmation, adjustment or decline for request-based services.
+MVP
+Customer is informed of the decision.
+SRV-BKG-005
+Record complete status history.
+MVP
+Each transition includes actor and timestamp.
+SRV-BKG-006
+Restrict invalid status transitions.
+MVP
+Users see allowed next actions only.
+SRV-BKG-007
+Support check-in and start actions.
+Next
+Operational duration can be measured.
+SRV-BKG-008
+Support completion with notes, proof or balance status.
+MVP
+Completion does not erase outstanding balance.
+SRV-BKG-009
+Support merchant-created walk-in or phone bookings.
+MVP
+Customer details may be minimal but source is recorded.
+SRV-BKG-010
+Allow customer and internal notes with separate visibility.
+MVP
+Private notes never appear publicly.
+SRV-BKG-011
+Support attachments where service requires them.
+Next
+Permissions and retention apply.
+SRV-BKG-012
+Allow authorised correction without deleting history.
+MVP
+Corrections are auditable.
+SRV-BKG-013
+Generate evidence events from verified lifecycle transitions.
+MVP
+Analytics-only events remain separate.
+SRV-BKG-014
+Support duplicate detection for repeated submissions.
+MVP
+Retries do not create unintended duplicate bookings.
+SRV-BKG-015
+Support booking search and filters.
+MVP
+Merchant can find records by reference, customer, date, service or status.
+
+15. Request-to-Book
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-REQ-001
+Allow customers to submit preferred date, time range, location and service details.
+MVP
+The request is saved with a pending state.
+SRV-REQ-002
+Allow merchants to accept, propose changes, request information or decline.
+MVP
+Customer receives a clear action path.
+SRV-REQ-003
+Prevent the requested time from being represented as confirmed until accepted.
+MVP
+Public and customer statuses remain accurate.
+SRV-REQ-004
+Allow optional temporary calendar hold while merchant reviews.
+Next
+Holds expire automatically.
+SRV-REQ-005
+Support response-time targets and overdue alerts.
+MVP
+Merchant dashboard highlights unanswered requests.
+SRV-REQ-006
+Support conversion of an accepted request into a confirmed booking.
+MVP
+Customer, service and source data carry forward.
+SRV-REQ-007
+Support decline reasons and reusable response templates.
+Next
+Merchant can communicate consistently.
+SRV-REQ-008
+Measure request acceptance and response time.
+MVP
+Reports use complete request history.
+16. Quotes and Custom Work
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-QTE-001
+Allow a request to require a quote before confirmation.
+MVP
+The customer sees quote-pending status.
+SRV-QTE-002
+Create itemised quotes with services, labour, materials, fees, discounts and tax treatment.
+MVP
+Totals are calculated consistently.
+SRV-QTE-003
+Support quote validity and expiry.
+MVP
+Expired quotes cannot be accepted without renewal.
+SRV-QTE-004
+Allow customer acceptance, rejection or clarification request.
+MVP
+Decision and timestamp are recorded.
+SRV-QTE-005
+Allow revisions while retaining prior versions.
+MVP
+Accepted version remains identifiable.
+SRV-QTE-006
+Convert an accepted quote to a booking, job or project.
+MVP
+No duplicate customer or payment records are created.
+SRV-QTE-007
+Support deposit request after quote acceptance.
+MVP
+Confirmation follows configured payment rules.
+SRV-QTE-008
+Generate approved quote documents.
+MVP
+Document uses business identity and stable reference.
+SRV-QTE-009
+Prevent AI-generated pricing from being sent without merchant approval.
+MVP
+Merchant is the final authorising actor.
+SRV-QTE-010
+Support quote templates.
+Next
+Templates reduce repetitive work without hiding assumptions.
+17. Classes and Group Sessions
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-CLS-001
+Create one-time and recurring classes.
+MVP
+Dates, times, capacity and instructor are stored.
+SRV-CLS-002
+Support class capacity and remaining seats.
+MVP
+Confirmed enrolments cannot exceed approved capacity.
+SRV-CLS-003
+Support individual, sponsored and group registration.
+Next
+Participant records remain distinct.
+SRV-CLS-004
+Support free, paid, deposit and instalment class pricing.
+MVP
+Payment status is visible per participant.
+SRV-CLS-005
+Support attendance marking.
+MVP
+Attendance history is attributable.
+SRV-CLS-006
+Support waitlists.
+Next
+Open seats can be offered according to policy.
+SRV-CLS-007
+Support class cancellation and participant notification.
+MVP
+Refund or credit rules are triggered correctly.
+SRV-CLS-008
+Support course or programme grouping.
+Next
+Sessions can roll up into one programme.
+SRV-CLS-009
+Support participant notes and required documents.
+Next
+Access is restricted appropriately.
+SRV-CLS-010
+Generate class and attendance reports.
+MVP
+Reports distinguish registration, payment and attendance.
+18. Field and Home Services
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-FLD-001
+Collect service address, landmark, Ghana Post address and optional map pin.
+MVP
+Location data is available only to authorised users.
+SRV-FLD-002
+Support travel zones and zone-based fees.
+MVP
+Customer sees the applicable fee before commitment.
+SRV-FLD-003
+Support estimated travel time and buffers.
+Next
+Availability accounts for travel where configured.
+SRV-FLD-004
+Assign staff or teams to field jobs.
+MVP
+Assigned users receive necessary job details.
+SRV-FLD-005
+Support arrival, start and completion status.
+Next
+Operational timestamps are captured.
+SRV-FLD-006
+Allow before-and-after photos with consent.
+Next
+Media follows privacy and retention rules.
+SRV-FLD-007
+Support customer sign-off or completion confirmation.
+Next
+Confirmation is attributable.
+SRV-FLD-008
+Support parts or materials used.
+Next
+Costs may link to inventory and finance.
+SRV-FLD-009
+Support safety or access instructions.
+MVP
+Sensitive notes remain restricted.
+SRV-FLD-010
+Provide field-service daily route or agenda view.
+Next
+Assigned work is ordered clearly without promising full route optimisation.
+19. Project-Based Services
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-PRJ-001
+Convert a quote or request into a project-based engagement.
+MVP
+Customer and commercial terms carry forward.
+SRV-PRJ-002
+Support milestones, deliverables, due dates and owners.
+MVP
+Progress is visible to authorised users.
+SRV-PRJ-003
+Support milestone payments and balances.
+MVP
+Payment status is linked to the engagement.
+SRV-PRJ-004
+Support customer-visible and internal notes.
+MVP
+Visibility is explicit.
+SRV-PRJ-005
+Support document exchange and approvals.
+Next
+Document versions and decisions are retained.
+SRV-PRJ-006
+Support project status and completion.
+MVP
+Completion requires authorised action.
+SRV-PRJ-007
+Support change requests and revised commercial terms.
+Next
+Changes do not overwrite the original agreement.
+SRV-PRJ-008
+Support engagement summary and profitability reporting where cost data exists.
+Next
+Method and data limitations are explained.
+
+20. Payments, Deposits and Balances
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-PAY-001
+Support cash, Mobile Money, bank transfer, card and approved payment links.
+MVP
+Merchant can record or verify the selected method.
+SRV-PAY-002
+Support no deposit, fixed deposit, percentage deposit and full prepayment.
+MVP
+Amount is calculated from approved service or quote.
+SRV-PAY-003
+Show deposit, remaining balance and payment due date clearly.
+MVP
+Merchant and customer see consistent values.
+SRV-PAY-004
+Support manual and integrated payment confirmation with distinct evidence confidence.
+MVP
+Manual records are not misrepresented as provider-verified.
+SRV-PAY-005
+Support partial and split payments.
+MVP
+Balance updates correctly.
+SRV-PAY-006
+Support overpayment handling.
+Next
+Excess is refunded or recorded according to approved rule.
+SRV-PAY-007
+Generate receipts for confirmed payments.
+MVP
+Receipt references payment, customer and service.
+SRV-PAY-008
+Prevent duplicate payments during retry.
+MVP
+Idempotency controls are applied.
+SRV-PAY-009
+Support payment reminders.
+MVP
+Messages follow consent and cadence rules.
+SRV-PAY-010
+Support payment allocation to deposit, milestone or balance.
+MVP
+Allocation is visible and auditable.
+SRV-PAY-011
+Support payment reversal and refund records.
+MVP
+Original payment history remains intact.
+SRV-PAY-012
+Support settlement and reconciliation status for integrated providers.
+Next
+Merchant sees expected and completed settlement.
+SRV-PAY-013
+Separate provider fee, Ascend fee and merchant settlement where applicable.
+MVP
+Charges are transparent.
+SRV-PAY-014
+Generate financial ledger entries from approved payment events.
+MVP
+Ledger and booking balances reconcile.
+SRV-PAY-015
+Support customer credit only when the capability is enabled.
+Later
+Credit terms, limits and collections are controlled.
+21. Cancellations, Refunds and No-Shows
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-CAN-001
+Allow service-specific cancellation windows.
+MVP
+Customer action follows the correct policy.
+SRV-CAN-002
+Allow rescheduling limits and fees.
+MVP
+The customer sees the effect before confirming.
+SRV-CAN-003
+Support merchant and customer initiated cancellation.
+MVP
+Initiator and reason are recorded.
+SRV-CAN-004
+Calculate refundable, forfeited or credited deposit according to policy.
+MVP
+Result is shown before final action.
+SRV-CAN-005
+Require authorised approval for exceptions.
+MVP
+Override reason is recorded.
+SRV-CAN-006
+Support no-show marking.
+MVP
+No-show does not imply payment completion.
+SRV-CAN-007
+Support cancellation and no-show analytics.
+MVP
+Reports distinguish customer, merchant and system causes.
+SRV-CAN-008
+Support service credit as an alternative to refund where agreed.
+Next
+Credit balance and expiry are tracked.
+SRV-CAN-009
+Notify affected staff and customers.
+MVP
+Messages use approved templates and channels.
+SRV-CAN-010
+Prevent cancelled bookings from occupying capacity.
+MVP
+Availability is released according to rule.
+
+22. Customers and CRM
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-CRM-001
+Create or match a shared customer record from bookings, requests and quotes.
+MVP
+Duplicate prevention uses approved identifiers.
+SRV-CRM-002
+Store contact preferences and consent.
+MVP
+Communication respects current permission.
+SRV-CRM-003
+Show customer service history, payments, cancellations and notes.
+MVP
+Access is role-controlled.
+SRV-CRM-004
+Support tags and customer groups.
+Next
+Merchants can segment without exposing private data.
+SRV-CRM-005
+Support private service notes.
+MVP
+Notes are excluded from customer-facing surfaces.
+SRV-CRM-006
+Support customer-facing preferences relevant to service delivery.
+Next
+Sensitive data requires explicit purpose and controls.
+SRV-CRM-007
+Support repeat booking from history.
+MVP
+Previous service can prefill approved fields.
+SRV-CRM-008
+Support follow-up and rebooking reminders.
+Next
+Messages follow consent and suppression rules.
+SRV-CRM-009
+Support customer export and correction.
+MVP
+Merchant can access and correct owned customer data.
+SRV-CRM-010
+Support customer data deletion or anonymisation according to policy.
+MVP
+Required transaction records are retained lawfully.
+23. Staff and Resources
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-STF-001
+Create staff and provider profiles.
+MVP
+Each profile has status, role and service eligibility.
+SRV-STF-002
+Assign services to qualified or approved staff.
+MVP
+Customers cannot select ineligible staff.
+SRV-STF-003
+Support staff-specific working hours and time off.
+MVP
+Availability reflects current schedule.
+SRV-STF-004
+Support automatic, customer-selected and merchant-selected assignment.
+MVP
+Assignment method is configurable per service.
+SRV-STF-005
+Support staff calendar privacy.
+MVP
+Users see only authorised customer details.
+SRV-STF-006
+Support rooms, chairs, vehicles and equipment as resources.
+Next
+Resources have capacity and availability.
+SRV-STF-007
+Prevent double booking of staff and constrained resources.
+MVP
+Final confirmation revalidates conflicts.
+SRV-STF-008
+Support staff performance reporting with fair contextual metrics.
+Next
+Reports do not reduce performance to revenue alone.
+SRV-STF-009
+Support commission configuration as a future entitlement.
+Later
+Calculation and payout are auditable.
+SRV-STF-010
+Disable departed staff while preserving historical assignments.
+MVP
+Historical records remain complete.
+24. Locations
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-LOC-001
+Support one or multiple service locations.
+MVP
+Entitlements control multi-location capability.
+SRV-LOC-002
+Store address, Ghana Post address, map pin, contact and opening hours.
+MVP
+Public and private fields are separated.
+SRV-LOC-003
+Assign services and staff to locations.
+MVP
+Availability reflects valid combinations.
+SRV-LOC-004
+Support online or virtual location.
+MVP
+Meeting instructions are shared securely.
+SRV-LOC-005
+Support customer location as a delivery mode.
+MVP
+Relevant address fields are collected.
+SRV-LOC-006
+Support location-specific price or fee overrides.
+Next
+Customer sees final applicable amount.
+SRV-LOC-007
+Support location closures and exceptions.
+MVP
+Bookings cannot be made during closures.
+SRV-LOC-008
+Preserve historical location information on prior bookings.
+MVP
+Later address changes do not rewrite history.
+
+25. Service Delivery and Job Records
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-JOB-001
+Provide a Today view of requests, confirmed work, balances and exceptions.
+MVP
+Merchant sees prioritised actions.
+SRV-JOB-002
+Support check-in, in-progress, paused and completed states where enabled.
+Next
+Status history is auditable.
+SRV-JOB-003
+Allow provider notes and customer-visible completion summary.
+MVP
+Visibility is explicit.
+SRV-JOB-004
+Support proof of completion using signature, code, photo or merchant confirmation where appropriate.
+Next
+Method is recorded and consent applied.
+SRV-JOB-005
+Support materials, expenses and additional charges.
+Next
+Customer approval is required for customer-facing additions.
+SRV-JOB-006
+Allow balance collection at completion.
+MVP
+Receipt and ledger update correctly.
+SRV-JOB-007
+Generate follow-up actions after completion.
+Next
+Review, rebooking or care instructions follow merchant settings.
+SRV-JOB-008
+Support reopening or correction with permission.
+MVP
+Original completion history remains visible.
+SRV-JOB-009
+Capture completion evidence separately from marketing analytics.
+MVP
+Only verified operational events influence evidence.
+SRV-JOB-010
+Support service quality issue or dispute flag.
+Next
+The record enters the correct review process.
+26. Notifications and Communication
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-MSG-001
+Support in-app, email, SMS and WhatsApp channels according to capability.
+MVP
+The correct provider and consent are used.
+SRV-MSG-002
+Send request received, confirmation, reminder, change, cancellation and completion messages.
+MVP
+Templates reflect actual status.
+SRV-MSG-003
+Support merchant-configured reminder timing within approved limits.
+MVP
+Duplicate reminders are suppressed.
+SRV-MSG-004
+Support payment and balance reminders.
+MVP
+Amount and due context are accurate.
+SRV-MSG-005
+Support staff assignment and schedule notifications.
+MVP
+Only necessary customer information is included.
+SRV-MSG-006
+Support template customisation within policy.
+Next
+Required legal and status information cannot be removed.
+SRV-MSG-007
+Track sent, delivered and failed status where providers support it.
+MVP
+Merchant sees actionable failures.
+SRV-MSG-008
+Respect customer opt-out and channel preferences.
+MVP
+Marketing suppression does not block essential service messages where lawful.
+SRV-MSG-009
+Rate-limit repeated notifications.
+MVP
+System retries do not create message spam.
+SRV-MSG-010
+Separate transactional and promotional communication consent.
+MVP
+Campaigns cannot rely on service-message permission.
+27. Documents and Receipts
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-DOC-001
+Generate booking confirmations and payment receipts.
+MVP
+Documents use stable references and business identity.
+SRV-DOC-002
+Generate quotes and proformas for custom work.
+MVP
+Accepted commercial version remains identifiable.
+SRV-DOC-003
+Generate invoices for deposits, balances or completed work.
+MVP
+Invoice totals reconcile with payment records.
+SRV-DOC-004
+Support service agreements or terms attachments.
+Next
+Customer acceptance is recorded where required.
+SRV-DOC-005
+Support customer download and merchant resend.
+MVP
+Access is secure and traceable.
+SRV-DOC-006
+Retain immutable historical versions of issued documents.
+MVP
+Later profile changes do not rewrite issued records.
+SRV-DOC-007
+Link documents to customer, service and engagement.
+MVP
+Related records are navigable.
+SRV-DOC-008
+Support document templates through Ascend Documents.
+Next
+Shared document rules are inherited.
+28. Reports and Analytics
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-RPT-001
+Provide booking volume by date, service, staff, location and status.
+MVP
+Filters produce consistent totals.
+SRV-RPT-002
+Report requested, confirmed, completed, cancelled and no-show rates.
+MVP
+Status definitions are documented.
+SRV-RPT-003
+Report deposits, balances, collected revenue and refunds.
+MVP
+Values reconcile with payment records.
+SRV-RPT-004
+Report service popularity and revenue contribution.
+MVP
+Price and payment treatment are considered.
+SRV-RPT-005
+Report staff schedule and service activity.
+Next
+Permissions restrict personal performance information.
+SRV-RPT-006
+Report response time for requests and quotes.
+MVP
+Clock starts and stops are defined.
+SRV-RPT-007
+Report customer repeat rate and rebooking.
+Next
+Customer matching confidence is considered.
+SRV-RPT-008
+Report class registration, attendance and payment.
+MVP
+Metrics remain distinct.
+SRV-RPT-009
+Report promotion source and attributed bookings.
+Next
+Attribution method is stated.
+SRV-RPT-010
+Provide downloadable reports.
+Next
+Exports retain stable identifiers and dates.
+SRV-RPT-011
+Avoid presenting unverified manual revenue as provider-verified.
+MVP
+Evidence confidence is visible where relevant.
+SRV-RPT-012
+Provide an owner summary focused on actionable exceptions.
+MVP
+Dashboard highlights unpaid, unconfirmed and upcoming work.
+
+29. Business Evidence and MOT
+Ascend Services must generate fair evidence for service businesses. A provider should not be penalised for lacking inventory or product-commerce events that are irrelevant to the operating model.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-EVD-001
+Emit append-only evidence events for approved operational actions.
+MVP
+Events include business, actor, source, timestamp and confidence.
+SRV-EVD-002
+Capture confirmed request, deposit, completed service, payment, refund, cancellation and repeat-customer evidence.
+MVP
+Each event maps to the underlying record.
+SRV-EVD-003
+Distinguish integrated, merchant-confirmed and customer-confirmed evidence.
+MVP
+Confidence is not flattened into one value.
+SRV-EVD-004
+Exclude impressions, profile views and promotional spend from direct operating-health improvement.
+MVP
+Marketing analytics remain separate.
+SRV-EVD-005
+Support archetype-adjusted MOT interpretation.
+MVP
+Service businesses are measured on relevant behaviours.
+SRV-EVD-006
+Record reversals and corrections without deleting prior evidence.
+MVP
+History remains auditable.
+SRV-EVD-007
+Provide explainable recommendations based on evidence gaps.
+Next
+The merchant can understand why an action is suggested.
+SRV-EVD-008
+Prevent payment for promotion or subscription from improving Trust Level.
+MVP
+Commercial spend and credibility remain separate.
+SRV-EVD-009
+Support consented readiness reports using approved evidence.
+Next
+Shared reports disclose confidence and date range.
+SRV-EVD-010
+Version scoring and evidence interpretation.
+MVP
+Historical reports retain the applicable version.
+30. Ascend Discover for Services
+Ascend Discover may extend from products to eligible service providers without turning AscendSME into the service provider or fulfilment operator.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-DIS-001
+Allow eligible providers and services to appear in curated discovery.
+Next
+Provider remains responsible for service delivery.
+SRV-DIS-002
+Support category and location discovery.
+Next
+Only relevant eligible providers appear.
+SRV-DIS-003
+Link discovery to the provider’s booking or request page.
+Next
+Source attribution is preserved.
+SRV-DIS-004
+Support organic, editorial and sponsored placement.
+Next
+Sponsored placement is labelled.
+SRV-DIS-005
+Require service availability, accurate information, contact and policy compliance.
+Next
+Ineligible services cannot be promoted.
+SRV-DIS-006
+Support service spotlights and seasonal collections.
+Next
+AscendSME retains editorial approval.
+SRV-DIS-007
+Report impressions, service views, profile visits, requests and bookings.
+Next
+No guaranteed sales claim is made.
+SRV-DIS-008
+Keep verification, trust and sponsorship labels distinct.
+Next
+Advertising spend does not alter credibility.
+SRV-DIS-009
+Support complaint reporting and listing suspension.
+Next
+Discover removal need not delete the provider’s private service page.
+SRV-DIS-010
+Support institution-sponsored provider campaigns.
+Later
+Consent and aggregate reporting rules apply.
+31. Roles and Permissions
+Role
+Default responsibility
+Owner
+All business settings, commercial terms, users, reports and irreversible approvals.
+Manager
+Calendar, staff, services, customers, exceptions and reporting within scope.
+Provider
+Assigned schedule, customer details needed for service, notes and completion.
+Receptionist
+Requests, bookings, check-in, communication and payment recording.
+Finance user
+Payments, refunds, invoices, reconciliation and financial reports.
+Account Manager
+Consented setup and support, without merchant ownership.
+Institutional viewer
+Authorised aggregate or cohort reporting only.
+Ascend administrator
+Platform operations under approved administrative role.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-RBAC-001
+Apply least-privilege role-based access.
+MVP
+Users cannot access unauthorised business records.
+SRV-RBAC-002
+Allow business-specific custom permissions within approved boundaries.
+Next
+Owner can configure without bypassing protected actions.
+SRV-RBAC-003
+Require elevated approval for refunds, overrides, deletion and sensitive exports.
+MVP
+Approver and reason are logged.
+SRV-RBAC-004
+Restrict customer contact and private notes.
+MVP
+Only necessary users can view them.
+SRV-RBAC-005
+Support location and staff scope.
+Next
+Users can be limited to assigned locations or teams.
+SRV-RBAC-006
+Preserve historical actor attribution after a user is disabled.
+MVP
+Audit history remains complete.
+SRV-RBAC-007
+Prevent Account Managers from silently impersonating merchants.
+MVP
+Assisted actions are attributed.
+SRV-RBAC-008
+Support invitation, acceptance, suspension and removal of staff users.
+MVP
+Access changes take effect promptly.
+32. Offline and Connectivity Resilience
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-SYNC-001
+Cache the merchant’s near-term agenda and approved reference data.
+MVP
+Today view remains available during temporary connection loss.
+SRV-SYNC-002
+Allow safe offline status notes and payment drafts where capability permits.
+Next
+Pending actions are visibly marked and synced idempotently.
+SRV-SYNC-003
+Prevent offline confirmation when authoritative availability cannot be validated, unless approved override rules apply.
+MVP
+The system avoids silent double booking.
+SRV-SYNC-004
+Queue retryable updates with stable idempotency keys.
+MVP
+Retries do not duplicate bookings, payments or messages.
+SRV-SYNC-005
+Show connectivity and sync state clearly.
+MVP
+Merchant can distinguish saved, pending and failed actions.
+SRV-SYNC-006
+Resolve conflicts using documented rules and require review for unsafe merges.
+MVP
+No last-write-wins behaviour hides meaningful conflicts.
+SRV-SYNC-007
+Preserve drafts through app restart.
+MVP
+Incomplete service setup or notes can resume.
+SRV-SYNC-008
+Support low-bandwidth image and media handling.
+MVP
+Core scheduling is not blocked by optional media.
+SRV-SYNC-009
+Provide support diagnostics without exposing customer content unnecessarily.
+MVP
+Sync issues can be investigated safely.
+SRV-SYNC-010
+Record device and source for high-risk offline actions.
+Next
+Audit review can identify origin.
+
+33. Integrations and APIs
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-API-001
+Integrate approved payment providers.
+MVP
+Payment status and settlement are verifiable.
+SRV-API-002
+Integrate SMS, email and WhatsApp messaging providers.
+MVP
+Delivery status is captured where supported.
+SRV-API-003
+Support calendar integrations.
+Next
+Sync direction and conflict rules are explicit.
+SRV-API-004
+Support video meeting link generation.
+Next
+Links are shared only with authorised participants.
+SRV-API-005
+Support maps and Ghana location services.
+MVP
+Location data follows privacy controls.
+SRV-API-006
+Expose consented booking and service APIs for approved partners.
+Later
+Scopes, rate limits and audit logs apply.
+SRV-API-007
+Support webhooks for booking, payment and status events.
+Next
+Delivery is signed, retryable and idempotent.
+SRV-API-008
+Support import from approved external booking systems.
+Later
+Source and migration quality are recorded.
+SRV-API-009
+Prevent public clients from exposing provider secrets.
+MVP
+Secrets remain server-side.
+SRV-API-010
+Version public and partner APIs.
+Next
+Breaking changes follow migration policy.
+34. Monetization and Entitlements
+Ascend Services should combine a low-friction entry plan with recurring, transaction, usage, support and institutional revenue.
+Revenue stream
+Examples
+Subscription
+Services Growth, Pro and Scale plans.
+Booking-linked
+Platform fee on integrated deposits or successful online bookings.
+Usage
+AI service credits, SMS, WhatsApp, storage and additional calendars.
+Add-ons
+Classes, field service, projects, memberships, custom domains and advanced reports.
+Services
+Assisted setup, catalogue creation, migration, training and campaign support.
+Promotion
+Ascend Discover service spotlights and sponsored campaigns.
+Institutional
+Sponsored licences, cohort onboarding, dashboards and support.
+Readiness
+Consented evidence reports, document packs and preparation services.
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-MON-001
+Provide a free or low-risk entry that allows the provider to experience a live service page.
+MVP
+The provider sees value before a substantial payment commitment.
+SRV-MON-002
+Support monthly and annual licences.
+MVP
+Annual savings and renewal terms are transparent.
+SRV-MON-003
+Support plan capabilities rather than hard-coded tier checks.
+MVP
+Entitlements can evolve without rewriting workflows.
+SRV-MON-004
+Support transaction fees only where AscendSME provides payment or booking infrastructure.
+MVP
+Cash or direct payments not processed by Ascend are not silently taxed.
+SRV-MON-005
+Support paid messaging and AI allowances.
+MVP
+Usage, balance and failed-charge treatment are visible.
+SRV-MON-006
+Support additional staff, locations and advanced operating models as add-ons or higher plans.
+MVP
+Capabilities activate consistently.
+SRV-MON-007
+Support assisted setup packages.
+MVP
+Deliverables and limits are stated before payment.
+SRV-MON-008
+Support promotion packages through Ascend Discover.
+Next
+Visibility and sales outcomes are reported separately.
+SRV-MON-009
+Support institution-funded accounts.
+MVP
+Sponsor and merchant ownership are distinguished.
+SRV-MON-010
+Never allow commercial spend to purchase trust or favourable readiness outcomes.
+MVP
+Credibility systems remain independent.
+SRV-MON-011
+Allow merchant data export regardless of plan.
+MVP
+Commercial downgrade does not block access to owned historical data.
+SRV-MON-012
+Provide transparent cancellation, downgrade and refund rules.
+MVP
+The merchant sees the effective date and retained access.
+35. Account Manager and Assisted Setup
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-SUP-001
+Provide a service-business assessment and recommended operating model.
+MVP
+Recommendation is editable and recorded.
+SRV-SUP-002
+Support service catalogue setup, availability, payment and page activation.
+MVP
+Assistance is consented and attributed.
+SRV-SUP-003
+Support data migration from notes or structured files.
+Next
+Imported records are reviewed before publication.
+SRV-SUP-004
+Provide staff training and go-live checklist.
+MVP
+Completion is recorded.
+SRV-SUP-005
+Support post-launch health checks.
+Next
+Recommendations are based on observable product use.
+SRV-SUP-006
+Provide support escalation with booking and payment context.
+MVP
+Only necessary information is exposed.
+SRV-SUP-007
+Prevent Account Managers from changing payment destination without protected approval.
+MVP
+Sensitive changes require merchant verification.
+SRV-SUP-008
+Track setup effort and support cost.
+MVP
+Commercial packages can be evaluated accurately.
+36. Administration and Support
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-ADM-001
+Provide search across businesses, bookings, services and payments under permission.
+MVP
+Administrative access is logged.
+SRV-ADM-002
+Provide booking and payment issue diagnostics.
+MVP
+Support can identify state without editing silently.
+SRV-ADM-003
+Support controlled correction and recovery tools.
+MVP
+Every change requires reason and actor.
+SRV-ADM-004
+Support provider suspension and public page unpublishing.
+MVP
+Merchant records remain retained according to policy.
+SRV-ADM-005
+Support configuration of templates, categories and policy defaults.
+Next
+Changes are versioned.
+SRV-ADM-006
+Support refund or credit review where Ascend processes payment.
+MVP
+Approvals and financial effect are recorded.
+SRV-ADM-007
+Provide operational dashboards for sync, messaging and payment failures.
+MVP
+Teams can prioritise incidents.
+SRV-ADM-008
+Support institutional cohort administration.
+Next
+Access remains scoped to the approved programme.
+SRV-ADM-009
+Provide audit export for authorised investigation.
+Next
+Export is protected and attributable.
+SRV-ADM-010
+Prevent unrestricted administrator impersonation.
+MVP
+Support access follows controlled session or assisted-action rules.
+
+37. Security, Privacy and Consent
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-SEC-001
+Enforce row-level business isolation.
+MVP
+Cross-business access tests fail.
+SRV-SEC-002
+Encrypt data in transit and apply approved storage protection.
+MVP
+Security review confirms configuration.
+SRV-SEC-003
+Protect customer contact, location, notes, attachments and payment data.
+MVP
+Access is purpose-limited.
+SRV-SEC-004
+Separate public service information from private operational data.
+MVP
+Public APIs return only approved fields.
+SRV-SEC-005
+Record consent for messages, media, AI processing and data sharing.
+MVP
+Consent includes purpose and timestamp.
+SRV-SEC-006
+Apply retention rules to abandoned requests, media and inactive records.
+MVP
+Deletion or anonymisation follows policy.
+SRV-SEC-007
+Support data correction and merchant export.
+MVP
+Requests can be completed without corrupting evidence history.
+SRV-SEC-008
+Apply audit logs to sensitive changes and access.
+MVP
+Logs are tamper-resistant and reviewable.
+SRV-SEC-009
+Use secure customer recovery links and verification.
+MVP
+Links expire and cannot expose another customer record.
+SRV-SEC-010
+Apply provider security review for payment, messaging, AI and maps.
+MVP
+Contracts and technical controls are approved.
+SRV-SEC-011
+Minimise data collected for each service.
+MVP
+Irrelevant sensitive questions are not required.
+SRV-SEC-012
+Support incident response and customer notification procedures.
+MVP
+Escalation and evidence preservation are documented.
+38. Non-Functional Requirements
+ID
+Requirement
+Priority
+Acceptance criteria
+SRV-NFR-001
+Load core merchant dashboard within an acceptable target on supported connections.
+MVP
+Performance testing meets the approved target.
+SRV-NFR-002
+Keep public service pages mobile-first and lightweight.
+MVP
+Core content renders before optional media.
+SRV-NFR-003
+Support current major mobile and desktop browsers.
+MVP
+Compatibility matrix passes.
+SRV-NFR-004
+Meet accessibility requirements for labels, focus, contrast and keyboard use.
+MVP
+Accessibility audit has no critical blocker.
+SRV-NFR-005
+Provide service availability and booking consistency under concurrent demand.
+MVP
+Load tests prevent over-capacity confirmation.
+SRV-NFR-006
+Ensure payment and confirmation actions are idempotent.
+MVP
+Retry testing produces one authoritative record.
+SRV-NFR-007
+Provide backup and recovery for business-critical records.
+MVP
+Recovery objectives are tested.
+SRV-NFR-008
+Provide observability for errors, latency, jobs, messages and integrations.
+MVP
+Alerts identify actionable failures.
+SRV-NFR-009
+Support horizontal growth across businesses and locations.
+Next
+Architecture review confirms no tenant-specific bottleneck.
+SRV-NFR-010
+Localise currency, date, time, language and address formats.
+MVP
+Ghana configuration is correct and extensible.
+SRV-NFR-011
+Keep requirement logic maintainable and testable.
+MVP
+Critical rules have automated coverage.
+SRV-NFR-012
+Avoid indefinite loading states.
+MVP
+Timeout and recovery paths are visible.
+SRV-NFR-013
+Provide versioned policies and templates.
+Next
+Historical records identify the applicable version.
+SRV-NFR-014
+Meet approved availability and maintenance targets.
+MVP
+Service reporting distinguishes planned and unplanned disruption.
+SRV-NFR-015
+Protect against common web and API threats.
+MVP
+Security testing addresses critical findings.
+
+39. Data Model
+Entity
+Purpose
+service_profiles
+Provider-facing business service settings and public profile configuration.
+services
+Shared service catalogue definitions.
+service_variants
+Optional price, duration or delivery variations.
+service_intake_questions
+Service-specific customer questions.
+availability_rules
+Recurring and date-specific availability.
+availability_blocks
+Manual or system blocks.
+service_resources
+Rooms, chairs, vehicles or equipment.
+bookings
+Core appointment or service commitment record.
+booking_status_events
+Append-only lifecycle history.
+booking_participants
+Customers or class participants.
+service_requests
+Request-to-book and quote intake.
+quotes
+Versioned commercial proposals.
+quote_items
+Itemised quote lines.
+classes
+Group-session definitions.
+class_occurrences
+Scheduled class instances.
+attendance_records
+Participant attendance.
+field_jobs
+Location-based work and assignment.
+service_projects
+Project-based engagements.
+service_milestones
+Deliverables and milestone payments.
+service_payments
+Payment allocation to booking, quote, class or project.
+service_refunds
+Refund and credit records.
+service_notes
+Visibility-controlled notes.
+service_attachments
+Protected customer or job files.
+service_notifications
+Transactional communication records.
+service_promotion_attribution
+Discover and campaign source data.
+business_evidence_events
+Append-only evidence ledger integration.
+All entities must use stable identifiers, business ownership, created and updated timestamps, actor attribution where relevant, and policies that preserve historical commercial records.
+40. Success Metrics
+Category
+Metrics
+Activation
+Service page started, first service created, preview viewed, page activated, link shared.
+Acquisition
+Public page visits, request starts, booking starts, completed submissions.
+Operations
+Confirmation rate, response time, completion rate, schedule utilisation, no-show rate.
+Payments
+Deposit adoption, payment success, balance collection, refund rate, reconciliation.
+Retention
+30-day active merchants, repeat bookings, returning customers, active staff calendars.
+Merchant outcomes
+Reduced missed appointments, documented service revenue, repeat customer growth.
+Platform quality
+Booking conflicts, failed messages, sync failures, payment duplicates, support contacts.
+Commercial
+Subscription revenue, payment revenue, messaging usage, assisted setup and promotion revenue.
+Primary product metricPercentage of activated service businesses that receive and successfully complete at least one customer-originated service engagement within 30 days.
+
+41. Rollout and Pilot
+Phase
+Scope
+Phase 0 - Foundation
+Shared services schema, capabilities, customer records, payment model and evidence events.
+Phase 1 - Fixed and request-based MVP
+Service pages, availability, bookings, requests, deposits, reminders and basic reports.
+Phase 2 - Custom work
+Quotes, revisions, balances, field-service intake and completion.
+Phase 3 - Teams and classes
+Staff calendars, resources, capacity, attendance and multi-location.
+Phase 4 - Projects and growth
+Milestones, advanced CRM, Ascend Discover for Services and promotions.
+Phase 5 - Institutional and regional scale
+Cohorts, APIs, sponsored programmes, localisation and African expansion.
+Pilot cohorts should include at least one fixed-appointment business, one request-to-book provider, one quote-based provider, one class provider and one field-service team. Pilot success requires accurate booking state, usable merchant onboarding, reliable deposit handling and demonstrated customer completion without facilitator intervention.
+42. Risks and Mitigations
+Risk
+Mitigation
+Forcing every provider into fixed time slots
+Use service-level operating models and conditional fields.
+Double booking
+Revalidate conflicts at confirmation and apply staff, location, resource and buffer rules.
+Customers assume a request is confirmed
+Use explicit pending states and communication.
+Deposit disputes
+Show policy before payment and retain consent and transaction history.
+Complex onboarding
+Value-first setup, templates, progressive configuration and assisted onboarding.
+Messaging cost and spam
+Allowances, consent, rate limits and channel controls.
+Provider no-shows or poor service
+Discovery eligibility, complaints, evidence and suspension without assuming central fulfilment.
+Sensitive customer information exposure
+Purpose limitation, roles, public/private separation and audit logs.
+Unfair MOT scoring
+Archetype-adjusted evidence and confidence.
+Support burden
+Clear states, recovery tools, Account Manager packages and operational observability.
+Low willingness to pay
+Free value, transaction-aligned fees and institutional sponsorship.
+Overbuilding
+Phase the six operating models and protect MVP scope.
+43. Dependencies
+AscendSME shared business identity, user and permission model.
+Shared customers, payments, ledger, documents and notifications.
+Approved payment providers and settlement operations.
+SMS, email and WhatsApp providers.
+Maps, address and Ghana location support.
+Business Evidence Ledger and archetype-aware MOT framework.
+Capability and entitlement service.
+Account Manager operating procedures.
+Customer support and dispute policies.
+Ascend Discover shared promotion and attribution layer.
+44. Out of Scope
+Central employment or dispatch marketplace.
+Full hospital or clinical scheduling.
+Emergency service dispatch.
+Payroll and statutory employee processing.
+Advanced route optimisation.
+Automatic professional pricing without merchant approval.
+Full supply-chain and inventory management inside Services.
+Customer credit underwriting.
+Guaranteed lead generation or sales.
+Cross-border tax and regulatory automation in the initial Ghana release.
+45. Open Decisions
+Decision
+Question
+Product naming
+Confirm Ascend Services as final customer-facing name.
+Free plan
+How many services, staff and bookings should be included?
+Transaction fee
+Should integrated deposits attract a fixed or percentage Ascend fee?
+Phone-first access
+Should provider and customer recovery default to OTP?
+Customer account
+When should a customer be encouraged to create an account?
+Calendar integration
+Which external calendars are first priority?
+Class support
+Is class capacity part of MVP or Phase 2?
+Field service
+Which map and travel-fee features are required at launch?
+Promotion
+When should Ascend Discover accept services?
+Evidence governance
+Which service events affect MOT and at what confidence?
+Refund operations
+When does AscendSME mediate payment disputes?
+Local languages
+Which Ghanaian languages should follow English?
+
+46. Acceptance Scenarios
+Scenario 1: Fixed appointment
+A customer selects a haircut, available barber and time, pays the required deposit and receives confirmation without creating an account.
+Scenario 2: Request-to-book
+A makeup customer submits an event date and location. The provider proposes a revised time, and confirmation occurs only after acceptance.
+Scenario 3: Quote-before-confirmation
+A repair customer uploads issue details. The technician sends a versioned quote that becomes a job after customer acceptance.
+Scenario 4: Class capacity
+A training session with ten seats stops accepting confirmed registrations after the tenth seat.
+Scenario 5: Field service
+A cleaning business receives a location-based request, assigns a team, records completion and collects the balance.
+Scenario 6: Project engagement
+A consultant converts an accepted proposal into milestones and invoices the first milestone.
+Scenario 7: Calendar conflict
+Two customers try to reserve the last slot simultaneously. Only one confirmation succeeds.
+Scenario 8: Deposit retry
+A customer retries a payment after a network interruption. One payment and one confirmation are created.
+Scenario 9: Cancellation policy
+A customer cancels outside the refundable window and sees the configured deposit treatment before confirming.
+Scenario 10: No-show
+A provider marks a customer no-show with permission. The event affects no-show reporting but does not create payment evidence.
+Scenario 11: Progressive onboarding
+A solo tutor activates a request page without entering TIN, registration or employee information.
+Scenario 12: AI suggestion
+AI suggests a service description and duration. The merchant edits both, and the edited version remains authoritative.
+Scenario 13: Offline agenda
+A provider temporarily loses connectivity and can still view the cached day agenda and pending sync state.
+Scenario 14: Private notes
+A receptionist can see booking contact information but cannot see restricted service notes.
+Scenario 15: Multi-location
+A salon service is available at one branch only and does not appear for the other branch.
+Scenario 16: Resource conflict
+A service requiring the only treatment room cannot overlap another booking using that room.
+Scenario 17: Balance payment
+A customer pays a deposit online and the remaining balance in cash. The booking and ledger reconcile.
+Scenario 18: Discover attribution
+A customer arrives from a sponsored service spotlight and completes a booking. Source is retained without changing Trust Level.
+Scenario 19: Merchant suspension
+A serious complaint removes the provider from Discover but does not silently delete private operational records.
+Scenario 20: Institutional cohort
+A sponsor funds licences for a provider cohort and sees only authorised aggregate performance.
+
+47. Appendices
+Appendix A. Service Model Decision Guide
+Merchant answer
+Recommended model
+Customers choose an available time and confirmation is immediate.
+Fixed appointment
+The provider must check details or travel before accepting.
+Request-to-book
+Price depends on the brief, labour or materials.
+Quote-before-confirmation
+Several customers attend the same scheduled session.
+Class or group session
+The provider travels to the customer.
+Field or home service
+Work has milestones, deliverables and staged payments.
+Project-based engagement
+Appendix B. Minimum Activation Data
+Area
+Minimum data
+Merchant
+Display name and verified contact
+Service
+Name, customer action and price treatment
+Operation
+Availability or manual confirmation rule
+Commercial
+Deposit or payment expectation
+Customer
+Required contact and service-specific intake
+Policy
+Required terms and cancellation summary
+Activation
+Consent and public page confirmation
+Appendix C. Evidence Event Examples
+Event
+Potential confidence
+service.request.submitted
+System-recorded, not revenue evidence
+service.booking.confirmed
+System-recorded operational evidence
+service.deposit.verified
+Provider-integrated financial evidence
+service.completed.merchant
+Merchant-confirmed operational evidence
+service.completed.customer
+Customer-confirmed operational evidence
+service.payment.cash_recorded
+Merchant-recorded financial evidence
+service.payment.integrated
+Provider-verified financial evidence
+service.refund.completed
+Provider or merchant-confirmed reversal
+service.cancelled
+Operational history, reason dependent
+service.repeat_customer
+Derived evidence from matched completed engagements
+Appendix D. Individual Follow-on Specifications
+Ascend Services UX and Screen Specification
+Booking and Availability Rules Specification
+Payments, Deposits and Refunds Specification
+Classes and Attendance Specification
+Field Service and Completion Proof Specification
+Service Projects and Milestones Specification
+Service Evidence and MOT Mapping Specification
+Ascend Discover for Services Specification
+Services Data Model and API Specification
+Services QA and Pilot Test Plan
+Appendix E. Requirements Summary
+This PRD contains 332 uniquely identified requirements across onboarding, catalogue, scheduling, customer experience, service delivery, payments, evidence, security, commercialisation and platform quality.
+Requirement group
+Purpose
+SRV-ONB / SRV-AI
+Merchant activation and assisted service creation
+SRV-CAT / SRV-CAL
+Service definitions, availability and scheduling
+SRV-PUB / SRV-BKG
+Customer booking and lifecycle
+SRV-REQ / SRV-QTE / SRV-CLS / SRV-FLD / SRV-PRJ
+Operating-model-specific workflows
+SRV-PAY / SRV-CAN
+Money, deposits, refunds and exceptions
+SRV-CRM / SRV-STF / SRV-LOC
+Customers, people, resources and locations
+SRV-JOB / SRV-MSG / SRV-DOC / SRV-RPT
+Delivery, communication, records and insight
+SRV-EVD / SRV-DIS
+Credibility and customer acquisition
+SRV-RBAC / SRV-SYNC / SRV-API
+Control, resilience and integrations
+SRV-MON / SRV-SUP / SRV-ADM
+Revenue, assisted setup and platform operations
+SRV-SEC / SRV-NFR
+Security, privacy and quality
+END OF DOCUMENT
