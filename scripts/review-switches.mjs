@@ -275,6 +275,22 @@ for (const c of custRows) {
     else unexplained.push(`${lineText} (refunds explain ${money(refunds)} of ${money(diff)})`);
   }
 }
+// The other "owed" figures (customers owing, overdue count and amount,
+// oldest overdue) follow from the same records as owed itself: explained
+// when every owed difference for that business is explained.
+const OWED_FAMILY = ["owed_customers", "overdue_count", "overdue_amount", "oldest_owed_days"];
+for (const c of comparisons.filter((x) => x.day === today && x.screen === "dashboard" && OWED_FAMILY.includes(x.figure))) {
+  const lineText = `Business ${short(c.business_id)}: ${c.figure}: today ${c.current_value}, core ${c.core_value}`;
+  const owedUnexplained = unexplained.some((u) => u.startsWith(`Business ${short(c.business_id)}: owed`));
+  const owedExplained = explained.filter((e) => e.startsWith(`Business ${short(c.business_id)}: owed on`));
+  if (!owedUnexplained && owedExplained.length) explained.push(`${lineText}: follows from the owed difference(s) above`);
+  else unexplained.push(`${lineText} (no explained owed difference for this business to account for it)`);
+}
+// Nothing recorded today may go unchecked.
+const CHECKED = new Set(["owed", ...OWED_FAMILY, "received_today", "verified_received", "sales_today", "sale_count", "owed_total", "spent_total"]);
+for (const c of comparisons.filter((x) => x.day === today && !CHECKED.has(x.figure))) {
+  unexplained.push(`Business ${short(c.business_id)}: ${c.screen} ${c.figure}: today ${c.current_value}, core ${c.core_value} (this report does not check this figure)`);
+}
 const olderDays = comparisons.filter((c) => c.day !== today && !["owed", "owed_customers", "overdue_count", "overdue_amount", "oldest_owed_days"].includes(c.figure));
 say(`### Unexplained`);
 say();
