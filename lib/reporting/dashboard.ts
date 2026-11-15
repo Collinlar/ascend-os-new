@@ -7,6 +7,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { activeMembership } from "@/lib/auth/active-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import type { UUID } from "@/lib/domains/types";
+import { coreDashboardFigures, readersMode, recordDifferences } from "@/lib/reporting/core-readers";
 
 export interface AttentionItem {
   id: string;
@@ -166,6 +167,37 @@ export async function loadDashboard(
       )
     : null;
 
+  // Phase 2, step 2d: the same figures from the commerce core. In compare
+  // mode (the default) today's figures are shown and any difference is
+  // recorded; with COMMERCE_READERS=core the core's are shown. If the core
+  // cannot be read, today's figures stand (lib/reporting/core-readers.ts).
+  let shown = {
+    salesToday,
+    saleCount,
+    receivedToday,
+    verifiedReceived,
+    owed,
+    owedCustomers,
+    oldestOwedDays,
+    overdueCount: overdue.length,
+    overdueAmount: round2(overdue.reduce((n, r) => n + r.outstanding, 0)),
+  };
+  const core = await coreDashboardFigures(businessId, day);
+  if (core) {
+    await recordDifferences(businessId, "dashboard", day, [
+      { figure: "sales_today", current: shown.salesToday, core: core.salesToday },
+      { figure: "sale_count", current: shown.saleCount, core: core.saleCount },
+      { figure: "received_today", current: shown.receivedToday, core: core.receivedToday },
+      { figure: "verified_received", current: shown.verifiedReceived, core: core.verifiedReceived },
+      { figure: "owed", current: shown.owed, core: core.owed },
+      { figure: "owed_customers", current: shown.owedCustomers, core: core.owedCustomers },
+      { figure: "oldest_owed_days", current: shown.oldestOwedDays, core: core.oldestOwedDays },
+      { figure: "overdue_count", current: shown.overdueCount, core: core.overdueCount },
+      { figure: "overdue_amount", current: shown.overdueAmount, core: core.overdueAmount },
+    ]);
+    if (readersMode() === "core") shown = { ...core };
+  }
+
   const balance = round2(
     (balanceRows.data ?? []).reduce((n, b) => n + Number(b.amount), 0)
   );
@@ -221,11 +253,11 @@ export async function loadDashboard(
     });
   }
 
-  if (overdue.length > 0) {
+  if (shown.overdueCount > 0) {
     attention.push({
       id: "overdue",
-      label: `${overdue.length} invoice${overdue.length === 1 ? "" : "s"} past the due date, ${formatShort(
-        round2(overdue.reduce((n, r) => n + r.outstanding, 0))
+      label: `${shown.overdueCount} invoice${shown.overdueCount === 1 ? "" : "s"} past the due date, ${formatShort(
+        shown.overdueAmount
       )} in total`,
       action: "See who owes you",
       href: "/documents",
@@ -273,13 +305,13 @@ export async function loadDashboard(
     businessName,
     locationName: (location.data?.name as string) ?? null,
     attention: reachable,
-    salesToday,
-    saleCount,
-    receivedToday,
-    verifiedReceived,
-    owed,
-    owedCustomers,
-    oldestOwedDays,
+    salesToday: shown.salesToday,
+    saleCount: shown.saleCount,
+    receivedToday: shown.receivedToday,
+    verifiedReceived: shown.verifiedReceived,
+    owed: shown.owed,
+    owedCustomers: shown.owedCustomers,
+    oldestOwedDays: shown.oldestOwedDays,
     balance,
     unsyncedSales,
     lastDeviceSync,

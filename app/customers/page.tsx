@@ -4,6 +4,7 @@ import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import CustomerList, { type CustomerRow } from "@/components/customers/CustomerList";
 import { checkPageAccess } from "@/lib/authority/page";
+import { coreCustomerMoney, readersMode, recordDifferences } from "@/lib/reporting/core-readers";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,7 @@ async function load(query: string): Promise<{
       p_query: query || null,
     });
 
-    return {
-      query,
-      customers: ((data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+    let customers: CustomerRow[] = ((data ?? []) as Array<Record<string, unknown>>).map((c) => ({
         id: c.id as string,
         name: c.display_name as string,
         phone: (c.phone_e164 as string) ?? null,
@@ -51,8 +50,32 @@ async function load(query: string): Promise<{
         owed: Number(c.owed ?? 0),
         lastSeen: (c.last_seen as string) ?? null,
         marketingConsent: Boolean(c.marketing_consent),
-      })),
-    };
+      }));
+
+    // Phase 2, step 2d: spent and owed from the commerce core. In compare
+    // mode (the default) today's figures are shown and the whole-business
+    // totals are compared on an unfiltered load; with COMMERCE_READERS=core
+    // the core's are shown. If the core cannot be read, today's stand.
+    const core = await coreCustomerMoney(membership.business_id);
+    if (core) {
+      if (!query) {
+        const total = (pick: (c: { spent: number; owed: number }) => number, rows: Iterable<{ spent: number; owed: number }>) =>
+          Math.round(Array.from(rows).reduce((n, r) => n + pick(r), 0) * 100) / 100;
+        await recordDifferences(membership.business_id, "customers", new Date().toISOString().slice(0, 10), [
+          { figure: "spent_total", current: total((c) => c.spent, customers), core: total((c) => c.spent, core.values()) },
+          { figure: "owed_total", current: total((c) => c.owed, customers), core: total((c) => c.owed, core.values()) },
+        ]);
+      }
+      if (readersMode() === "core") {
+        customers = customers.map((c) => ({
+          ...c,
+          spent: core.get(c.id)?.spent ?? 0,
+          owed: core.get(c.id)?.owed ?? 0,
+        }));
+      }
+    }
+
+    return { query, customers };
   } catch {
     return null;
   }
