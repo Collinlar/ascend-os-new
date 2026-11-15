@@ -18,6 +18,7 @@ async function load(): Promise<{
   team: TeamRow[];
   locations: LocationRow[];
   canManage: boolean;
+  canManageLocations: boolean;
 } | null> {
   try {
     const personId = await currentPersonId();
@@ -30,7 +31,7 @@ async function load(): Promise<{
     );
     if (!membership) return null;
 
-    const [{ data }, places, tills, bookings] = await Promise.all([
+    const [{ data }, places, tills, bookings, authority] = await Promise.all([
       db
       .from("business_membership")
       .select("id, status, person:person_id(full_name, phone_e164), role:role_id(key)")
@@ -55,7 +56,13 @@ async function load(): Promise<{
         .select("location_id")
         .eq("business_id", membership.business_id)
         .limit(200),
+      // What this member may actually do: role plus live delegations, the
+      // same answer the server's permission check uses.
+      db.rpc("membership_authority", { p_membership: membership.id }),
     ]);
+    const permissions = new Set<string>(
+      ((authority.data as { permissions?: string[] } | null)?.permissions) ?? []
+    );
 
     const used = new Set<string>();
     for (const row of [...(tills.data ?? []), ...(bookings.data ?? [])]) {
@@ -107,6 +114,10 @@ async function load(): Promise<{
       // The same rule the API enforces. This only decides whether to offer
       // the action; the server decides whether to allow it.
       canManage: me?.roleKey === "owner" || me?.roleKey === "manager",
+      // Where the business trades from is a business setting: the owner's,
+      // unless they have delegated it. The database refuses anyone else
+      // (0079), so the controls are only offered to someone who holds it.
+      canManageLocations: permissions.has("business.settings"),
     };
   } catch {
     return null;
@@ -139,7 +150,7 @@ export default async function Team() {
             team={data.team}
             canManage={data.canManage}
           />
-          <Locations locations={data.locations} canManage={data.canManage} />
+          <Locations locations={data.locations} canManage={data.canManageLocations} />
         </>
       )}
     </PageShell>

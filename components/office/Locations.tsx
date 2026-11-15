@@ -141,6 +141,7 @@ export default function Locations({
           </h2>
           <p className="text-[13px] font-medium text-slate-grey">
             Tills, bookings and stock all belong to one of these.
+            {!canManage && " Only the owner can add or change where you trade."}
           </p>
         </div>
         {canManage && !adding && !editing && (
