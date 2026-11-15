@@ -95,3 +95,13 @@ Had "owed" counted every open obligation, the dashboard would have jumped to GHS
 3. **Owed counts what customers have committed to**: issued invoices, confirmed orders, confirmed bookings. *Recommended.* Counting every open obligation would put unaccepted orders on the dashboard as money owed.
 4. **Balance top-ups are not money received.** *Recommended*; today's figure is simply wrong to include them.
 5. **Switch after the clean week and a clean comparison**, not before 21 Nov. *Recommended.*
+
+---
+
+## 9. Switching without real traffic (15 Nov 2026)
+
+Decision 8.5 waited for the clean week and a clean comparison on real traffic. The review report showed there was none to compare: no real activity since 9 Nov.
+
+**Decided by Collins on 15 Nov 2026:** switch on the strength of the deliberate tests. The core figures were checked by hand against a full trading day on every channel (locally, 20 of 20; on live, 14 of 14), both screens were shown in core mode on a throwaway business, and the commerce reconciliation is zero on live. The comparison log keeps recording after the switch, and the review report explains every difference.
+
+To switch: set `COMMERCE_READERS=core` in Netlify and redeploy. To undo: remove it and redeploy. What merchants will see change on live: owed falls from GHS 400 to GHS 0 for the business whose invoice was credited in full. The old reads are removed (2d.5) a week after the switch.

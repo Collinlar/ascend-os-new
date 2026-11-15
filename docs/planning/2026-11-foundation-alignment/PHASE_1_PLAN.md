@@ -189,3 +189,13 @@ Each step leaves the product working. **Shadow mode first:** the new check runs 
 3. **Step-up authentication.** Recommended for the four actions in 3.9, with a fresh OTP within 10 minutes. Too much friction, or right?
 4. **RLS posture.** Recommended: enforce in the application and the high-risk database functions (this plan), and say plainly that RLS is not the boundary. The alternative, moving sessions to Supabase Auth so `auth.uid()` is real and RLS works, is a bigger change to sign-in and would come later if at all.
 5. **Business status now.** Recommended: just active, suspended and closed in Phase 1, the rest of the spec's lifecycle when a product needs it.
+
+---
+
+## 9. Switching on without real traffic (15 Nov 2026)
+
+Decision 2 assumed a week of real traffic. The review report (`scripts/review-switches.mjs`) showed there was none: the last real sign-in was 5 Nov and nothing was logged after the deploy, so a week of shadow mode would have proved nothing.
+
+**Decided by Collins on 15 Nov 2026:** switch on the strength of the deliberate tests instead, one group at a time, and run the review report after each switch. With no active merchants, the risk of locking someone out is close to nil, and the report will show any refusal of a signed-in member as soon as one happens.
+
+**Office first.** The Office test (every Office action and `/work`, for owner, manager, cashier, accountant, staff, a member of another business and a signed-out visitor) was rerun on 15 Nov on the current code with `AUTHORITY_ENFORCE=office` and `COMMERCE_READERS=core`: 98 of 98 matched the approved matrix, and a route outside Office stayed in shadow mode. To switch: set `AUTHORITY_ENFORCE=office` in Netlify and redeploy. To undo: remove it and redeploy.
