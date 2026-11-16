@@ -67,7 +67,7 @@ async function load(query: string): Promise<{
           { figure: "owed_total", current: total((c) => c.owed, customers), core: total((c) => c.owed, core.values()) },
         ]);
       }
-      if (readersMode() === "core") {
+      if ((await readersMode()) === "core") {
         customers = customers.map((c) => ({
           ...c,
           spent: core.get(c.id)?.spent ?? 0,

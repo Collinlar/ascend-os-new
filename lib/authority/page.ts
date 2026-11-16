@@ -19,7 +19,7 @@ import { recordDecision } from "./log";
 import { pageEnforced } from "./enforce";
 
 export async function checkPageAccess(path: string): Promise<void> {
-  const enforced = pageEnforced(path);
+  const enforced = await pageEnforced(path);
   let refuse = false;
   let reason: string | null = null;
   try {

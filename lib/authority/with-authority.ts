@@ -234,7 +234,7 @@ export function withAuthority<C extends RouteContext>(
   handler: (request: NextRequest, context: C) => Promise<Response> | Response
 ): (request: NextRequest, context: C) => Promise<Response> {
   return async (request: NextRequest, context: C) => {
-    const enforced = routeEnforced(route);
+    const enforced = await routeEnforced(route);
     const facts: AuditFacts = {};
     try {
       const outcome = await evaluate(route, method, request, context, enforced, facts);

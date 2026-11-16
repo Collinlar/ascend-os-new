@@ -6,13 +6,14 @@
 // Everything not in an enforced group stays in shadow mode: the decision is
 // recorded and the request runs as before.
 //
-// The switch is the AUTHORITY_ENFORCE setting, a comma-separated list of
-// group names, for example "office". Unset means nothing is enforced. It is a
-// setting rather than code so a group can be switched on, or back off, without
-// a code change. On Netlify a changed setting takes effect on the next deploy,
-// so switching a group means changing the setting and redeploying.
+// The switch is the authority_enforce row of platform_setting (0089): a list
+// of group names, changed with set_platform_setting() and audited. It used to
+// be the AUTHORITY_ENFORCE deploy setting, which an ordinary Netlify deploy
+// twice ran without; that setting is now only the fallback if the table
+// cannot be read.
 
 import { NextResponse } from "next/server";
+import { platformSettings } from "@/lib/settings/platform";
 
 /** API routes in each group. */
 const ROUTE_GROUP: Record<string, string> = {
@@ -62,23 +63,21 @@ const PAGE_GROUP: Record<string, string> = {
   "/customers": "customers",
 };
 
-function enforcedGroups(): Set<string> {
-  return new Set(
-    (process.env.AUTHORITY_ENFORCE ?? "")
-      .split(",")
-      .map((g) => g.trim().toLowerCase())
-      .filter(Boolean)
-  );
+// Which groups are enforced comes from the database since 0089
+// (lib/settings/platform.ts), falling back to AUTHORITY_ENFORCE only if the
+// table cannot be read.
+async function enforcedGroups(): Promise<Set<string>> {
+  return (await platformSettings()).authorityEnforce;
 }
 
-export function routeEnforced(route: string): boolean {
+export async function routeEnforced(route: string): Promise<boolean> {
   const group = ROUTE_GROUP[route];
-  return Boolean(group && enforcedGroups().has(group));
+  return Boolean(group && (await enforcedGroups()).has(group));
 }
 
-export function pageEnforced(path: string): boolean {
+export async function pageEnforced(path: string): Promise<boolean> {
   const group = PAGE_GROUP[path];
-  return Boolean(group && enforcedGroups().has(group));
+  return Boolean(group && (await enforcedGroups()).has(group));
 }
 
 /** What the person sees when an enforced route refuses them. */

@@ -1,7 +1,7 @@
 // Phase 2, step 2d: the screens move from the product tables to the
 // commerce core (docs/planning/2026-11-foundation-alignment/PHASE_2D_PLAN.md).
 //
-// COMMERCE_READERS chooses what merchants see:
+// The commerce_readers platform setting (0089) chooses what merchants see:
 //   unset or "compare"  today's figures are shown. The core's are worked out
 //                       alongside, and any difference is recorded in
 //                       commerce_reader_comparison for the review (step 2d.3).
@@ -11,11 +11,14 @@
 // today's figures, as it always has, and nothing is recorded.
 
 import { supabaseServer } from "@/lib/supabase";
+import { platformSettings } from "@/lib/settings/platform";
 
 export type ReadersMode = "compare" | "core";
 
-export function readersMode(): ReadersMode {
-  return process.env.COMMERCE_READERS === "core" ? "core" : "compare";
+// From the database since 0089 (lib/settings/platform.ts); COMMERCE_READERS
+// only if the table cannot be read.
+export async function readersMode(): Promise<ReadersMode> {
+  return (await platformSettings()).commerceReaders;
 }
 
 export interface CoreDashboardFigures {

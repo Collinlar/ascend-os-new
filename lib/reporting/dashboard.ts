@@ -195,7 +195,7 @@ export async function loadDashboard(
       { figure: "overdue_count", current: shown.overdueCount, core: core.overdueCount },
       { figure: "overdue_amount", current: shown.overdueAmount, core: core.overdueAmount },
     ]);
-    if (readersMode() === "core") shown = { ...core };
+    if ((await readersMode()) === "core") shown = { ...core };
   }
 
   const balance = round2(
