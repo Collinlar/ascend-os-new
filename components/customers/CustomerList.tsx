@@ -43,9 +43,12 @@ const VIA: Record<string, string> = {
 export default function CustomerList({
   customers,
   query,
+  canRecordConsent,
 }: {
   customers: CustomerRow[];
   query: string;
+  /** customers.manage (0088): only then is the consent switch offered. */
+  canRecordConsent: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, HistoryRow[]>>({});
@@ -190,6 +193,7 @@ export default function CustomerList({
                           ? "Happy to receive offers from you."
                           : "Only messages about their own orders."}
                       </p>
+                      {canRecordConsent && (
                       <button
                         onClick={() =>
                           setMarketing(c.id, !(consent[c.id] ?? c.marketingConsent))
@@ -204,6 +208,7 @@ export default function CustomerList({
                             ? "They have opted out"
                             : "They agreed to offers"}
                       </button>
+                      )}
                     </div>
 
                     {(history[c.id] ?? []).length > 0 && (

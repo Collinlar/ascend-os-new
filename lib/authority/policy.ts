@@ -163,17 +163,13 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   },
 
   // ----- customers -----
+  // Customer permissions since 0088. Consent is evidence under the Data
+  // Protection Act, so recording it is the owner's and managers' (customers.manage).
   "customers/[id]/consent": {
-    POST: member(
-      { table: "customer", param: "id" },
-      { gap: "No customer permission in the catalogue yet (customers.manage)" }
-    ),
+    POST: member({ table: "customer", param: "id" }, { permission: ["customers.manage"] }),
   },
   "customers/[id]/history": {
-    GET: member(
-      { table: "customer", param: "id" },
-      { gap: "No customer permission in the catalogue yet (customers.view)" }
-    ),
+    GET: member({ table: "customer", param: "id" }, { permission: ["customers.view"] }),
   },
 
   // ----- documents and payments -----
@@ -271,7 +267,7 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/bookings": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.bookings"] },
   "/services": { permission: ["catalogue.manage"], capability: ["services.bookings"] },
   "/documents": { permission: ["documents.view"], capability: ["documents.issue"] },
-  "/customers": { capability: ["customers.core", "customers.basic"], gap: "No customer permission yet (customers.view)" },
+  "/customers": { permission: ["customers.view"], capability: ["customers.core", "customers.basic"] },
   "/products": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/products/add": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/shop": { permission: ["catalogue.manage"], capability: ["shop.storefront"] },

@@ -22,13 +22,14 @@ export const dynamic = "force-dynamic";
 async function load(query: string): Promise<{
   customers: CustomerRow[];
   query: string;
+  canRecordConsent: boolean;
 } | null> {
   try {
     const personId = await currentPersonId();
     if (!personId) return null;
 
     const db = supabaseServer();
-    const membership = await activeMembership<{ business_id: string }>(personId);
+    const membership = await activeMembership<{ id: string; business_id: string }>(personId, "id, business_id");
     if (!membership) return null;
 
     const { data } = await db.rpc("business_customers", {
@@ -75,7 +76,15 @@ async function load(query: string): Promise<{
       }
     }
 
-    return { query, customers };
+    // Recording consent needs customers.manage (0088), read from the same
+    // source the server check uses, so nobody is offered a switch the server
+    // will refuse.
+    const { data: authority } = await db.rpc("membership_authority", { p_membership: membership.id });
+    const permissions = new Set<string>(
+      ((authority as { permissions?: string[] } | null)?.permissions) ?? []
+    );
+
+    return { query, customers, canRecordConsent: permissions.has("customers.manage") };
   } catch {
     return null;
   }
@@ -105,7 +114,11 @@ export default async function Customers({
           detail="We send a code to the WhatsApp number your business is set up with."
         />
       ) : (
-        <CustomerList customers={data.customers} query={data.query} />
+        <CustomerList
+          customers={data.customers}
+          query={data.query}
+          canRecordConsent={data.canRecordConsent}
+        />
       )}
     </PageShell>
   );

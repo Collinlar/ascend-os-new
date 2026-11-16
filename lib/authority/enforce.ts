@@ -38,6 +38,8 @@ const ROUTE_GROUP: Record<string, string> = {
   "readiness/mot": "growth",
   sharing: "growth",
   "payments/initiate": "growth",
+  "customers/[id]/consent": "customers",
+  "customers/[id]/history": "customers",
 };
 
 /** Pages in each group. */
@@ -57,6 +59,7 @@ const PAGE_GROUP: Record<string, string> = {
   "/promote": "growth",
   "/readiness": "growth",
   "/sharing": "growth",
+  "/customers": "customers",
 };
 
 function enforcedGroups(): Set<string> {
