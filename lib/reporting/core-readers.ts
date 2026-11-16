@@ -1,25 +1,12 @@
-// Phase 2, step 2d: the screens move from the product tables to the
-// commerce core (docs/planning/2026-11-foundation-alignment/PHASE_2D_PLAN.md).
+// The dashboard's money figures from the commerce core (Phase 2).
 //
-// The commerce_readers platform setting (0089) chooses what merchants see:
-//   unset or "compare"  today's figures are shown. The core's are worked out
-//                       alongside, and any difference is recorded in
-//                       commerce_reader_comparison for the review (step 2d.3).
-//   "core"              the core's figures are shown (step 2d.4).
-//
-// Reading the core must never break a screen. If it fails, the screen shows
-// today's figures, as it always has, and nothing is recorded.
+// Since step 2d.5 this is the only source: the old reads of sale, shop_order,
+// payment and receivable are gone, and so is compare mode. If the core
+// cannot be read, the dashboard says so rather than showing other figures.
+// The customers list takes its money from business_customers(), which reads
+// the core since 0090.
 
 import { supabaseServer } from "@/lib/supabase";
-import { platformSettings } from "@/lib/settings/platform";
-
-export type ReadersMode = "compare" | "core";
-
-// From the database since 0089 (lib/settings/platform.ts); COMMERCE_READERS
-// only if the table cannot be read.
-export async function readersMode(): Promise<ReadersMode> {
-  return (await platformSettings()).commerceReaders;
-}
 
 export interface CoreDashboardFigures {
   salesToday: number;
@@ -58,52 +45,4 @@ export async function coreDashboardFigures(
   } catch {
     return null;
   }
-}
-
-/** Spent and owed per customer, from the core. */
-export async function coreCustomerMoney(
-  businessId: string
-): Promise<Map<string, { spent: number; owed: number }> | null> {
-  try {
-    const { data, error } = await supabaseServer().rpc("commerce_customer_money", {
-      p_business: businessId,
-    });
-    if (error || !Array.isArray(data)) return null;
-    return new Map(
-      data.map((r: { customer_id: string; spent: number; owed: number }) => [
-        r.customer_id,
-        { spent: Number(r.spent), owed: Number(r.owed) },
-      ])
-    );
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Records each figure where today's value and the core's differ. Totals
- * only, never per customer. Best effort: a failed write is ignored.
- */
-export async function recordDifferences(
-  businessId: string,
-  screen: "dashboard" | "customers",
-  day: string,
-  figures: Array<{ figure: string; current: number | null; core: number | null }>
-): Promise<void> {
-  const db = supabaseServer();
-  const differing = figures.filter(
-    (f) => Math.round((f.current ?? 0) * 100) !== Math.round((f.core ?? 0) * 100)
-  );
-  await Promise.allSettled(
-    differing.map((f) =>
-      db.rpc("commerce_record_comparison", {
-        p_business: businessId,
-        p_screen: screen,
-        p_figure: f.figure,
-        p_day: day,
-        p_current: f.current ?? 0,
-        p_core: f.core ?? 0,
-      })
-    )
-  );
 }

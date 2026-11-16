@@ -70,7 +70,6 @@ export default async function Dashboard() {
   // wanted a counter should not be told its products are hidden from a
   // till, or reassured that nothing is stuck on one.
   const hasTill = workspace?.capabilities.has("pos.sell") ?? false;
-  const hasShop = workspace?.capabilities.has("shop.storefront") ?? false;
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -96,10 +95,14 @@ export default async function Dashboard() {
                 </p>
                 <p className="mt-2 flex items-end gap-3.5">
                   <span className="num text-[38px] font-extrabold leading-none tracking-[-0.03em] text-white sm:text-[46px]">
-                    {formatGHS(data.salesToday)}
+                    {data.moneyUnavailable ? "GH₵ –" : formatGHS(data.salesToday)}
                   </span>
                   <span className="pb-1 text-[13.5px] font-semibold text-on-dark-soft">
-                    {data.saleCount === 0 ? "no sales yet" : "in sales so far"}
+                    {data.moneyUnavailable
+                      ? "could not load just now"
+                      : data.saleCount === 0
+                        ? "no sales yet"
+                        : "in sales so far"}
                   </span>
                 </p>
 
@@ -207,34 +210,36 @@ export default async function Dashboard() {
           <section className="grid gap-3.5 sm:grid-cols-3">
             <Card
               label="Sales today"
-              value={formatGHS(data.salesToday)}
+              value={data.moneyUnavailable ? "GH₵ –" : formatGHS(data.salesToday)}
               note={
-                data.saleCount === 0
-                  ? "No sales recorded yet today"
-                  : `${data.saleCount} sale${data.saleCount === 1 ? "" : "s"}${
-                      hasTill && hasShop
-                        ? " across your till and shop"
-                        : hasTill
-                          ? " at your till"
-                          : " from your shop"
-                    }`
+                data.moneyUnavailable
+                  ? UNAVAILABLE
+                  : data.saleCount === 0
+                    ? "No sales recorded yet today"
+                    : // Every channel counts since step 2d.4: till, shop,
+                      // bookings and invoices, less refunds and credits.
+                      `${data.saleCount} sale${data.saleCount === 1 ? "" : "s"} today, after any refunds`
               }
               chip={data.tillsSelling > 0 ? "Live" : undefined}
             />
             <Card
               label="Money received today"
-              value={formatGHS(data.receivedToday)}
+              value={data.moneyUnavailable ? "GH₵ –" : formatGHS(data.receivedToday)}
               note={
-                data.verifiedReceived > 0
-                  ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
-                  : "Cash and declared payments only"
+                data.moneyUnavailable
+                  ? UNAVAILABLE
+                  : data.verifiedReceived > 0
+                    ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
+                    : "Cash and declared payments only"
               }
             />
             <Card
               label="Owed to you"
-              value={formatGHS(data.owed)}
+              value={data.moneyUnavailable ? "GH₵ –" : formatGHS(data.owed)}
               note={
-                data.owed === 0
+                data.moneyUnavailable
+                  ? UNAVAILABLE
+                  : data.owed === 0
                   ? "Nothing outstanding"
                   : `${data.owedCustomers} customer${
                       data.owedCustomers === 1 ? "" : "s"
@@ -244,7 +249,7 @@ export default async function Dashboard() {
                         : ""
                     }`
               }
-              chip={data.owed > 0 ? "Chase" : undefined}
+              chip={!data.moneyUnavailable && data.owed > 0 ? "Chase" : undefined}
               chipTone="gold"
             />
           </section>
@@ -305,6 +310,9 @@ export default async function Dashboard() {
     </main>
   );
 }
+
+// Said once, the same on every money card, when the core cannot be read.
+const UNAVAILABLE = "We could not load this just now. Refresh in a moment.";
 
 function Card({
   label,

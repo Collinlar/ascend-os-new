@@ -7,7 +7,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { activeMembership } from "@/lib/auth/active-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import type { UUID } from "@/lib/domains/types";
-import { coreDashboardFigures, readersMode, recordDifferences } from "@/lib/reporting/core-readers";
+import { coreDashboardFigures } from "@/lib/reporting/core-readers";
 
 export interface AttentionItem {
   id: string;
@@ -38,6 +38,8 @@ export interface DashboardData {
   owed: number;
   owedCustomers: number;
   oldestOwedDays: number | null;
+  /** The commerce core could not be read: the money figures are not known. */
+  moneyUnavailable: boolean;
   balance: number;
   unsyncedSales: number;
   lastDeviceSync: string | null;
@@ -64,17 +66,7 @@ export async function loadDashboard(
     (membership.business as unknown as { name: string } | null)?.name ?? "Your business";
   const day = today();
 
-  const [
-    location,
-    posSales,
-    fulfilledOrders,
-    pendingOrders,
-    payments,
-    receivables,
-    balanceRows,
-    devices,
-    blockedMessages,
-  ] = await Promise.all([
+  const [location, pendingOrders, balanceRows, devices, blockedMessages, core] = await Promise.all([
     db
       .from("location")
       .select("name")
@@ -82,34 +74,13 @@ export async function loadDashboard(
       .eq("active", true)
       .limit(1)
       .maybeSingle(),
-    db
-      .from("sale")
-      .select("total")
-      .eq("business_id", businessId)
-      .eq("business_date", day)
-      .eq("status", "completed"),
-    db
-      .from("shop_order")
-      .select("total")
-      .eq("business_id", businessId)
-      .eq("status", "fulfilled")
-      .gte("updated_at", `${day}T00:00:00Z`),
+    // Orders waiting to be accepted: an action for the owner, not a money
+    // figure, so it is read from the orders themselves.
     db
       .from("shop_order")
       .select("id, placed_at")
       .eq("business_id", businessId)
       .eq("status", "pending"),
-    db
-      .from("payment")
-      .select("amount, verification")
-      .eq("business_id", businessId)
-      .eq("status", "confirmed")
-      .gte("occurred_at", `${day}T00:00:00Z`),
-    db
-      .from("receivable")
-      .select("amount_due, amount_paid, due_date, customer_id")
-      .eq("business_id", businessId)
-      .is("settled_at", null),
     db.from("balance_entry").select("amount").eq("business_id", businessId),
     db
       .from("device_registration")
@@ -122,81 +93,27 @@ export async function loadDashboard(
       .eq("business_id", businessId)
       .eq("status", "blocked_no_balance")
       .limit(5),
+    // Every money figure comes from the commerce core (Phase 2, steps 2d.4
+    // and 2d.5): sales earned today on every channel less what was given
+    // back, money received less refunds, and what customers have committed
+    // to and not paid (lib/reporting/core-readers.ts, 0087).
+    coreDashboardFigures(businessId, day),
   ]);
 
-  // Revenue earned today. POS sales and fulfilled Shop orders are separate
-  // source records, so summing them cannot double-count (REP-004).
-  const posTotal = (posSales.data ?? []).reduce((n, s) => n + Number(s.total), 0);
-  const shopTotal = (fulfilledOrders.data ?? []).reduce(
-    (n, o) => n + Number(o.total),
-    0
-  );
-  const salesToday = round2(posTotal + shopTotal);
-  const saleCount = (posSales.data ?? []).length + (fulfilledOrders.data ?? []).length;
-
-  // Money received is a different figure from revenue earned, and the two
-  // are shown separately rather than blended.
-  const receivedToday = round2(
-    (payments.data ?? []).reduce((n, p) => n + Number(p.amount), 0)
-  );
-  const verifiedReceived = round2(
-    (payments.data ?? [])
-      .filter((p) => p.verification === "provider_confirmed")
-      .reduce((n, p) => n + Number(p.amount), 0)
-  );
-
-  const outstanding = (receivables.data ?? []).map((r) => ({
-    outstanding: Number(r.amount_due) - Number(r.amount_paid),
-    dueDate: r.due_date as string | null,
-    customerId: r.customer_id as string,
-  }));
-  const owed = round2(
-    outstanding.reduce((n, r) => n + Math.max(0, r.outstanding), 0)
-  );
-  const owedCustomers = new Set(outstanding.map((r) => r.customerId)).size;
-  const overdue = outstanding.filter(
-    (r) => r.dueDate && new Date(r.dueDate) < new Date() && r.outstanding > 0
-  );
-  const oldestOwedDays = overdue.length
-    ? Math.max(
-        ...overdue.map((r) =>
-          Math.floor(
-            (Date.now() - new Date(r.dueDate as string).getTime()) / 86400_000
-          )
-        )
-      )
-    : null;
-
-  // Phase 2, step 2d: the same figures from the commerce core. In compare
-  // mode (the default) today's figures are shown and any difference is
-  // recorded; with COMMERCE_READERS=core the core's are shown. If the core
-  // cannot be read, today's figures stand (lib/reporting/core-readers.ts).
-  let shown = {
-    salesToday,
-    saleCount,
-    receivedToday,
-    verifiedReceived,
-    owed,
-    owedCustomers,
-    oldestOwedDays,
-    overdueCount: overdue.length,
-    overdueAmount: round2(overdue.reduce((n, r) => n + r.outstanding, 0)),
+  // There is no second source to fall back to. If the core cannot be read,
+  // the money cards say so rather than showing figures from somewhere else.
+  const moneyUnavailable = core === null;
+  const shown = core ?? {
+    salesToday: 0,
+    saleCount: 0,
+    receivedToday: 0,
+    verifiedReceived: 0,
+    owed: 0,
+    owedCustomers: 0,
+    overdueCount: 0,
+    overdueAmount: 0,
+    oldestOwedDays: null,
   };
-  const core = await coreDashboardFigures(businessId, day);
-  if (core) {
-    await recordDifferences(businessId, "dashboard", day, [
-      { figure: "sales_today", current: shown.salesToday, core: core.salesToday },
-      { figure: "sale_count", current: shown.saleCount, core: core.saleCount },
-      { figure: "received_today", current: shown.receivedToday, core: core.receivedToday },
-      { figure: "verified_received", current: shown.verifiedReceived, core: core.verifiedReceived },
-      { figure: "owed", current: shown.owed, core: core.owed },
-      { figure: "owed_customers", current: shown.owedCustomers, core: core.owedCustomers },
-      { figure: "oldest_owed_days", current: shown.oldestOwedDays, core: core.oldestOwedDays },
-      { figure: "overdue_count", current: shown.overdueCount, core: core.overdueCount },
-      { figure: "overdue_amount", current: shown.overdueAmount, core: core.overdueAmount },
-    ]);
-    if ((await readersMode()) === "core") shown = { ...core };
-  }
 
   const balance = round2(
     (balanceRows.data ?? []).reduce((n, b) => n + Number(b.amount), 0)
@@ -312,6 +229,7 @@ export async function loadDashboard(
     owed: shown.owed,
     owedCustomers: shown.owedCustomers,
     oldestOwedDays: shown.oldestOwedDays,
+    moneyUnavailable,
     balance,
     unsyncedSales,
     lastDeviceSync,
