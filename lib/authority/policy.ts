@@ -118,8 +118,9 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // ----- machines -----
   "messaging/inbound": {
     GET: { kind: "webhook", why: "WhatsApp verification handshake" },
-    POST: { kind: "webhook", why: "Inbound WhatsApp messages, shared-token checked" },
+    POST: { kind: "webhook", why: "Inbound WhatsApp messages and delivery statuses, shared-token checked" },
   },
+  "messaging/email-events": { POST: { kind: "webhook", why: "Email delivery events, Svix signature checked" } },
   "payments/webhook": { POST: { kind: "webhook", why: "Provider confirmation, signature checked" } },
   "internal/relay": {
     GET: { kind: "cron", why: "Outbox relay" },

@@ -9,6 +9,23 @@ import { withAuthority } from "@/lib/authority/with-authority";
 
 export const dynamic = "force-dynamic";
 
+interface WhatsAppStatus {
+  id?: string;
+  status?: string;
+  timestamp?: string;
+  errors?: Array<{ code?: number | string; title?: string }>;
+}
+
+interface WhatsAppValue {
+  messages?: Array<{ from?: string; type?: string }>;
+  statuses?: WhatsAppStatus[];
+  contacts?: Array<{ wa_id?: string }>;
+}
+
+interface InboundPayload extends WhatsAppValue {
+  entry?: Array<{ changes?: Array<{ value?: WhatsAppValue }> }>;
+}
+
 // 360dialog verifies a webhook endpoint with a challenge on setup.
 async function handleGET(request: NextRequest) {
   const challenge = request.nextUrl.searchParams.get("hub.challenge");
@@ -27,23 +44,37 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ received: false }, { status: 401 });
   }
 
-  let payload: {
-    messages?: Array<{ from?: string; type?: string }>;
-    contacts?: Array<{ wa_id?: string }>;
-  };
+  let payload: InboundPayload;
   try {
     payload = await request.json();
   } catch {
     return NextResponse.json({ received: true, ignored: true });
   }
 
-  const inbound = payload.messages ?? [];
-  if (inbound.length === 0) {
-    // Status callbacks and other events are acknowledged and ignored here.
-    return NextResponse.json({ received: true });
-  }
+  // 360dialog sends either the on-premise shape (messages and statuses at
+  // the top) or the Cloud API shape (inside entry[].changes[].value).
+  const values = [payload, ...(payload.entry ?? []).flatMap((e) => (e.changes ?? []).map((c) => c.value ?? {}))];
+  const inbound = values.flatMap((v) => v.messages ?? []);
+  const statuses = values.flatMap((v) => v.statuses ?? []);
 
   const db = supabaseServer();
+
+  // Delivery states (0107): each status moves its message forward, or ends
+  // it as failed. A status for a message Ascend did not send is ignored.
+  let statusesApplied = 0;
+  for (const s of statuses) {
+    if (!s.id || !s.status) continue;
+    const at = s.timestamp ? new Date(Number(s.timestamp) * 1000).toISOString() : undefined;
+    const error = s.errors?.[0] ? `${s.errors[0].code ?? ""} ${s.errors[0].title ?? ""}`.trim() : undefined;
+    const { data } = await db.rpc("record_delivery_status", {
+      p: { provider: "360dialog", reference: s.id, status: s.status, at, error },
+    });
+    if ((data as { applied?: boolean } | null)?.applied) statusesApplied += 1;
+  }
+
+  if (inbound.length === 0) {
+    return NextResponse.json({ received: true, statuses: statuses.length, applied: statusesApplied });
+  }
 
   for (const message of inbound) {
     const from = message.from;

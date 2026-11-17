@@ -139,25 +139,28 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
             }
           : undefined
       );
-      if (result.ok) {
-        await db
-          .from("message")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-            provider_reference: result.reference ?? null,
-          })
-          .eq("id", message.id);
-        sent += 1;
-      } else {
-        await db.rpc("fail_message", {
-          p: { message_id: message.id, reason: result.reason },
-        });
-        failed += 1;
-      }
+      // Every provider call is recorded as an attempt (0107). Accepted moves
+      // the message to sent; the provider's later status callbacks move it
+      // on to delivered or read, or end it as failed.
+      await db.rpc("record_message_attempt", {
+        p: {
+          message_id: message.id,
+          provider: result.provider,
+          outcome: result.ok ? "accepted" : "rejected",
+          reference: result.reference ?? null,
+          reason: result.ok ? null : result.reason,
+        },
+      });
+      if (result.ok) sent += 1;
+      else failed += 1;
     } catch {
-      await db.rpc("fail_message", {
-        p: { message_id: message.id, reason: "dispatch error" },
+      await db.rpc("record_message_attempt", {
+        p: {
+          message_id: message.id,
+          provider: providerFor(message.channel as string),
+          outcome: "error",
+          reason: "could not reach the provider",
+        },
       });
       failed += 1;
     }
@@ -168,8 +171,30 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
 
 interface DeliveryResult {
   ok: boolean;
+  /** Which provider took the call: 360dialog, resend, or dev when no key is set. */
+  provider: string;
   reference?: string;
   reason?: string;
+}
+
+type RawResult = Omit<DeliveryResult, "provider">;
+
+// The provider is named on every result, so each attempt records who took it.
+async function deliver(
+  channel: string,
+  recipient: string,
+  body: string,
+  subject: string | null,
+  template?: TemplateSend
+): Promise<DeliveryResult> {
+  const result = await deliverRaw(channel, recipient, body, subject, template);
+  return { ...result, provider: result.reference === "dev-mode" ? "dev" : providerFor(channel) };
+}
+
+function providerFor(channel: string): string {
+  if (channel === "email") return process.env.RESEND_API_KEY ? "resend" : "dev";
+  if (channel === "whatsapp") return process.env.WHATSAPP_360DIALOG_API_KEY ? "360dialog" : "dev";
+  return "none";
 }
 
 interface TemplateSend {
@@ -200,7 +225,7 @@ async function deliverEmail(
   recipient: string,
   subject: string | null,
   body: string
-): Promise<DeliveryResult> {
+): Promise<RawResult> {
   if (!recipient || !recipient.includes("@")) {
     return { ok: false, reason: "no recipient email address" };
   }
@@ -243,13 +268,13 @@ ${body}`
   }
 }
 
-async function deliver(
+async function deliverRaw(
   channel: string,
   recipient: string,
   body: string,
   subject: string | null,
   template?: TemplateSend
-): Promise<DeliveryResult> {
+): Promise<RawResult> {
   if (channel === "email") {
     return deliverEmail(recipient, subject, body);
   }
