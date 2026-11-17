@@ -101,3 +101,9 @@ With those settled, the Phase 3 plan can be written: merchant payment profiles, 
 ## 7. Sent
 
 **17 Nov 2026.** Collins emailed the 19 questions (section 5) to Paystack's general inbox, hello@paystack.com, from Bold Vision MultiTech's business email. A shareable version of the page is on claude.ai (private until shared). If there is no reply within a week, follow up and ask to be put in touch with Paystack Ghana's partnerships or sales team, who handle platform arrangements.
+
+---
+
+## 8. Built ahead of Paystack's answers
+
+**The unknown state, 17 Nov 2026 (0091, `lib/payments/resolve.ts`).** Provider-neutral, so it holds whatever Paystack answers. A payment intent still open a few minutes after it started is checked against the provider on the relay tick (back-off 2, 5, 15, 60 minutes, then hourly, for up to 7 days). Only the provider's "success" or "failed" closes a payment; "abandoned" only when the provider says so; no answer, a reversal or a currency mismatch leaves it `unknown` for a person. Time alone never fails a payment, and a late webhook still confirms. Runs only where `PAYSTACK_SECRET_KEY` is set. Tested 28 of 28 against the real migrations with a stand-in provider; not yet checked against Paystack itself (no test key in this environment). **Needs:** 0091 run, and the next deploy.

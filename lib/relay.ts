@@ -7,6 +7,8 @@ import { supabaseServer } from "@/lib/supabase";
 import { processEventForEvidence } from "@/lib/domains/evidence";
 import { dispatchQueuedMessages } from "@/lib/messaging/send";
 import type { BusinessEventType } from "@/lib/domains/events";
+import { paymentProvider } from "@/lib/payments/provider";
+import { resolveOpenIntents, type ResolveResult } from "@/lib/payments/resolve";
 
 interface OutboxRow {
   event_id: string;
@@ -29,6 +31,8 @@ export interface RelayResult {
   expired: number;
   /** Reminders put on the queue for the message dispatcher below. */
   remindersQueued: number;
+  /** Open payments the provider was asked about (0091), or null if skipped. */
+  payments: ResolveResult | null;
 }
 
 export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
@@ -110,6 +114,18 @@ export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
     // Transport failure only; the next relay tick retries.
   }
 
+  // Payments nobody has heard back about: ask the provider (0091). Only
+  // where a provider key is configured, so a site without one never marks
+  // anything "unknown" just because it could not ask.
+  let payments: ResolveResult | null = null;
+  if (process.env.PAYSTACK_SECRET_KEY) {
+    try {
+      payments = await resolveOpenIntents(db, paymentProvider(), { limit: 20, budgetMs: 4000 });
+    } catch {
+      // The next tick asks again.
+    }
+  }
+
   return {
     claimed: events.length,
     dispatched,
@@ -119,5 +135,6 @@ export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
     overdue,
     expired,
     remindersQueued,
+    payments,
   };
 }
