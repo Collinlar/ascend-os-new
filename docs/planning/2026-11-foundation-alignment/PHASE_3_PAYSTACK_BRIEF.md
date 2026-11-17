@@ -95,3 +95,9 @@ Not found anywhere: whether a **subaccount** (as opposed to a main account) can 
 - **Whether to take legal advice on licensing before launch**, and from whom.
 
 With those settled, the Phase 3 plan can be written: merchant payment profiles, provider accounts, the "unknown" state and its resolution job, and Paid versus Settled in the commerce core.
+
+---
+
+## 7. Sent
+
+**17 Nov 2026.** Collins emailed the 19 questions (section 5) to Paystack's general inbox, hello@paystack.com, from Bold Vision MultiTech's business email. A shareable version of the page is on claude.ai (private until shared). If there is no reply within a week, follow up and ask to be put in touch with Paystack Ghana's partnerships or sales team, who handle platform arrangements.
