@@ -14,8 +14,17 @@ interface OutboxRow {
   event_id: string;
   event_type: BusinessEventType;
   business_id: string;
-  verification: "merchant_declared" | "customer_confirmed" | "provider_confirmed" | null;
+  verification:
+    | "merchant_declared"
+    | "system_recorded"
+    | "customer_confirmed"
+    | "provider_confirmed"
+    | "institution_verified"
+    | null;
   correction_of: string | null;
+  /** The event this one undoes (0093); claim_outbox_batch returns every column. */
+  reversal_of: string | null;
+  payload: Record<string, unknown> | null;
   business_date: string | null;
 }
 

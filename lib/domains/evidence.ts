@@ -5,7 +5,10 @@
 import { supabaseServer } from "@/lib/supabase";
 import type { BusinessEventType } from "./events";
 
-export const EVIDENCE_RULE_VERSION = "2026.07-1";
+// 2026.11-1 (0094): corrections reach the evidence through
+// evidence_correct_event; the hand-made shop.order.refunded rule is retired
+// (the generic correction replaces it); credit notes are not documentation.
+export const EVIDENCE_RULE_VERSION = "2026.11-1";
 
 type Dimension =
   | "identity_stability"
@@ -59,14 +62,10 @@ const RULES: Partial<Record<BusinessEventType, EvidenceRule>> = {
     evidenceType: "fulfilled_order",
     weights: { merchant_declared: 1, customer_confirmed: 2, provider_confirmed: 3 },
   },
-  // A refund reverses the fulfilment evidence rather than deleting it
-  // (EVT-005). Cancellations and intermediate progress are operational
-  // activity, not evidence of business quality, so they carry no rule.
-  "shop.order.refunded": {
-    dimension: "customer_market",
-    evidenceType: "fulfilled_order_reversed",
-    weights: { merchant_declared: -1 },
-  },
+  // A refund no longer has a rule of its own: like every reversal it is a
+  // correction, written by evidence_correct_event against the fulfilment
+  // evidence it undoes (0094). Cancellations and intermediate progress are
+  // operational activity, not evidence of business quality.
   "services.booking.completed": {
     dimension: "customer_market",
     evidenceType: "completed_service",
@@ -126,22 +125,43 @@ interface OutboxEvent {
   event_id: string;
   event_type: BusinessEventType;
   business_id: string;
-  verification: "merchant_declared" | "customer_confirmed" | "provider_confirmed" | null;
+  verification:
+    | "merchant_declared"
+    | "system_recorded"
+    | "customer_confirmed"
+    | "provider_confirmed"
+    | "institution_verified"
+    | null;
   correction_of: string | null;
+  /** The event this one undoes (0093). */
+  reversal_of?: string | null;
+  payload?: Record<string, unknown> | null;
   business_date: string | null;
 }
 
 // Consume one event. Corrections write a negative adjustment referencing the
 // original evidence rather than deleting history (EVT-005, EVT-013).
 export async function processEventForEvidence(event: OutboxEvent): Promise<void> {
+  const db = supabaseServer();
+
+  // An event that undoes another (a reversal, a refund) corrects the
+  // evidence the original earned, in proportion, beside it (0094).
+  if (event.reversal_of || event.correction_of) {
+    const { error } = await db.rpc("evidence_correct_event", { p_event_id: event.event_id });
+    if (error) throw new Error(`Evidence correction failed: ${error.message}`);
+    return;
+  }
+
+  // A credit note undoes part of an invoice; it is not documentation.
+  if (event.event_type === "documents.document.issued" && event.payload?.type === "credit_note") return;
+
   const rule = RULES[event.event_type];
   if (!rule) return; // event is auditable activity but not scoring evidence
 
   const verification = event.verification ?? "merchant_declared";
-  const weight = rule.weights[verification] ?? rule.weights.merchant_declared;
-  const signedWeight = event.correction_of ? -Math.abs(weight) : weight;
+  const weight =
+    rule.weights[verification as keyof EvidenceRule["weights"]] ?? rule.weights.merchant_declared;
 
-  const db = supabaseServer();
   const { error } = await db.from("evidence_record").insert({
     business_id: event.business_id,
     source_event_id: event.event_id,
@@ -149,9 +169,9 @@ export async function processEventForEvidence(event: OutboxEvent): Promise<void>
     evidence_type: rule.evidenceType,
     verification:
       verification === "provider_confirmed" ? "payment_verified" : verification,
-    weight: signedWeight,
+    weight,
     rule_version: EVIDENCE_RULE_VERSION,
-    detail: event.correction_of ? { correction_of: event.correction_of } : {},
+    detail: {},
   });
 
   // Unique (source_event_id, evidence_type) makes retries safe (EVT-006).
