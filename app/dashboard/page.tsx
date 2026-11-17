@@ -363,8 +363,8 @@ function Card({
       <p className="num text-3xl font-extrabold tracking-[-0.025em] text-ink">
         {value}
       </p>
-      <p className="text-xs font-medium text-slate-grey">{note}</p>
-      {detail && <p className="text-xs font-semibold text-teal-dark">{detail}</p>}
+      <p className="text-sm font-medium text-slate-grey">{note}</p>
+      {detail && <p className="text-sm font-semibold text-teal-dark">{detail}</p>}
     </div>
   );
 }
