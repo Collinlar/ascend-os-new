@@ -26,7 +26,13 @@ interface PartnerReport {
     };
     evidence_confidence?: number;
     trust_level?: number;
-    revenue_summary?: Array<{ month: string; revenue: number | null; refunds: number | null }>;
+    // credits since 0106: credit notes, kept apart from refunds.
+    revenue_summary?: Array<{
+      month: string;
+      revenue: number | null;
+      refunds: number | null;
+      credits?: number | null;
+    }>;
     document_summary?: { issued: number; paid: number; overdue: number };
     activity_summary?: {
       pos_sales: number;
@@ -133,6 +139,7 @@ export default async function PartnerView({
                   <th className="pb-2 font-medium">Month</th>
                   <th className="pb-2 text-right font-medium">Revenue</th>
                   <th className="pb-2 text-right font-medium">Refunds</th>
+                  <th className="pb-2 text-right font-medium">Credit notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +151,9 @@ export default async function PartnerView({
                     </td>
                     <td className="py-2 text-right text-ink-muted">
                       {formatGHS(Math.abs(Number(row.refunds ?? 0)))}
+                    </td>
+                    <td className="py-2 text-right text-ink-muted">
+                      {formatGHS(Math.abs(Number(row.credits ?? 0)))}
                     </td>
                   </tr>
                 ))}
