@@ -17,7 +17,14 @@ interface WhatsAppStatus {
 }
 
 interface WhatsAppValue {
-  messages?: Array<{ from?: string; type?: string }>;
+  messages?: Array<{
+    id?: string;
+    from?: string;
+    type?: string;
+    text?: { body?: string };
+    button?: { text?: string };
+    interactive?: { button_reply?: { title?: string } };
+  }>;
   statuses?: WhatsAppStatus[];
   contacts?: Array<{ wa_id?: string }>;
 }
@@ -76,26 +83,22 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ received: true, statuses: statuses.length, applied: statusesApplied });
   }
 
+  // Replies (0108): the window opens only for the business that last
+  // messaged this number; STOP, DELETE and START are acted on and
+  // acknowledged. The text is read here and never stored.
+  const actions: string[] = [];
   for (const message of inbound) {
     const from = message.from;
     if (!from) continue;
     const phone = from.startsWith("+") ? from : `+${from}`;
-
-    // Match the sender to businesses that already know this customer. A
-    // number nobody has as a customer opens no window.
-    const { data: customers } = await db
-      .from("customer")
-      .select("business_id")
-      .eq("phone_e164", phone);
-
-    for (const customer of customers ?? []) {
-      await db.rpc("open_whatsapp_window", {
-        p: { business_id: customer.business_id, customer_phone: phone },
-      });
-    }
+    const text = message.text?.body ?? message.button?.text ?? message.interactive?.button_reply?.title ?? "";
+    const { data } = await db.rpc("handle_whatsapp_reply", {
+      p: { phone, text, provider_message_id: message.id ?? null },
+    });
+    actions.push((data as { action?: string } | null)?.action ?? "none");
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ received: true, actions });
 }
 
 export const GET = withAuthority("messaging/inbound", "GET", handleGET);
