@@ -5,6 +5,7 @@
 import { createHash, randomBytes } from "crypto";
 import { supabaseServer } from "@/lib/supabase";
 import type { UUID } from "@/lib/domains/types";
+import { deliver, providerFor } from "./providers";
 
 export type TemplateKey =
   | "document.issued"
@@ -121,14 +122,15 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
         param_order: string[] | null;
       } | null;
 
-      const result = await deliver(
-        message.channel as string,
-        message.recipient as string,
-        message.rendered_body as string,
-        message.subject as string | null,
+      // The provider for the channel (lib/messaging/providers.ts, C4).
+      const result = await deliver({
+        channel: message.channel as string,
+        recipient: message.recipient as string,
+        body: message.rendered_body as string,
+        subject: message.subject as string | null,
         // Outside the customer's 24-hour window WhatsApp only accepts a
         // registered template, so the queue records which form to send.
-        message.used_template
+        template: message.used_template
           ? {
               name: template?.provider_name ?? "",
               namespace: template?.provider_namespace ?? undefined,
@@ -137,8 +139,8 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
                 template?.param_order ?? []
               ),
             }
-          : undefined
-      );
+          : undefined,
+      });
       // Every provider call is recorded as an attempt (0107). Accepted moves
       // the message to sent; the provider's later status callbacks move it
       // on to delivered or read, or end it as failed.
@@ -157,7 +159,7 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
       await db.rpc("record_message_attempt", {
         p: {
           message_id: message.id,
-          provider: providerFor(message.channel as string),
+          provider: providerFor(message.channel as string)?.name ?? "none",
           outcome: "error",
           reason: "could not reach the provider",
         },
@@ -169,40 +171,6 @@ export async function dispatchQueuedMessages(limit = 25): Promise<DispatchOutcom
   return { attempted: (queued ?? []).length, sent, failed };
 }
 
-interface DeliveryResult {
-  ok: boolean;
-  /** Which provider took the call: 360dialog, resend, or dev when no key is set. */
-  provider: string;
-  reference?: string;
-  reason?: string;
-}
-
-type RawResult = Omit<DeliveryResult, "provider">;
-
-// The provider is named on every result, so each attempt records who took it.
-async function deliver(
-  channel: string,
-  recipient: string,
-  body: string,
-  subject: string | null,
-  template?: TemplateSend
-): Promise<DeliveryResult> {
-  const result = await deliverRaw(channel, recipient, body, subject, template);
-  return { ...result, provider: result.reference === "dev-mode" ? "dev" : providerFor(channel) };
-}
-
-function providerFor(channel: string): string {
-  if (channel === "email") return process.env.RESEND_API_KEY ? "resend" : "dev";
-  if (channel === "whatsapp") return process.env.WHATSAPP_360DIALOG_API_KEY ? "360dialog" : "dev";
-  return "none";
-}
-
-interface TemplateSend {
-  name: string;
-  namespace?: string;
-  params: string[];
-}
-
 // WhatsApp templates take positional parameters, so the stored variables
 // are emitted in the order the template was registered with. A variable the
 // caller did not supply becomes an empty string rather than shifting every
@@ -212,126 +180,4 @@ function orderedParams(
   order: string[]
 ): string[] {
   return order.map((key) => variables[key] ?? "");
-}
-
-// Email delivery. Deliberately the same shape as the WhatsApp branch: a
-// timeout, a dev fallback that logs rather than sends, and a reason string
-// on failure that support can read back to a merchant.
-//
-// WhatsApp remains the default channel for Ghana at 91.8% reach. Email is
-// for the customer paying on account, whose accounts team works from an
-// inbox.
-async function deliverEmail(
-  recipient: string,
-  subject: string | null,
-  body: string
-): Promise<RawResult> {
-  if (!recipient || !recipient.includes("@")) {
-    return { ok: false, reason: "no recipient email address" };
-  }
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
-  if (!apiKey || !from) {
-    console.info(
-      `[dev] Email to ${recipient}: ${subject ?? "(no subject)"}
-${body}`
-    );
-    return { ok: true, reference: "dev-mode" };
-  }
-
-  try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [recipient],
-        subject: subject ?? "",
-        text: body,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok) {
-      return { ok: false, reason: `email provider returned ${response.status}` };
-    }
-    const data = (await response.json()) as { id?: string };
-    return { ok: true, reference: data.id };
-  } catch {
-    // A timeout or a network failure. The message stays queued and the
-    // next relay tick retries rather than losing it.
-    return { ok: false, reason: "could not reach the email provider" };
-  }
-}
-
-async function deliverRaw(
-  channel: string,
-  recipient: string,
-  body: string,
-  subject: string | null,
-  template?: TemplateSend
-): Promise<RawResult> {
-  if (channel === "email") {
-    return deliverEmail(recipient, subject, body);
-  }
-  if (channel !== "whatsapp") {
-    return { ok: false, reason: `channel not configured: ${channel}` };
-  }
-  if (!recipient) {
-    return { ok: false, reason: "no recipient number" };
-  }
-  if (template && !template.name) {
-    return { ok: false, reason: "template not registered with the provider" };
-  }
-
-  const apiKey = process.env.WHATSAPP_360DIALOG_API_KEY;
-  if (!apiKey) {
-    // Development: nothing is charged for real, and the message is visible
-    // in logs so the flow stays testable without a provider.
-    console.info(
-      `[dev] WhatsApp ${template ? `template ${template.name}` : "text"} to ${recipient.slice(0, 7)}…: ${body}`
-    );
-    return { ok: true, reference: "dev-mode" };
-  }
-
-  const requestBody = template
-    ? {
-        to: recipient.replace("+", ""),
-        type: "template",
-        template: {
-          name: template.name,
-          namespace: template.namespace,
-          language: { code: "en", policy: "deterministic" },
-          components: [
-            {
-              type: "body",
-              parameters: template.params.map((text) => ({ type: "text", text })),
-            },
-          ],
-        },
-      }
-    : {
-        to: recipient.replace("+", ""),
-        type: "text",
-        text: { body },
-      };
-
-  const response = await fetch("https://waba.360dialog.io/v1/messages", {
-    method: "POST",
-    headers: { "D360-API-KEY": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    return { ok: false, reason: `provider rejected (${response.status})` };
-  }
-  const result = (await response.json().catch(() => ({}))) as {
-    messages?: Array<{ id?: string }>;
-  };
-  return { ok: true, reference: result.messages?.[0]?.id };
 }
