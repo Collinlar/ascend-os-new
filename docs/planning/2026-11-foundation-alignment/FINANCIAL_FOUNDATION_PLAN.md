@@ -162,3 +162,26 @@ As every phase so far: the local Postgres harness replaying every migration, wit
 4. **The standard Ghana category list**: I draft it in F2, you edit it. *Recommended.*
 5. **An invoice with no location** is attributed to the business's first location when it has only one, and shown as "not attributed" when it has several. *Recommended.* The alternative, always the first location, would put a branch's invoices on head office.
 6. **No profit figure in the foundation.** Cash position shows five separate figures; a profit estimate waits for the Finance product, shown only when the period has expenses recorded and no unreconciled shifts. *Recommended*, because section 8 asks for exactly this restraint.
+
+---
+
+## 8. Build status (17 November 2026)
+
+All six steps built, run on live by Collins, and checked on live with throwaway businesses.
+
+| Step | Migration | What it did on live |
+|---|---|---|
+| F1 | 0100 | Financial facts from the commerce core; backfill matches the core for every business |
+| F2 | 0101 | Money out and categories; CLASmart's GHS 120 of till paid-outs, which the old ledger never had, now recorded |
+| F3 | 0102 | Receivables aging and cash position; owed figures agree with the invoice and customer lists for all 31 businesses |
+| F4 | 0103 | Periods you can close; nothing closed on live |
+| F5 | 0104 | Accountant export and CSV; every month of every business matches the cash position |
+| (fix) | 0105 | A refund is never owed again (Collins's decision, from the F5 check); overpayment refunds kept apart |
+| F6 | 0106 | Shared reports and MOT read the new figures; the old ledger and receivables take no new rows |
+
+Still to come, outside this plan:
+- Screens: closing a month, downloading the export, the cash position. They belong with the Finance product (Phase 6).
+- The till sending a category for paid-outs (the column exists, 0101).
+- Collins's edits to the standard Ghana category list.
+- A paid shop order partly refunded before delivery records the refund in the month it happens, before the revenue (0105 note). Totals are right once delivered.
+- The app change in F6 (Credit notes column on the lender report page) needs the next deploy.
