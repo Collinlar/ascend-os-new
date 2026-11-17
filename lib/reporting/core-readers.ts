@@ -46,3 +46,41 @@ export async function coreDashboardFigures(
     return null;
   }
 }
+
+/**
+ * Where the money paid online has got to (0092): what is still with the
+ * payment provider on its way to the merchant, and what was paid out to the
+ * merchant today. Cash and money sent straight to the merchant are in hand
+ * already and are not counted here.
+ */
+export interface CoreSettlementFigures {
+  onItsWay: number;
+  onItsWayCount: number;
+  paidOutToday: number;
+}
+
+export async function coreSettlementFigures(
+  businessId: string,
+  day: string
+): Promise<CoreSettlementFigures | null> {
+  try {
+    const { data, error } = await supabaseServer()
+      .from("payment_settlement")
+      .select("state, amount, settled_at")
+      .eq("business_id", businessId)
+      .in("state", ["awaiting", "settled"]);
+    if (error || !data) return null;
+    const round = (n: number) => Math.round(n * 100) / 100;
+    const waiting = data.filter((r) => r.state === "awaiting");
+    const today = data.filter(
+      (r) => r.state === "settled" && typeof r.settled_at === "string" && r.settled_at.slice(0, 10) === day
+    );
+    return {
+      onItsWay: round(waiting.reduce((n, r) => n + Number(r.amount), 0)),
+      onItsWayCount: waiting.length,
+      paidOutToday: round(today.reduce((n, r) => n + Number(r.amount), 0)),
+    };
+  } catch {
+    return null;
+  }
+}

@@ -232,6 +232,20 @@ export default async function Dashboard() {
                     ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
                     : "Cash and declared payments only"
               }
+              detail={
+                data.moneyUnavailable
+                  ? undefined
+                  : [
+                      data.onItsWay > 0
+                        ? `${formatGHS(data.onItsWay)} paid online is on its way to your account`
+                        : null,
+                      data.paidOutToday > 0
+                        ? `${formatGHS(data.paidOutToday)} reached your account today`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(". ") || undefined
+              }
             />
             <Card
               label="Owed to you"
@@ -318,12 +332,15 @@ function Card({
   label,
   value,
   note,
+  detail,
   chip,
   chipTone = "teal",
 }: {
   label: string;
   value: string;
   note: string;
+  /** A second line, only when there is something to say. */
+  detail?: string;
   chip?: string;
   chipTone?: "teal" | "gold";
 }) {
@@ -347,6 +364,7 @@ function Card({
         {value}
       </p>
       <p className="text-xs font-medium text-slate-grey">{note}</p>
+      {detail && <p className="text-xs font-semibold text-teal-dark">{detail}</p>}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { activeMembership } from "@/lib/auth/active-business";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import type { UUID } from "@/lib/domains/types";
-import { coreDashboardFigures } from "@/lib/reporting/core-readers";
+import { coreDashboardFigures, coreSettlementFigures } from "@/lib/reporting/core-readers";
 
 export interface AttentionItem {
   id: string;
@@ -40,6 +40,10 @@ export interface DashboardData {
   oldestOwedDays: number | null;
   /** The commerce core could not be read: the money figures are not known. */
   moneyUnavailable: boolean;
+  /** Paid online, still with the payment provider on its way to the merchant (0092). */
+  onItsWay: number;
+  /** Paid out to the merchant's account today (0092). */
+  paidOutToday: number;
   balance: number;
   unsyncedSales: number;
   lastDeviceSync: string | null;
@@ -66,7 +70,7 @@ export async function loadDashboard(
     (membership.business as unknown as { name: string } | null)?.name ?? "Your business";
   const day = today();
 
-  const [location, pendingOrders, balanceRows, devices, blockedMessages, core] = await Promise.all([
+  const [location, pendingOrders, balanceRows, devices, blockedMessages, core, settlement] = await Promise.all([
     db
       .from("location")
       .select("name")
@@ -98,6 +102,9 @@ export async function loadDashboard(
     // back, money received less refunds, and what customers have committed
     // to and not paid (lib/reporting/core-readers.ts, 0087).
     coreDashboardFigures(businessId, day),
+    // Where online payments have got to: still with the provider, or paid
+    // out to the merchant today (0092).
+    coreSettlementFigures(businessId, day),
   ]);
 
   // There is no second source to fall back to. If the core cannot be read,
@@ -230,6 +237,8 @@ export async function loadDashboard(
     owedCustomers: shown.owedCustomers,
     oldestOwedDays: shown.oldestOwedDays,
     moneyUnavailable,
+    onItsWay: settlement?.onItsWay ?? 0,
+    paidOutToday: settlement?.paidOutToday ?? 0,
     balance,
     unsyncedSales,
     lastDeviceSync,
