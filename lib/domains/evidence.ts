@@ -8,7 +8,13 @@ import type { BusinessEventType } from "./events";
 // 2026.11-1 (0094): corrections reach the evidence through
 // evidence_correct_event; the hand-made shop.order.refunded rule is retired
 // (the generic correction replaces it); credit notes are not documentation.
-export const EVIDENCE_RULE_VERSION = "2026.11-1";
+//
+// 2026.11-2 (0099): commerce evidence comes from the commerce core
+// (record_commerce_evidence, run by compute_readiness), so the rules for
+// sales, fulfilled orders, completed bookings, paid documents and confirmed
+// payments are gone from here. Their old records are retired from counting
+// in the database; writing new ones would only add records that never count.
+export const EVIDENCE_RULE_VERSION = "2026.11-2";
 
 type Dimension =
   | "identity_stability"
@@ -42,11 +48,6 @@ interface EvidenceRule {
 // for a `discover.*` event would fail loudly rather than quietly turning ad
 // spend into creditworthiness.
 const RULES: Partial<Record<BusinessEventType, EvidenceRule>> = {
-  "pos.sale.completed": {
-    dimension: "financial_activity",
-    evidenceType: "recorded_sale",
-    weights: { merchant_declared: 1, provider_confirmed: 3 },
-  },
   "pos.shift.closed": {
     dimension: "governance_control",
     evidenceType: "reconciled_shift",
@@ -57,34 +58,15 @@ const RULES: Partial<Record<BusinessEventType, EvidenceRule>> = {
     evidenceType: "received_order",
     weights: { merchant_declared: 0.5, customer_confirmed: 1 },
   },
-  "shop.order.fulfilled": {
-    dimension: "customer_market",
-    evidenceType: "fulfilled_order",
-    weights: { merchant_declared: 1, customer_confirmed: 2, provider_confirmed: 3 },
-  },
-  // A refund no longer has a rule of its own: like every reversal it is a
-  // correction, written by evidence_correct_event against the fulfilment
-  // evidence it undoes (0094). Cancellations and intermediate progress are
-  // operational activity, not evidence of business quality.
-  "services.booking.completed": {
-    dimension: "customer_market",
-    evidenceType: "completed_service",
-    weights: { merchant_declared: 1, customer_confirmed: 2 },
-  },
+  // Sales, fulfilled orders, completed bookings, paid documents and
+  // confirmed payments earn their evidence from the commerce core (0099),
+  // once per earned transaction, with refunds, credits and reversals taken
+  // off in proportion there. Order placement stays here: it is a demand
+  // signal, not money earned.
   "documents.document.issued": {
     dimension: "documentation_compliance",
     evidenceType: "issued_document",
     weights: { merchant_declared: 1 },
-  },
-  "documents.document.paid": {
-    dimension: "financial_activity",
-    evidenceType: "collected_receivable",
-    weights: { merchant_declared: 1, provider_confirmed: 3 },
-  },
-  "finance.payment.confirmed": {
-    dimension: "financial_activity",
-    evidenceType: "verified_payment",
-    weights: { merchant_declared: 0, provider_confirmed: 2 },
   },
   "office.approval.decided": {
     dimension: "governance_control",
