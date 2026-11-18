@@ -185,3 +185,5 @@ Still to come, outside this plan:
 - Collins's edits to the standard Ghana category list.
 - A paid shop order partly refunded before delivery records the refund in the month it happens, before the revenue (0105 note). Totals are right once delivered.
 - The app change in F6 (Credit notes column on the lender report page) needs the next deploy.
+
+**0118, 18 November 2026.** A sale on credit is no longer recorded as money received (it had been, in financial_events_sync since 0100). The reconciliation check follows the same rule. 5/5 locally, 4/4 on live: a GHS 50 sale paid GHS 20 cash and GHS 30 on credit records GHS 20 received and GHS 90 earned across two sales, and cash position, the dashboard and the reconciliation agree. No history needed correcting: live had no credit payments.
