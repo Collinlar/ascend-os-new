@@ -3,14 +3,17 @@ import { currentAdmin } from "@/lib/auth/admin";
 import { supabaseServer } from "@/lib/supabase";
 import { EmptyState, PageHeader, PageShell, Panel } from "@/components/shell/Page";
 import RiskReports, { type ReportRow } from "@/components/admin/RiskReports";
+import RiskAppeals, { type AppealRow } from "@/components/admin/RiskAppeals";
 
 export const dynamic = "force-dynamic";
 
-// Risk (Risk and Trust R4; the full desk with cases, restrictions, appeals
+// Risk (Risk and Trust R4 and R5; the full desk with cases, restrictions
 // and the second admin's confirmation comes in R6).
 //
-// Customer reports first, because a person is waiting on each one. Then
-// the signals: things in the figures worth a look. Neither acts by itself.
+// Appeals first: a business is limited while it waits. Then customer
+// reports, because a person is waiting on each one. Then the signals:
+// things in the figures worth a look. Neither reports nor signals act by
+// themselves.
 
 const SIGNAL_LABEL: Record<string, string> = {
   refund_rate: "Many refunds",
@@ -39,11 +42,32 @@ interface SignalRow {
   detail: string;
 }
 
-async function load() {
+async function load(adminPersonId: string) {
   const db = supabaseServer();
-  const [reports, signals] = await Promise.all([db.rpc("open_customer_reports"), db.rpc("risk_signals")]);
-  if (reports.error || signals.error) throw new Error("risk desk");
+  const [appeals, reports, signals] = await Promise.all([
+    db.rpc("open_risk_appeals"),
+    db.rpc("open_customer_reports"),
+    db.rpc("risk_signals"),
+  ]);
+  if (appeals.error || reports.error || signals.error) throw new Error("risk desk");
   return {
+    appeals: ((appeals.data ?? []) as Array<{
+      appeal_id: string;
+      business_name: string;
+      state_appealed: string;
+      appeal_text: string;
+      submitted_at: string;
+      made_by: string | null;
+    }>).map(
+      (a): AppealRow => ({
+        appealId: a.appeal_id,
+        businessName: a.business_name,
+        stateAppealed: a.state_appealed,
+        appealText: a.appeal_text,
+        submittedAt: a.submitted_at,
+        madeByYou: a.made_by === adminPersonId,
+      })
+    ),
     reports: ((reports.data ?? []) as Array<{
       report_id: string;
       business_name: string;
@@ -75,7 +99,7 @@ export default async function AdminRisk() {
   const admin = await currentAdmin();
   if (!admin) notFound();
 
-  const data = await load().catch(() => null);
+  const data = await load(admin.personId).catch(() => null);
   if (!data) {
     return (
       <PageShell>
@@ -84,20 +108,29 @@ export default async function AdminRisk() {
       </PageShell>
     );
   }
-  const { reports, signals } = data;
+  const { appeals, reports, signals } = data;
 
   return (
     <PageShell>
       <PageHeader
         title="Risk"
         intro={
-          reports.length > 0
+          appeals.length > 0
+            ? `${appeals.length} ${appeals.length === 1 ? "business is" : "businesses are"} waiting on an appeal.`
+            : reports.length > 0
             ? `${reports.length} customer ${reports.length === 1 ? "report is" : "reports are"} waiting to be read.`
             : "Customer reports and signals. Nothing here limits a business until an admin decides it should."
         }
       />
 
-      <section aria-labelledby="reports">
+      <section aria-labelledby="appeals">
+        <h2 id="appeals" className="mb-3 text-base font-bold text-ink">
+          Appeals
+        </h2>
+        <RiskAppeals appeals={appeals} canAct={admin.role === "admin"} />
+      </section>
+
+      <section aria-labelledby="reports" className="mt-8">
         <h2 id="reports" className="mb-3 text-base font-bold text-ink">
           Customer reports
         </h2>

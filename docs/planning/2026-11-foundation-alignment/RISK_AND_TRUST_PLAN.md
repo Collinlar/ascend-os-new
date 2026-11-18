@@ -68,7 +68,7 @@ Built and tested as before: local Postgres with every migration replayed, then t
 | R2 Targeted restrictions | 0112 | Run on live, each restriction refused exactly its action, committed (payment route change waits for a deploy) |
 | R3 Signals | 0113 | Run on live, read only. On real businesses only the three "Adjoa Provisions" show, as likely duplicates |
 | R4 Customer reports | 0114 | Run on live, 13/13 through the real route on a throwaway business. Report link on the invoice, shop and booking pages; Risk page in the admin area. App code waits for a deploy |
-| R5 Appeals and what the business sees | | Next |
-| R6 The Risk desk | | After R5; grows the R4 Risk page |
+| R5 Appeals and what the business sees | 0115 | Run on live, 4 + 13 checks through the real pages and routes on a throwaway business. Dashboard notice and /standing for the business; appeals on the admin Risk page. An appeal against a suspension or termination is decided by an admin who neither asked for it nor confirmed it. App code waits for a deploy; WhatsApp notice of a decision waits for an approved operational template |
+| R6 The Risk desk | | Next; grows the Risk page from R4 and R5 |
 
 Receipts: a receipt sent to a customer opens on the same document page as an invoice, so it carries the report link too.

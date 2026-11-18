@@ -1,7 +1,8 @@
-// The Risk desk (Risk and Trust R4; the full desk is R6). For now, one
-// thing: a BVM admin reads a customer report and dismisses it, opens a case
-// from it, or adds it to the business's open case. The database checks the
-// admin again and refuses a review without a note.
+// The Risk desk (Risk and Trust R4 and R5; the full desk is R6). Two things
+// so far: a BVM admin reviews a customer report (dismiss, open a case, add
+// to the open case), and decides a business's appeal. The database checks
+// the admin again, refuses either without a note, and refuses an appeal
+// decision from the admin who made a suspension.
 
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth/admin";
@@ -11,7 +12,10 @@ import { withAuthority } from "@/lib/authority/with-authority";
 export const dynamic = "force-dynamic";
 
 interface Body {
-  action?: "review_report";
+  action?: "review_report" | "decide_appeal";
+  appealId?: string;
+  decision?: "accepted" | "declined";
+  newState?: "monitor" | "normal";
   reportId?: string;
   outcome?: "dismiss" | "open_case" | "add_to_case";
   caseId?: string;
@@ -35,10 +39,41 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ error: "That did not go through. Try again." }, { status: 400 });
   }
 
+  const note = (body.note ?? "").trim();
+
+  if (body.action === "decide_appeal") {
+    if (!body.appealId || (body.decision !== "accepted" && body.decision !== "declined")) {
+      return NextResponse.json({ error: "Pick the appeal and whether to accept it." }, { status: 422 });
+    }
+    if (note.length < 10) {
+      return NextResponse.json(
+        { error: "Write what the business will read. It shows on their page as the answer." },
+        { status: 422 }
+      );
+    }
+    const { data, error } = await supabaseServer().rpc("decide_risk_appeal", {
+      p: {
+        appeal_id: body.appealId,
+        outcome: body.decision,
+        new_state: body.newState ?? "monitor",
+        note,
+        admin_person_id: admin.personId,
+      },
+    });
+    if (error) {
+      const msg = /another_admin/.test(error.message)
+        ? "You made or confirmed this decision, so another admin hears the appeal against it."
+        : /state_moved|case_resolved/.test(error.message)
+          ? "The business's state has changed since this appeal. Decide it from the case."
+          : "We could not save that decision. Nothing was changed. Try again.";
+      return NextResponse.json({ error: msg }, { status: /another_admin|state_moved|case_resolved/.test(error.message) ? 409 : 500 });
+    }
+    return NextResponse.json({ ok: true, outcome: data });
+  }
+
   if (body.action !== "review_report") {
     return NextResponse.json({ error: "That is not something this desk does." }, { status: 422 });
   }
-  const note = (body.note ?? "").trim();
   if (!body.reportId || !body.outcome) {
     return NextResponse.json({ error: "Pick the report and what to do with it." }, { status: 422 });
   }

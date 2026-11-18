@@ -5,6 +5,8 @@ import { formatGHS } from "@/lib/money";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import { setupPath } from "@/lib/domains/setup";
 import SetupPath from "@/components/shell/SetupPath";
+import RiskBanner from "@/components/risk/RiskBanner";
+import { riskNotice } from "@/lib/risk/notice";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,10 @@ export default async function Dashboard() {
   // What is still standing between this business and its first sale. Read
   // from real records, so it is right however the merchant got here.
   const workspace = data ? await currentWorkspace().catch(() => null) : null;
+
+  // Ascend limiting the business is the first thing its owner should read
+  // (Risk and Trust R5). Nothing shows below "restricted".
+  const notice = workspace ? await riskNotice(workspace.businessId).catch(() => null) : null;
 
   const path = workspace
     ? await setupPath(
@@ -75,6 +81,7 @@ export default async function Dashboard() {
     <main className="min-h-screen bg-canvas">
       <div className="mx-auto w-full max-w-[1200px] px-5 pb-24 pt-6 sm:px-8 sm:pb-16 sm:pt-7">
         <div className="flex flex-col gap-5 sm:gap-[22px]">
+          {notice && <RiskBanner notice={notice} />}
           {/* Today's one number, on the ground the whole day is read
               against. Everything in here is a fact: an open shift is a
               person at a counter, not a device sitting in a drawer. */}

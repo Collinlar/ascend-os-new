@@ -49,8 +49,13 @@ async function messagingCounts() {
 // What the risk page is waiting on: customer reports and signals.
 async function riskCounts() {
   const db = supabaseServer();
-  const [reports, signals] = await Promise.all([db.rpc("open_customer_reports"), db.rpc("risk_signals")]);
+  const [appeals, reports, signals] = await Promise.all([
+    db.rpc("open_risk_appeals"),
+    db.rpc("open_customer_reports"),
+    db.rpc("risk_signals"),
+  ]);
   return {
+    riskAppeals: Array.isArray(appeals.data) ? appeals.data.length : 0,
     reports: Array.isArray(reports.data) ? reports.data.length : 0,
     signals: Array.isArray(signals.data) ? signals.data.length : 0,
   };
@@ -66,7 +71,7 @@ export default async function Admin() {
     listed: 0,
   }));
   const { deletions, flags } = await messagingCounts().catch(() => ({ deletions: 0, flags: 0 }));
-  const { reports, signals } = await riskCounts().catch(() => ({ reports: 0, signals: 0 }));
+  const { riskAppeals, reports, signals } = await riskCounts().catch(() => ({ riskAppeals: 0, reports: 0, signals: 0 }));
 
   return (
     <PageShell>
@@ -128,13 +133,13 @@ export default async function Admin() {
           <div>
             <p className="text-[17px] font-extrabold tracking-[-0.02em] text-ink">Risk</p>
             <p className="mt-1 text-sm font-medium text-slate-grey">
-              {reports} customer {reports === 1 ? "report" : "reports"} · {signals}{" "}
-              {signals === 1 ? "signal" : "signals"}
+              {riskAppeals} {riskAppeals === 1 ? "appeal" : "appeals"} · {reports} customer{" "}
+              {reports === 1 ? "report" : "reports"} · {signals} {signals === 1 ? "signal" : "signals"}
             </p>
           </div>
-          {reports > 0 ? (
+          {riskAppeals + reports > 0 ? (
             <span className="num rounded-full bg-gold-tint px-3 py-1 text-sm font-extrabold text-gold-ink">
-              {reports} to read
+              {riskAppeals + reports} waiting on you
             </span>
           ) : (
             <span className="text-sm font-bold text-teal-dark">Open</span>

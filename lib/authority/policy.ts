@@ -104,6 +104,10 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "auth/current-business": { POST: member("body") },
   "auth/step-up": { POST: { kind: "session", why: "Confirming a fresh code for a sensitive action" } },
   "business/create": { POST: { kind: "session", why: "Creating a business makes you its owner" } },
+  // Session, not member: a suspended business is refused every change at the
+  // member layer, and its appeal must still get through. The database checks
+  // that the person owns the business.
+  "business/risk-appeal": { POST: { kind: "session", why: "The owner appealing a risk decision; owner checked in the database" } },
 
   // ----- customer-facing, no account -----
   discover: {
@@ -133,7 +137,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "pos/sync": { POST: { kind: "device", why: "Paired till, device token" } },
   "admin/discover": { POST: { kind: "admin", why: "Platform moderation" } },
   "admin/messaging": { POST: { kind: "admin", why: "Completing deletion requests and changing messaging limits" } },
-  "admin/risk": { POST: { kind: "admin", why: "Reviewing customer reports" } },
+  "admin/risk": { POST: { kind: "admin", why: "Reviewing customer reports and deciding appeals" } },
 
   // ----- business setup -----
   "business/product-sets": { POST: member("body", { permission: ["business.settings"] }) },
