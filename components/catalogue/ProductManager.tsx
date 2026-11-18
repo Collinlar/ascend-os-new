@@ -8,7 +8,11 @@ import { prepareImage } from "@/lib/images";
 import type { StockRow } from "@/app/api/catalogue/items/route";
 import { EmptyState, Panel as Surface } from "@/components/shell/Page";
 import Pills from "@/components/shell/Pills";
-import { initials } from "@/components/shop/storefront-parts";
+import { categoryTint, monogram, tileSurface } from "@/lib/pos/tint";
+
+// The design's product table, from 1024px: product, barcode, price, stock,
+// and the row's two actions. Below that each product is a card.
+const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_160px_110px_110px_168px] lg:items-center lg:gap-4";
 
 // The merchant's own view of what they sell. Price, barcode and what is on
 // the shelf, in one list, because those are the three things that go wrong
@@ -360,6 +364,16 @@ export default function ProductManager({
         />
       ) : (
       <Surface>
+      <div
+        aria-hidden
+        className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}
+      >
+        <span>Product</span>
+        <span>Barcode</span>
+        <span className="text-right">Price</span>
+        <span className="text-right">In stock</span>
+        <span />
+      </div>
       {shown.map((row, i) => {
         const noPrice = row.price === null;
         const low =
@@ -370,33 +384,40 @@ export default function ProductManager({
         return (
           <div
             key={row.itemId}
-            className={`${i < shown.length - 1 ? "border-b border-line-soft" : ""} ${
+            className={`${i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"} ${
               row.active ? "" : "opacity-60"
             }`}
           >
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-4">
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3 ${COLS}`}>
+              <div className="flex min-w-0 flex-1 items-center gap-3">
               {row.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={row.photoUrl}
                   alt=""
                   loading="lazy"
-                  className="h-[46px] w-[46px] flex-none rounded-control object-cover"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 flex-none rounded-[10px] object-cover"
                 />
               ) : (
                 <span
                   aria-hidden
-                  className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-control bg-light-grey text-sm font-extrabold tracking-[-0.02em] text-ink-slate"
+                  className="flex h-10 w-10 flex-none items-center justify-center rounded-[10px] text-[11px] font-bold"
+                  style={{ ...tileSurface(row.category), color: categoryTint(row.category)[1] }}
                 >
-                  {initials(row.name)}
+                  {monogram(row.name)}
                 </span>
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-bold leading-snug tracking-[-0.01em] text-ink sm:truncate">
+                <p className="text-[14px] font-semibold leading-snug text-ink sm:truncate">
                   {row.name}
                 </p>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                {row.category && (
+                  <p className="hidden truncate text-xs text-neutral-500 lg:block">{row.category}</p>
+                )}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 lg:hidden">
                   {noPrice ? (
                     // The till hides unpriced items, so say so here rather
                     // than let a merchant wonder where it went.
@@ -437,8 +458,36 @@ export default function ProductManager({
                   )}
                 </div>
               </div>
+              </div>
 
-              <div className="flex w-full flex-none justify-end gap-2 sm:w-auto">
+              {/* Desktop columns. */}
+              <span className="hidden min-w-0 lg:block">
+                <span className="sr-only">Barcode: </span>
+                {row.barcode ? (
+                  <span className="mono block truncate text-[12.5px] text-neutral-600">{row.barcode}</span>
+                ) : (
+                  <span className="rounded-full bg-danger-tint px-2 py-0.5 text-[11.5px] font-bold text-danger-ink">No barcode</span>
+                )}
+              </span>
+              <span className="hidden text-right lg:block">
+                <span className="sr-only">Price: </span>
+                {noPrice ? (
+                  <span className="rounded-full bg-gold-100 px-2 py-0.5 text-[11.5px] font-bold text-gold-700">No price</span>
+                ) : (
+                  <span className="num text-[13.5px] text-ink">{formatGHS(row.price as number)}</span>
+                )}
+              </span>
+              <span
+                className={`num hidden text-right text-[13.5px] lg:block ${
+                  !row.trackStock ? "text-neutral-500" : low ? "font-bold text-gold-700" : "text-ink"
+                }`}
+              >
+                <span className="sr-only">In stock: </span>
+                {row.trackStock ? row.quantityOnHand : "Not counted"}
+                {!row.active && <span className="block text-[11.5px] font-semibold text-neutral-500">Not selling</span>}
+              </span>
+
+              <div className="flex w-full flex-none justify-end gap-2 sm:w-auto lg:w-full">
                 <button
                   onClick={() => openStock(row)}
                   className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale"

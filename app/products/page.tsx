@@ -4,7 +4,8 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import ProductManager from "@/components/catalogue/ProductManager";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import { EmptyState, PageHeader, PageShell, primaryAction } from "@/components/shell/Page";
+import { Icon } from "@/components/shell/icons";
 import type { StockRow } from "@/app/api/catalogue/items/route";
 import { checkPageAccess } from "@/lib/authority/page";
 
@@ -116,13 +117,17 @@ export default async function Products() {
     <PageShell>
       <PageHeader
         title="Products"
-        intro="Set your prices, add barcodes so the till can scan, and keep your counts honest."
+        intro={
+          data.kind === "ok" && data.items.length > 0
+            ? `${data.items.length} ${data.items.length === 1 ? "product" : "products"} · one list for your till${
+                data.sellsOnline ? " and your shop" : ""
+              }`
+            : "Set your prices, add barcodes so the till can scan, and keep your counts honest."
+        }
         action={
           data.kind === "ok" && data.items.length > 0 ? (
-            <Link
-              href="/products/add"
-              className="tap flex items-center justify-center whitespace-nowrap rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
-            >
+            <Link href="/products/add" className={primaryAction}>
+              <Icon name="plus" size={16} />
               Add a product
             </Link>
           ) : null
