@@ -272,6 +272,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
  *  and a cashier PIN through the pos/* routes, not by a browser session. */
 export const PAGE_POLICY: Record<string, MemberRule> = {
   "/orders": { permission: ["orders.manage", "orders.manage_assigned"], capability: ["shop.orders"] },
+  "/sales": { permission: ["sales.view"] },
   "/bookings": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.bookings"] },
   "/services": { permission: ["catalogue.manage"], capability: ["services.bookings"] },
   "/documents": { permission: ["documents.view"], capability: ["documents.issue"] },

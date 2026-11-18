@@ -48,6 +48,14 @@ export interface Workspace {
 // Office gets the same screen through people.core.
 const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
   { href: "/pos", label: "Sell", short: "Sell", icon: "sell", requires: "pos.sell" },
+  {
+    href: "/sales",
+    label: "Sales",
+    short: "Sales",
+    icon: "chart",
+    // Every way a business sells lands in one history.
+    requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
+  },
   { href: "/orders", label: "Orders", short: "Orders", icon: "inbox", requires: "shop.orders" },
   { href: "/bookings", label: "Bookings", short: "Bookings", icon: "calendar", requires: "services.bookings" },
   { href: "/documents", label: "Documents", short: "Documents", icon: "file", requires: "documents.issue" },
