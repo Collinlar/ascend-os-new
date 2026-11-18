@@ -90,3 +90,16 @@ This is your call, because it puts customer phone numbers on a shared device (Da
 - Printing.
 - The second-tab guard.
 - How a stopped till is refused.
+
+## Build status
+
+**Approved 18 November 2026** as recommended, including keeping customer names and phone numbers on the till (decision 3).
+
+**D4a, the engine, 18 November 2026.** `/pos` is now the gates (setup, who is at the till, the shift, a stopped till) and nothing else. The engine is `lib/pos/useTill.ts`; building a sale, its outbox entry and its receipt is one function with no storage or screen in it, `lib/pos/sale.ts`; the selling screen moved unchanged to `components/pos/SellScreen.tsx`. Checked on a throwaway business at localhost: pairing by code, PIN, opening a shift, cash sales online and with every request failing, park, bring back and throw away, and closing a shift. Each sale arrived exactly once, stock fell on the till as it sold.
+
+Found and fixed on the way:
+- **Till sales were never linked to their shift.** The till sends its shift's own reference; `complete_pos_sale` knows how to turn that into the shift, but `lib/domains/pos.ts` never passed it on. So every shift closed on the server expecting only its opening cash: a cashier who counted correctly showed as over by the day's cash takings. On live: 15 till sales, none linked; 9 closed shifts with the wrong expected cash. Fixed in code, no migration. Checked: a shift opened with GHS 50 and a GHS 12 sale now closes at GHS 62 on the till and on the server. The 15 old sales and 9 old shifts are not repaired; that waits on Collins.
+- **A till that had just paired asked whether to pair again**, because the code stayed in the address. It is cleared once pairing succeeds.
+- **Two sends of one sale at the same moment** both missed each other and the second failed on the receipt number, leaving the till showing a refused sale the server already had. `0120_one_send_of_a_sale_at_a_time.sql` makes the database take one send of a sale at a time. 6/6 locally; waiting to be run.
+
+Noted, not changed: the outbox treats any 4xx as permanent, so a 404 from a deploy or CDN hiccup parks a sale or a shift close until someone taps "Try sending them again".

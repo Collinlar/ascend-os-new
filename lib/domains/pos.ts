@@ -49,6 +49,11 @@ export async function completeSale(
       location_id: input.locationId,
       device_id: input.deviceId ?? "",
       shift_id: input.shiftId ?? "",
+      // The till knows its shift only by its own reference. complete_pos_sale
+      // turns that into the shift's id, but it was never passed, so no till
+      // sale was ever linked to its shift and every shift closed expecting
+      // only its opening cash.
+      shift_client_ref: input.shiftClientRef ?? "",
       cashier_membership_id: input.cashierMembershipId ?? "",
       customer_id: input.customerId ?? "",
       subtotal: input.subtotal,

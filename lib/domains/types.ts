@@ -137,6 +137,8 @@ export interface CompleteSaleInput {
   locationId: UUID;
   deviceId?: UUID;
   shiftId?: UUID;
+  /** The till's own reference for its shift, resolved on the server. */
+  shiftClientRef?: string;
   cashierMembershipId?: UUID;
   customerId?: UUID; // optional: anonymous sales allowed (POS-SALE-004)
   subtotal: number;
