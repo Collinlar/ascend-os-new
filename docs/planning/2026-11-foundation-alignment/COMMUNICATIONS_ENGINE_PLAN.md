@@ -74,3 +74,23 @@ The window fix (2.3) goes into C2 once decision 1 is made. Nothing here sends a 
 4. **OTP codes stay outside the engine.** *Recommended:* a sign-in code is between Ascend and the person, not a business and its customer, and must never sit in a merchant's message log. It keeps its own path, documented.
 5. **A daily cap on marketing per business** until the abuse signals have real data. *Recommended: 200 marketing messages per business per day*, raised per business by BVM on request.
 6. **Campaigns, conversations and SMS wait.** *Recommended:* campaigns with the CRM product, conversations with the CSBot, SMS when a business asks for it (the adapter in C4 leaves room).
+
+---
+
+## 5. Build status (18 November 2026)
+
+All five steps built and checked on live with throwaway businesses (webhooks through a local server with test secrets; the admin page with a temporary ZZ admin and moderator, removed afterwards).
+
+| Step | Migration / code | What it did |
+|---|---|---|
+| C1 | 0107; webhooks | Delivery states from WhatsApp and email; every attempt and status on record; undelivered messages refunded once |
+| C2 | 0108; inbound webhook | Window only for the business that last messaged; STOP across businesses; DELETE requests; START switches nothing on |
+| C3 | 0109 | Template versions (approved words never change silently), business-owned templates, the operational class |
+| C4 | `lib/messaging/providers.ts` | One provider interface; 360dialog, Resend, dev; SMS slot |
+| C5 | 0110; admin Messaging page | Daily marketing cap (200), summary, abuse flags, deletion requests for BVM to complete |
+
+Still to come, outside this plan:
+- The app changes need a deploy, then `RESEND_WEBHOOK_SECRET` in Netlify and 360dialog status callbacks pointed at the inbound webhook.
+- Live has no platform admin, so nobody can open the admin area until one is granted.
+- The first operational template (staff approvals) comes with the Office step that sends it.
+- Campaigns with the CRM product; conversation history with the CSBot; SMS when a business asks.
