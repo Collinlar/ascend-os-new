@@ -4,6 +4,7 @@ import { hashAccessToken } from "@/lib/messaging/send";
 import { formatGHS } from "@/lib/money";
 import { lookUpDocumentLink, readTwice } from "@/lib/documents/customer-link";
 import PayButton from "@/components/documents/PayButton";
+import ReportProblem from "@/components/risk/ReportProblem";
 
 export const dynamic = "force-dynamic";
 
@@ -219,6 +220,8 @@ export default async function CustomerDocument({
         >
           Save a copy
         </a>
+
+        <ReportProblem source="invoice" token={params.token} businessName={businessName} />
 
         <p className="mt-8 text-center text-xs text-ink-muted">
           Sent through AscendSME

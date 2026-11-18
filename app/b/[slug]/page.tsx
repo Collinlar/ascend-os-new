@@ -6,6 +6,7 @@ import BookingFlow, {
   type BookableService,
   type Provider,
 } from "@/components/services/BookingFlow";
+import ReportProblem from "@/components/risk/ReportProblem";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +147,10 @@ export default async function BookingPage({
         services={data.services}
         providers={data.providers}
       />
+      {/* Clear of the booking button, which is fixed to the foot of the page. */}
+      <div className="mx-auto max-w-md px-6 pb-36">
+        <ReportProblem source="booking" slug={data.slug} businessName={data.businessName} />
+      </div>
     </main>
   );
 }

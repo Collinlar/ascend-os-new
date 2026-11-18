@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import Storefront, { StorefrontProduct } from "@/components/shop/Storefront";
+import ReportProblem from "@/components/risk/ReportProblem";
 
 export const dynamic = "force-dynamic";
 
@@ -137,11 +138,17 @@ export default async function ShopPage({
   if (!shop) notFound();
 
   return (
-    <Storefront
-      slug={shop.slug}
-      businessName={shop.businessName}
-      city={shop.city}
-      products={shop.products}
-    />
+    <>
+      <Storefront
+        slug={shop.slug}
+        businessName={shop.businessName}
+        city={shop.city}
+        products={shop.products}
+      />
+      {/* Clear of the basket bar, which is fixed to the foot of the page. */}
+      <div className="mx-auto max-w-2xl px-5 pb-28">
+        <ReportProblem source="shop" slug={shop.slug} businessName={shop.businessName} />
+      </div>
+    </>
   );
 }

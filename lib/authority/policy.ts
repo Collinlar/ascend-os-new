@@ -113,6 +113,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "services/book": { POST: { kind: "public", why: "A customer booking" } },
   "services/slots": { GET: { kind: "public", why: "A customer choosing a time" } },
   "shop/orders": { POST: { kind: "public", why: "A customer placing an order" } },
+  report: { POST: { kind: "public", why: "A customer reporting a problem with a business, 3 a day" } },
   "pos/pair": { POST: { kind: "public", why: "A till pairing with a one-time code" } },
 
   // ----- machines -----
@@ -132,6 +133,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "pos/sync": { POST: { kind: "device", why: "Paired till, device token" } },
   "admin/discover": { POST: { kind: "admin", why: "Platform moderation" } },
   "admin/messaging": { POST: { kind: "admin", why: "Completing deletion requests and changing messaging limits" } },
+  "admin/risk": { POST: { kind: "admin", why: "Reviewing customer reports" } },
 
   // ----- business setup -----
   "business/product-sets": { POST: member("body", { permission: ["business.settings"] }) },

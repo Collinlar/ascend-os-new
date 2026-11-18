@@ -59,3 +59,16 @@ Built and tested as before: local Postgres with every migration replayed, then t
 5. **What the business sees.** *Recommended:* restricted and suspended are shown to the owner with the reason and an appeal route (spec 14). Monitor and review are never shown: telling someone they are being watched for fraud tells the fraudster to stop leaving evidence.
 6. **Customer reports.** *Recommended:* a short "Report a problem with this business" link on the invoice page, the shop and receipts. No sign-in, the customer's number optional, limited to 3 reports per number or device a day. A report is a signal, never a verdict.
 7. **No public trust labels yet.** *Recommended:* no "Verified" or "Trusted" badge anywhere until there is a written policy for what earns one; when there is, it can never come from paying for Discover promotion (spec 8).
+
+## 6. Build status
+
+| Step | Migration | Status |
+|---|---|---|
+| R1 Risk states and cases | 0111 | Run on live 18 Nov 2026, checked with a throwaway business, committed |
+| R2 Targeted restrictions | 0112 | Run on live, each restriction refused exactly its action, committed (payment route change waits for a deploy) |
+| R3 Signals | 0113 | Run on live, read only. On real businesses only the three "Adjoa Provisions" show, as likely duplicates |
+| R4 Customer reports | 0114 | Run on live, 13/13 through the real route on a throwaway business. Report link on the invoice, shop and booking pages; Risk page in the admin area. App code waits for a deploy |
+| R5 Appeals and what the business sees | | Next |
+| R6 The Risk desk | | After R5; grows the R4 Risk page |
+
+Receipts: a receipt sent to a customer opens on the same document page as an invoice, so it carries the report link too.
