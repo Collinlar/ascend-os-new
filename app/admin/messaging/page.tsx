@@ -122,7 +122,7 @@ export default async function AdminMessaging() {
             {flags.map((f, i) => (
               <div
                 key={`${f.business_id}-${f.flag}`}
-                className={`px-5 py-4 ${i < flags.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                className={`px-5 py-4 ${i < flags.length - 1 ? "border-b border-line-soft" : ""}`}
               >
                 <p className="text-[15px] font-bold text-ink">{f.business_name}</p>
                 <p className="mt-0.5 text-sm font-semibold text-gold-ink">{FLAG_LABEL[f.flag] ?? f.flag}</p>
@@ -144,7 +144,7 @@ export default async function AdminMessaging() {
             {summary.map((s, i) => (
               <div
                 key={s.business_id}
-                className={`px-5 py-4 ${i < summary.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                className={`px-5 py-4 ${i < summary.length - 1 ? "border-b border-line-soft" : ""}`}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[15px] font-bold text-ink">{s.business_name}</p>

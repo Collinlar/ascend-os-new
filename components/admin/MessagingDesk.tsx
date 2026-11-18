@@ -89,7 +89,7 @@ export default function MessagingDesk({
             {requests.map((r, i) => (
               <div
                 key={r.requestId}
-                className={`px-5 py-4 ${i < requests.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                className={`px-5 py-4 ${i < requests.length - 1 ? "border-b border-line-soft" : ""}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">

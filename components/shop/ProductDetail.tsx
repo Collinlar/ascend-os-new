@@ -83,12 +83,12 @@ export default function ProductDetail({
             <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden className="flex-none">
               <path
                 d="M1 6h11v8H1zM12 8h4l3 3v3h-7z"
-                stroke="#0B6F65"
+                stroke="#006B62"
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
-              <circle cx="5" cy="16" r="1.8" stroke="#0B6F65" strokeWidth="1.5" />
-              <circle cx="15" cy="16" r="1.8" stroke="#0B6F65" strokeWidth="1.5" />
+              <circle cx="5" cy="16" r="1.8" stroke="#006B62" strokeWidth="1.5" />
+              <circle cx="15" cy="16" r="1.8" stroke="#006B62" strokeWidth="1.5" />
             </svg>
             <p className="text-[12.5px] font-medium leading-snug text-ink-muted">
               Collect it yourself, or ask for delivery at checkout. The shop

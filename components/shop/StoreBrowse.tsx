@@ -131,13 +131,13 @@ export default function StoreBrowse({
                 aria-hidden
                 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2"
               >
-                <circle cx="7" cy="7" r="5" stroke="#8FA3B1" strokeWidth="1.6" />
+                <circle cx="7" cy="7" r="5" stroke="#9CA3AF" strokeWidth="1.6" />
                 <line
                   x1="11"
                   y1="11"
                   x2="14.5"
                   y2="14.5"
-                  stroke="#8FA3B1"
+                  stroke="#9CA3AF"
                   strokeWidth="1.6"
                   strokeLinecap="round"
                 />

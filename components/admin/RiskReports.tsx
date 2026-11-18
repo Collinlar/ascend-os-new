@@ -81,7 +81,7 @@ export default function RiskReports({ reports, canAct }: { reports: ReportRow[];
         const outcomes: Outcome[] = r.openCaseId ? ["add_to_case", "open_case", "dismiss"] : ["open_case", "dismiss"];
         const mine = working?.id === r.reportId;
         return (
-          <div key={r.reportId} className={`px-5 py-4 ${i < reports.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+          <div key={r.reportId} className={`px-5 py-4 ${i < reports.length - 1 ? "border-b border-line-soft" : ""}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-[15px] font-bold text-ink">{r.businessName}</p>
               <p className="text-sm font-medium text-slate-grey">{WHEN.format(new Date(r.reportedAt))}</p>

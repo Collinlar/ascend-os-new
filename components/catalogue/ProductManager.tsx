@@ -370,7 +370,7 @@ export default function ProductManager({
         return (
           <div
             key={row.itemId}
-            className={`${i < shown.length - 1 ? "border-b border-[#EEF3F7]" : ""} ${
+            className={`${i < shown.length - 1 ? "border-b border-line-soft" : ""} ${
               row.active ? "" : "opacity-60"
             }`}
           >
@@ -455,7 +455,7 @@ export default function ProductManager({
             </div>
 
             {open === row.itemId && panel === "edit" && (
-              <div className="space-y-3 border-t border-[#EEF3F7] bg-[#F6F9FB] px-[22px] py-4">
+              <div className="space-y-3 border-t border-line-soft bg-surface px-[22px] py-4">
                 {/* Photo, replaceable. A blurred shot used to be permanent. */}
                 <div className="flex items-center gap-3">
                   {newPhoto?.preview ?? row.photoUrl ? (
@@ -552,7 +552,7 @@ export default function ProductManager({
                 {/* Only a business with Shop sees any of this. */}
                 {sellsOnline && (
                   <div className="space-y-3 rounded-panel bg-light-grey p-3">
-                    <p className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+                    <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
                       On your Shop
                     </p>
 
@@ -626,7 +626,7 @@ export default function ProductManager({
             )}
 
             {open === row.itemId && panel === "stock" && (
-              <div className="space-y-3 border-t border-[#EEF3F7] bg-[#F6F9FB] px-[22px] py-4">
+              <div className="space-y-3 border-t border-line-soft bg-surface px-[22px] py-4">
                 <div className="flex flex-wrap gap-2">
                   {(
                     [

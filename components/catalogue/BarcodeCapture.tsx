@@ -147,7 +147,7 @@ export default function BarcodeCapture({
           </p>
         )}
 
-        <label htmlFor="typed-code" className="mono text-[11px] uppercase tracking-eyebrow text-white/50">
+        <label htmlFor="typed-code" className="text-[11px] font-semibold uppercase tracking-eyebrow text-white/50">
           {manualOnly ? "Barcode number" : "Or type it instead"}
         </label>
         <div className="mt-2 flex gap-2">

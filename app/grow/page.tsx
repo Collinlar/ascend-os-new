@@ -48,7 +48,7 @@ export default async function Grow() {
 
           {available.map((option) => (
             <section key={option.key} className="border border-line bg-white p-5">
-              <p className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+              <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
                 {option.suits}
               </p>
               <h2 className="mt-2 text-lg font-semibold text-ink">{option.name}</h2>

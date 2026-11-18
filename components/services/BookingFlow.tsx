@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatGHS } from "@/lib/money";
 import { newClientRef } from "@/lib/ids";
+import { TILE_TINTS } from "@/lib/brand/tints";
 
 // Customer Web booking, built on the Ascend Services design.
 //
@@ -38,14 +39,7 @@ interface Slot {
 type Step = "services" | "service" | "time" | "staff" | "details" | "done";
 
 // Deterministic tint, so the same service is the same colour every visit.
-const TINTS = [
-  { bg: "#F0EAF6", ink: "#6B4F8F" },
-  { bg: "#E4F0EC", ink: "#0B6F65" },
-  { bg: "#FBEFD8", ink: "#9A6207" },
-  { bg: "#E7EEF6", ink: "#3F6494" },
-  { bg: "#FBECE8", ink: "#B0453A" },
-  { bg: "#EEF3F7", ink: "#33506A" },
-];
+const TINTS = TILE_TINTS;
 
 function tintFor(seed: string) {
   let n = 0;
@@ -218,7 +212,7 @@ export default function BookingFlow({
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
               <polyline
                 points="5,12.5 10,17.5 19,7"
-                stroke="#0D8377"
+                stroke="#007A6F"
                 strokeWidth="2.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -361,7 +355,7 @@ export default function BookingFlow({
                   <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
                     <polyline
                       points="1,1 7.5,7.5 1,14"
-                      stroke="#C4D2DC"
+                      stroke="#BFC5CD"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -517,10 +511,10 @@ export default function BookingFlow({
           {slot && (
             <div className="mt-4 flex gap-3 rounded-panel border border-teal-pale bg-teal-light px-3.5 py-3.5">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
-                <circle cx="12" cy="12" r="9.2" stroke="#0B6F65" strokeWidth="1.5" />
+                <circle cx="12" cy="12" r="9.2" stroke="#006B62" strokeWidth="1.5" />
                 <path
                   d="M12 7.4V12l3 1.8"
-                  stroke="#0B6F65"
+                  stroke="#006B62"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -655,7 +649,7 @@ function Header({
         <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
           <polyline
             points="7.5,1 1,7.5 7.5,14"
-            stroke="#33506A"
+            stroke="#374151"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -748,11 +742,11 @@ function Choice({
           className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-light-grey"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="9" cy="9" r="3.2" stroke="#5A7184" strokeWidth="1.6" />
-            <circle cx="16" cy="10" r="2.6" stroke="#5A7184" strokeWidth="1.6" />
+            <circle cx="9" cy="9" r="3.2" stroke="#646E7C" strokeWidth="1.6" />
+            <circle cx="16" cy="10" r="2.6" stroke="#646E7C" strokeWidth="1.6" />
             <path
               d="M3.5 18c.4-2.6 2.4-4 5.5-4s5.1 1.4 5.5 4"
-              stroke="#5A7184"
+              stroke="#646E7C"
               strokeWidth="1.6"
               strokeLinecap="round"
             />

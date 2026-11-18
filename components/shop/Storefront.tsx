@@ -165,13 +165,13 @@ export default function Storefront({ slug, businessName, city, products }: Props
               <svg width="19" height="19" viewBox="0 0 22 22" fill="none" aria-hidden>
                 <path
                   d="M3 3h2l1.5 11.5a1.5 1.5 0 0 0 1.5 1.3h8.3a1.5 1.5 0 0 0 1.5-1.2L19 7H6"
-                  stroke="#33506A"
+                  stroke="#374151"
                   strokeWidth="1.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                <circle cx="9" cy="19" r="1.4" fill="#33506A" />
-                <circle cx="16.5" cy="19" r="1.4" fill="#33506A" />
+                <circle cx="9" cy="19" r="1.4" fill="#374151" />
+                <circle cx="16.5" cy="19" r="1.4" fill="#374151" />
               </svg>
               {itemCount > 0 && (
                 <span className="num absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-teal px-1 text-[10px] font-extrabold text-white">

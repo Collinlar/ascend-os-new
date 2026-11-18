@@ -40,7 +40,7 @@ export default function Basket({
             <svg width="28" height="28" viewBox="0 0 22 22" fill="none" aria-hidden>
               <path
                 d="M3 3h2l1.5 11.5a1.5 1.5 0 0 0 1.5 1.3h8.3a1.5 1.5 0 0 0 1.5-1.2L19 7H6"
-                stroke="#93A7B4"
+                stroke="#9CA3AF"
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"

@@ -1,14 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { Inter, Outfit, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
 // Self-hosted at build time by next/font, so the identity typefaces cost no
 // external request and cause no layout shift. That keeps the Ghanaian
 // mobile performance budget intact while still using the brand faces.
-const hanken = Hanken_Grotesk({
+// The v3 design's faces: Inter for body and UI, Outfit for headings. Both
+// are variable fonts, so every weight comes from one file each.
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-hanken",
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -43,7 +50,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0B1D2E",
+  themeColor: "#0A0E1A",
   // A till is held, tapped and sometimes knocked. Pinch zoom on a selling
   // grid only ever happens by accident, and a zoomed-in till mid-queue is
   // a cashier fighting the tool.
@@ -62,7 +69,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${hanken.variable} ${plexMono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${outfit.variable} ${plexMono.variable}`}>
       <body>
         {/* One navigation for every workspace surface. It renders nothing
             when signed out, and nothing on the till or the public pages. */}

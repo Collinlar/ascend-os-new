@@ -116,7 +116,7 @@ export default function SignInForm() {
   return (
     <main className="min-h-screen bg-white">
       <div className="mx-auto max-w-md px-5 pb-24 pt-14">
-        <Link href="/" className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+        <Link href="/" className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
           AscendSME
         </Link>
 

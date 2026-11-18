@@ -136,8 +136,8 @@ export default function Checkout({
             number wants to know what happens to their money first. */}
         <div className="flex gap-3 rounded-panel border border-line bg-teal-light px-4 py-3.5">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
-            <rect x="4.5" y="10.5" width="15" height="10" rx="2.2" stroke="#0B6F65" strokeWidth="1.6" />
-            <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="#0B6F65" strokeWidth="1.6" />
+            <rect x="4.5" y="10.5" width="15" height="10" rx="2.2" stroke="#006B62" strokeWidth="1.6" />
+            <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="#006B62" strokeWidth="1.6" />
           </svg>
           <p className="text-[12.5px] font-medium leading-snug text-teal-dark">
             You pay nothing now. {businessName} messages you on WhatsApp to

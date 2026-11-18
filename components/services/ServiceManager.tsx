@@ -231,7 +231,7 @@ export default function ServiceManager({
             <div
               key={row.id}
               className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-4 ${
-                i < rows.length - 1 ? "border-b border-[#EEF3F7]" : ""
+                i < rows.length - 1 ? "border-b border-line-soft" : ""
               } ${row.active ? "" : "opacity-60"}`}
             >
               <div className="min-w-0 flex-1">

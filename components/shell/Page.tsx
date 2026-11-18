@@ -76,7 +76,7 @@ export function PanelRow({
   return (
     <div
       className={`flex items-center gap-4 px-[22px] py-4 ${
-        last ? "" : "border-b border-[#EEF3F7]"
+        last ? "" : "border-b border-line-soft"
       } ${className}`}
     >
       {children}

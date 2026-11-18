@@ -166,7 +166,7 @@ export default function AvailabilityEditor({
           {days.map((day) => (
             <div
               key={day.dayOfWeek}
-              className="flex flex-wrap items-center gap-3 border-b border-[#EEF3F7] py-2.5 last:border-0"
+              className="flex flex-wrap items-center gap-3 border-b border-line-soft py-2.5 last:border-0"
             >
               <button
                 onClick={() => updateDay(day.dayOfWeek, { closed: !day.closed })}

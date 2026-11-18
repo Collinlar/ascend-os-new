@@ -167,7 +167,7 @@ export default async function AdminRisk() {
               <Link
                 key={c.id}
                 href={`/admin/risk/cases/${c.id}`}
-                className={`tap block border-l-4 border-l-gold-rule px-5 py-4 hover:bg-light-grey ${i < waiting.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                className={`tap block border-l-4 border-l-gold-rule px-5 py-4 hover:bg-light-grey ${i < waiting.length - 1 ? "border-b border-line-soft" : ""}`}
               >
                 <p className="text-[15px] font-bold text-ink">{c.business?.name}</p>
                 <p className="mt-0.5 text-sm font-semibold text-gold-ink">
@@ -206,7 +206,7 @@ export default async function AdminRisk() {
                 <Link
                   key={c.id}
                   href={`/admin/risk/cases/${c.id}`}
-                  className={`tap block px-5 py-4 hover:bg-light-grey ${i < open.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                  className={`tap block px-5 py-4 hover:bg-light-grey ${i < open.length - 1 ? "border-b border-line-soft" : ""}`}
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-[15px] font-bold text-ink">{c.business?.name}</p>
@@ -241,7 +241,7 @@ export default async function AdminRisk() {
             {signals.map((s, i) => (
               <div
                 key={`${s.business_id}-${s.signal}`}
-                className={`px-5 py-4 ${i < signals.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}
+                className={`px-5 py-4 ${i < signals.length - 1 ? "border-b border-line-soft" : ""}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="text-[15px] font-bold text-ink">{s.business_name}</p>

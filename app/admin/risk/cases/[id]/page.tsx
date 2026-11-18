@@ -141,7 +141,7 @@ export default async function RiskCase({ params }: { params: { id: string } }) {
             </h2>
             <Panel>
               {appeals.map((a, i) => (
-                <div key={a.id} className={`px-5 py-4 ${i < appeals.length + reports.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+                <div key={a.id} className={`px-5 py-4 ${i < appeals.length + reports.length - 1 ? "border-b border-line-soft" : ""}`}>
                   <p className="text-sm font-semibold text-gold-ink">
                     Appeal, {a.status}, {WHEN.format(new Date(a.submitted_at))}
                   </p>
@@ -155,7 +155,7 @@ export default async function RiskCase({ params }: { params: { id: string } }) {
                 </div>
               ))}
               {reports.map((r, i) => (
-                <div key={r.id} className={`px-5 py-4 ${appeals.length + i < appeals.length + reports.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+                <div key={r.id} className={`px-5 py-4 ${appeals.length + i < appeals.length + reports.length - 1 ? "border-b border-line-soft" : ""}`}>
                   <p className="text-sm font-semibold text-gold-ink">Customer report, {WHEN.format(new Date(r.created_at))}</p>
                   {r.detail && <p className="mt-1 whitespace-pre-line text-sm text-ink">&ldquo;{r.detail}&rdquo;</p>}
                 </div>
@@ -170,7 +170,7 @@ export default async function RiskCase({ params }: { params: { id: string } }) {
           </h2>
           <Panel>
             {events.map((e, i) => (
-              <div key={e.id} className={`px-5 py-3 ${i < events.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+              <div key={e.id} className={`px-5 py-3 ${i < events.length - 1 ? "border-b border-line-soft" : ""}`}>
                 <p className="text-sm font-bold text-ink">
                   {EVENT_LABEL[e.action] ?? e.action}
                   {e.action.startsWith("restriction") && e.to_state ? `: ${CONTROL_LABEL[e.to_state] ?? e.to_state}` : ""}

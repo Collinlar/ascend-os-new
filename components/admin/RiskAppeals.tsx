@@ -74,7 +74,7 @@ export default function RiskAppeals({ appeals, canAct }: { appeals: AppealRow[];
   return (
     <Panel>
       {appeals.map((a, i) => (
-        <div key={a.appealId} className={`px-5 py-4 ${i < appeals.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+        <div key={a.appealId} className={`px-5 py-4 ${i < appeals.length - 1 ? "border-b border-line-soft" : ""}`}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-[15px] font-bold text-ink">{a.businessName}</p>
             <p className="text-sm font-medium text-slate-grey">{WHEN.format(new Date(a.submittedAt))}</p>

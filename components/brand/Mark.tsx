@@ -11,7 +11,7 @@ export function Mark({
 }) {
   const dot = Math.round(size * 0.19);
   const gap = Math.round(size * 0.09);
-  const dotColour = tone === "white" ? "#0D8377" : "#FFFFFF";
+  const dotColour = tone === "white" ? "#00A99D" : "#FFFFFF";
 
   return (
     <span
@@ -21,7 +21,7 @@ export function Mark({
         width: size,
         height: size,
         borderRadius: Math.round(size * 0.31),
-        background: tone === "white" ? "#FFFFFF" : "#0D8377",
+        background: tone === "white" ? "#FFFFFF" : "#00A99D",
       }}
     >
       <span
@@ -87,7 +87,7 @@ export function Eyebrow({
         : "text-teal-dark";
   return (
     <p
-      className={`mono text-[11.5px] font-medium uppercase tracking-eyebrow ${colour}`}
+      className={`text-[11px] font-semibold uppercase tracking-eyebrow ${colour}`}
     >
       {children}
     </p>

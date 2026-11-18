@@ -1,6 +1,7 @@
 "use client";
 
 import { formatGHS } from "@/lib/money";
+import { TILE_TINTS } from "@/lib/brand/tints";
 
 // Discover results, built on the Ascend Discover design.
 //
@@ -25,14 +26,7 @@ export interface DiscoverRow {
   shop_slug?: string | null;
 }
 
-const TINTS = [
-  { bg: "#F0EAF6", ink: "#6B4F8F" },
-  { bg: "#E4F0EC", ink: "#0B6F65" },
-  { bg: "#FBEFD8", ink: "#9A6207" },
-  { bg: "#E7EEF6", ink: "#3F6494" },
-  { bg: "#FBECE8", ink: "#B0453A" },
-  { bg: "#EEF3F7", ink: "#33506A" },
-];
+const TINTS = TILE_TINTS;
 
 function tintFor(seed: string) {
   let n = 0;

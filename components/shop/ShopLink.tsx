@@ -24,7 +24,7 @@ export default function ShopLink({
 
   return (
     <section className="border border-line bg-white p-5">
-      <p className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+      <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
         Your shop address
       </p>
       <h2 className="mt-2 text-lg font-semibold text-ink">

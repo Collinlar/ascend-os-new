@@ -92,7 +92,7 @@ export default async function Dashboard() {
               className="pointer-events-none absolute -right-[60px] -top-[70px] h-[280px] w-[280px] rounded-full"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(14,140,127,.35), rgba(14,140,127,0) 70%)",
+                  "radial-gradient(circle, rgba(0,169,157,.35), rgba(0,169,157,0) 70%)",
               }}
             />
             <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center sm:gap-9">

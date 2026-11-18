@@ -136,7 +136,7 @@ export default function ModerationQueue({ rows }: { rows: ModerationRow[] }) {
             <div
               key={row.listingId}
               className={`px-[22px] py-4 ${
-                i < shown.length - 1 ? "border-b border-[#EEF3F7]" : ""
+                i < shown.length - 1 ? "border-b border-line-soft" : ""
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
@@ -227,7 +227,7 @@ export default function ModerationQueue({ rows }: { rows: ModerationRow[] }) {
               </div>
 
               {openFor === row.listingId && (
-                <div className="mt-3 rounded-panel bg-[#F6F9FB] px-4 py-3.5">
+                <div className="mt-3 rounded-panel bg-surface px-4 py-3.5">
                   <label
                     htmlFor={`reason-${row.listingId}`}
                     className="text-xs font-bold text-ink-muted"

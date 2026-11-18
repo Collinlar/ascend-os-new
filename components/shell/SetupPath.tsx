@@ -15,7 +15,7 @@ export default function SetupPath({ path }: { path: Path }) {
 
   return (
     <section className="mb-6 rounded-card border border-line bg-white p-5">
-      <p className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+      <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
         Getting you selling
       </p>
       <h2 className="mt-2 text-lg font-semibold text-ink">

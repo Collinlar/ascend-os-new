@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0B1D2E",
+  themeColor: "#0A0E1A",
 };
 
 // Customer Web booking page, opened from a WhatsApp link or QR code. No

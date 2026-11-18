@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0F2438",
+  themeColor: "#0F172A",
 };
 
 interface ShopData {

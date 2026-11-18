@@ -75,7 +75,7 @@ export default function Home() {
               href={path.href}
               className="tap group flex flex-col rounded-card border border-line bg-white p-6 shadow-card transition-colors hover:border-teal"
             >
-              <span className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+              <span className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
                 {path.set}
               </span>
               <span className="mt-2.5 text-[19px] font-extrabold tracking-[-0.015em] text-ink">

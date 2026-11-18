@@ -349,7 +349,7 @@ export default function ScanSheet({
         {/* Typing the number always works, whatever the device can do */}
         {(phase === "manual" || phase === "scanning") && (
           <div className={phase === "manual" ? "" : "mt-4"}>
-            <label htmlFor="code" className="mono text-[11px] uppercase tracking-eyebrow text-white/50">
+            <label htmlFor="code" className="text-[11px] font-semibold uppercase tracking-eyebrow text-white/50">
               Or type the barcode number
             </label>
             <div className="mt-2 flex gap-2">

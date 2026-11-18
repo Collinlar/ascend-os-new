@@ -61,7 +61,7 @@ export default function OrderPlaced({
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden>
             <polyline
               points="5,12.5 10,17.5 19,7"
-              stroke="#0B6F65"
+              stroke="#006B62"
               strokeWidth="2.6"
               strokeLinecap="round"
               strokeLinejoin="round"

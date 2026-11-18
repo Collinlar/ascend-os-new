@@ -16,7 +16,7 @@ import { PageShell, Panel } from "./Page";
 // The shimmer is defined once, in globals.css, so every skeleton on every
 // screen moves at the same speed. Motion here is doing a job, which is to
 // distinguish a screen that is loading from a screen that is empty.
-const BAR = "animate-pulse rounded-[6px] bg-[#E7EDF3]";
+const BAR = "animate-pulse rounded-[6px] bg-line";
 
 export function SkeletonBar({
   w = "w-32",
@@ -53,7 +53,7 @@ export function SkeletonRows({ rows = 6 }: { rows?: number }) {
         <div
           key={i}
           className={`flex items-center gap-4 px-[22px] py-4 ${
-            i === rows - 1 ? "" : "border-b border-[#EEF3F7]"
+            i === rows - 1 ? "" : "border-b border-line-soft"
           }`}
         >
           <SkeletonBar w="w-[46px]" h="h-[46px]" className="flex-none rounded-control" />

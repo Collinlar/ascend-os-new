@@ -190,7 +190,7 @@ function OrderCard({
         </div>
       </div>
 
-      <ul className="mx-[22px] flex flex-col gap-1.5 rounded-[13px] bg-[#F6F9FB] px-4 py-3.5">
+      <ul className="mx-[22px] flex flex-col gap-1.5 rounded-[13px] bg-surface px-4 py-3.5">
         {order.lines.map((line, i) => (
           <li key={i} className="text-[13.5px] font-medium text-ink-slate">
             <span className="num font-bold text-ink">{line.quantity} ×</span>{" "}

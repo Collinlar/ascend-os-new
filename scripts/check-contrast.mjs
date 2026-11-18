@@ -72,7 +72,8 @@ function readPalette() {
 
   const body = src.slice(open + 1, end);
   const out = {};
-  const entry = /(?:"([^"]+)"|([A-Za-z_][\w-]*))\s*:\s*(?:"(#[0-9A-Fa-f]{3,8})"|\{)/g;
+  // Keys may be numbers too (teal-500, neutral-200), the design's own scale.
+  const entry = /(?:"([^"]+)"|([A-Za-z0-9_][\w-]*))\s*:\s*(?:"(#[0-9A-Fa-f]{3,8})"|\{)/g;
   let m;
 
   while ((m = entry.exec(body))) {
@@ -88,7 +89,7 @@ function readPalette() {
       else if (body[i] === "}") d -= 1;
     }
     const inner = body.slice(entry.lastIndex, i - 1);
-    const leaf = /(?:"([^"]+)"|([A-Za-z_][\w-]*))\s*:\s*"(#[0-9A-Fa-f]{3,8})"/g;
+    const leaf = /(?:"([^"]+)"|([A-Za-z0-9_][\w-]*))\s*:\s*"(#[0-9A-Fa-f]{3,8})"/g;
     let n;
     while ((n = leaf.exec(inner))) {
       const sub = n[1] ?? n[2];

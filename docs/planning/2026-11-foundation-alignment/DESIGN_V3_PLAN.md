@@ -72,3 +72,16 @@ Rules that hold throughout:
 5. **Things the design shows that Ascend does not have.** *Recommended:* left out until built, never shown with sample data. Reports and Money are worth building during D3, from data Ascend already holds. Settlements wait for Phase 3; Inventory for its plan; the accountant view for a decision on whether accountants get a role or keep using sharing.
 6. **Order.** *Recommended:* D1 and D2 first and together, then D3 (the business's own screens, where owners spend their day), D4 (the tills, the riskiest because of offline), then D5, D6 and D7. The website (D6) can move earlier if a launch or campaign needs it.
 7. **The phone designs.** *Recommended:* built as the phone-width layout of the one web app, installable from the browser as it is today, not as a separate native app.
+
+## 6. Build status
+
+Decisions 1 to 7 approved by Collins, 18 November 2026. CLAUDE.md section 4 updated to the v3 colour system and type the same day.
+
+**D1 built, 18 November 2026 (not deployed; ships with D2).**
+- Every existing token name carries a v3 value (`tailwind.config.ts`), and the design's own scale sits alongside (`teal-500`, `neutral-200`, `gold-100`, `success`, `tier`…), mirrored as CSS variables in `app/globals.css`.
+- Action teal `#007A6F`, brand teal `#00A99D` for marks only, muted text `#646E7C`. Ink on the brand teal is `#002B26` (5.2:1), darker than the design's teal-900, which read at 3.63.
+- Outfit (headings and display sizes) and Inter (everything else) self-hosted through `next/font`; Hanken Grotesk removed. The preloaded Latin files are about 80 KB together.
+- 16px cards, 12px controls, teal-tinted shadows; eyebrows in Inter at 0.18em instead of monospace.
+- Hard-coded colours gone except WhatsApp's own green and merchant-chosen document colours. The repeated tile palettes now live in `lib/brand/tints.ts`; the till's category tints are redrawn from the design.
+- `npm run check:contrast` reads the numeric tokens too: 113 files, 92 tokens, 0 failures. Production build passes.
+- Checked in the browser at 375px and desktop on a throwaway business (dashboard, products) and on the website, a live shop and Discover. One bug found and fixed: a global heading colour turned the website's white headline on navy dark.

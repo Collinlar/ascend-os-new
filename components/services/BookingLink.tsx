@@ -26,7 +26,7 @@ export default function BookingLink({
 
   return (
     <section className="rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
-      <p className="mono text-[11px] uppercase tracking-eyebrow text-teal-dark">
+      <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
         Your booking page
       </p>
       <h2 className="mt-2 text-lg font-extrabold tracking-[-0.02em] text-ink">

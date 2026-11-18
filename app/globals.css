@@ -2,37 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AscendSME design identity. Colours mirror tailwind.config.ts so plain CSS
-   and utility classes cannot drift apart. */
+/* AscendSME design identity (v3). Colours mirror tailwind.config.ts so
+   plain CSS and utility classes cannot drift apart. The names follow the
+   design system's own tokens, so a screen built from the design can use
+   them as written. */
 :root {
-  --navy: #0b1d2e;
-  --ink: #102a43;
-  --teal: #0d8377;
-  --teal-dark: #0b6f65;
-  --teal-mint: #5bc7b8;
-  --mid-grey: #6b8091;
-  --page: #dce4eb;
-  --line: #e2ebf0;
+  --navy: #0a0e1a;
+  --navy-900: #0a0e1a;
+  --ink: #111827;
+  --ink-heading: #121212;
+  --teal: #007a6f;
+  --teal-dark: #006b62;
+  --teal-mint: #4fc3b5;
+  --teal-50: #eefcf9;
+  --teal-500: #00a99d;
+  --teal-700: #006b62;
+  --teal-800: #005f57;
+  --gold-100: #fef3e2;
+  --gold-500: #e8a020;
+  --gold-700: #633806;
+  --neutral-100: #f3f4f6;
+  --neutral-200: #e5e7eb;
+  --neutral-500: #646e7c;
+  --mid-grey: #646e7c;
+  --bg-app: #f4f5f7;
+  --page: #e5e7eb;
+  --line: #e5e7eb;
+  --font-heading: var(--font-outfit), var(--font-inter), system-ui, sans-serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html {
-  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 body {
   color: var(--ink);
   background: #ffffff;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Headlines are set tight and balanced; body copy is set for reading. */
+/* Headlines in Outfit, set tight and balanced; body copy in Inter, set for
+   reading. The display sizes are headings too, wherever they appear. */
 h1,
 h2,
-h3 {
+h3,
+h4,
+.text-display,
+.text-headline,
+.text-title {
+  font-family: var(--font-heading);
   text-wrap: balance;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
+/* No colour here on purpose: a heading inherits from the section it sits
+   in, so white on a navy band stays white. */
 
 p {
   text-wrap: pretty;
@@ -49,15 +76,15 @@ p {
   font-family: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-/* The eyebrow: small, mono, spaced, uppercase. Used above headlines to say
-   which part of the platform you are in. */
+/* The eyebrow: small, spaced, uppercase. Used above headlines to say which
+   part of the platform you are in. */
 .eyebrow {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--teal-dark);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Horizontal rails are scrolled with a thumb, so the scrollbar is a strip

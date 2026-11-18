@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { EmptyState } from "@/components/shell/Page";
+import { PROVIDER_TINTS } from "@/lib/brand/tints";
 
 // The provider's schedule, built on the Ascend Services merchant design.
 //
@@ -55,13 +56,7 @@ const OPEN = ["requested", "quoted", "confirmed", "in_progress"];
 const WAITING = ["requested", "quoted"];
 
 // One colour per provider, so a week reads by who rather than by squinting.
-const PROVIDER_COLOURS = [
-  { bg: "#E4F0EC", ink: "#0B6F65" },
-  { bg: "#E7EEF6", ink: "#3F6494" },
-  { bg: "#F0EAF6", ink: "#6B4F8F" },
-  { bg: "#FBEFD8", ink: "#8A5710" },
-  { bg: "#FBECE4", ink: "#A44A26" },
-];
+const PROVIDER_COLOURS = PROVIDER_TINTS;
 
 const DAY_MS = 86_400_000;
 
@@ -242,7 +237,7 @@ export default function BookingList({
         </div>
 
         <div className="flex overflow-hidden rounded-panel border border-line-soft bg-white">
-          <div className="w-14 flex-none border-r border-[#EEF3F7] pt-11">
+          <div className="w-14 flex-none border-r border-line-soft pt-11">
             {Array.from({ length: week.to - week.from }, (_, i) => (
               <div key={i} className="relative" style={{ height: hourHeight }}>
                 <span className="num absolute -top-2 right-2.5 text-[10.5px] font-semibold text-slate-grey">
@@ -260,9 +255,9 @@ export default function BookingList({
                   new Date(b.scheduledStart as string).toDateString() === day.toDateString()
               );
               return (
-                <div key={day.toISOString()} className="flex-1 border-r border-[#EEF3F7] last:border-r-0">
+                <div key={day.toISOString()} className="flex-1 border-r border-line-soft last:border-r-0">
                   <div
-                    className={`flex h-11 flex-col items-center justify-center border-b border-[#EEF3F7] ${
+                    className={`flex h-11 flex-col items-center justify-center border-b border-line-soft ${
                       today ? "bg-teal-light" : ""
                     }`}
                   >
@@ -289,7 +284,7 @@ export default function BookingList({
                     {Array.from({ length: week.to - week.from }, (_, i) => (
                       <div
                         key={i}
-                        className="border-b border-[#F4F8FA]"
+                        className="border-b border-surface"
                         style={{ height: hourHeight }}
                       />
                     ))}
@@ -624,7 +619,7 @@ function Arrow({
       <svg width="7" height="12" viewBox="0 0 9 15" fill="none" aria-hidden>
         <polyline
           points={direction === "back" ? "7.5,1 1,7.5 7.5,14" : "1,1 7.5,7.5 1,14"}
-          stroke="#5A7184"
+          stroke="#646E7C"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"

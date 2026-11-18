@@ -1,4 +1,4 @@
-// Category tints for the selling grid, from the design identity.
+// Category tints for the selling grid, from the v3 design's soft tiles.
 //
 // A cashier under pressure finds an item by shape and colour before they
 // read the label, so each category carries a consistent tint and every tile
@@ -6,16 +6,16 @@
 // what makes a dense grid scannable rather than a wall of text.
 
 const TINTS: Record<string, [background: string, ink: string]> = {
-  Drinks: ["#E1F1EE", "#0B6F65"],
-  Snacks: ["#F9EFD7", "#9A6A11"],
-  Household: ["#E7EEF6", "#3F6494"],
-  "Personal Care": ["#F0EAF6", "#6B4F8F"],
-  Groceries: ["#E7F1E9", "#3B7A4E"],
-  Stationery: ["#F2ECE5", "#8A6A45"],
-  Services: ["#E6F4F1", "#0B6F65"],
+  Drinks: ["#E6F1FB", "#185FA5"],
+  Snacks: ["#FEF3E2", "#633806"],
+  Household: ["#EEF0FF", "#4338CA"],
+  "Personal Care": ["#FEECEC", "#B91C1C"],
+  Groceries: ["#DCFCE7", "#166534"],
+  Stationery: ["#FFE7D1", "#8A3B00"],
+  Services: ["#EEFCF9", "#006B62"],
 };
 
-const FALLBACK: [string, string] = ["#EDF2F6", "#43607A"];
+const FALLBACK: [string, string] = ["#F3F4F6", "#374151"];
 
 export function categoryTint(category?: string | null): [string, string] {
   if (!category) return FALLBACK;

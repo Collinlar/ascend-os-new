@@ -190,13 +190,13 @@ export default function DeviceManager({
                           width="18"
                           height="12"
                           rx="2.4"
-                          stroke="#0B6F65"
+                          stroke="#006B62"
                           strokeWidth="1.7"
                         />
-                        <path d="M3 11h18" stroke="#0B6F65" strokeWidth="1.7" />
+                        <path d="M3 11h18" stroke="#006B62" strokeWidth="1.7" />
                         <path
                           d="M7 15h3"
-                          stroke="#0B6F65"
+                          stroke="#006B62"
                           strokeWidth="1.7"
                           strokeLinecap="round"
                         />

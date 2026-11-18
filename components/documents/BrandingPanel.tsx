@@ -20,7 +20,7 @@ export interface Branding {
 // Enough choice to feel like theirs, few enough that none of them make a
 // document hard to read on a photocopy.
 const COLOURS: Array<[string, string]> = [
-  ["#0D8377", "Teal"],
+  ["#007A6F", "Teal"],
   ["#185FA5", "Blue"],
   ["#633806", "Brown"],
   ["#8A1C3B", "Wine"],
@@ -40,7 +40,7 @@ export default function BrandingPanel({
   const [addressLine, setAddressLine] = useState(branding?.addressLine ?? "");
   const [phone, setPhone] = useState(branding?.phone ?? "");
   const [footerNote, setFooterNote] = useState(branding?.footerNote ?? "");
-  const [accentColour, setAccentColour] = useState(branding?.accentColour ?? "#0D8377");
+  const [accentColour, setAccentColour] = useState(branding?.accentColour ?? "#007A6F");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);

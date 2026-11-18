@@ -174,7 +174,7 @@ export default function CustomerList({
                 </PanelRow>
 
                 {openId === c.id && (
-                  <div className="border-b border-[#EEF3F7] bg-light-grey px-[22px] py-4">
+                  <div className="border-b border-line-soft bg-light-grey px-[22px] py-4">
                     {loading === c.id ? (
                       <p className="text-[13px] font-medium text-slate-grey">
                         Looking through their record...

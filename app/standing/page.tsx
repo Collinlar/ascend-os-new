@@ -78,14 +78,14 @@ export default async function Standing() {
               restrictions.map((r, i) => {
                 const c = CONTROL_FOR_BUSINESS[r.control];
                 return (
-                  <div key={r.control} className={`px-5 py-4 ${i < restrictions.length - 1 ? "border-b border-[#EEF3F7]" : ""}`}>
+                  <div key={r.control} className={`px-5 py-4 ${i < restrictions.length - 1 ? "border-b border-line-soft" : ""}`}>
                     <p className="text-[15px] font-bold text-ink">Paused: {c?.what ?? r.control}</p>
                     {c && <p className="mt-0.5 text-sm font-medium text-slate-grey">{c.still}</p>}
                   </div>
                 );
               })
             ) : null}
-            <div className={`px-5 py-4 ${state === "restricted" && restrictions.length ? "border-t border-[#EEF3F7]" : ""}`}>
+            <div className={`px-5 py-4 ${state === "restricted" && restrictions.length ? "border-t border-line-soft" : ""}`}>
               <p className="text-sm font-medium text-ink">{STATE_MEANS[state]}</p>
             </div>
           </Panel>

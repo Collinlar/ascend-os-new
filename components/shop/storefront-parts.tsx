@@ -1,5 +1,7 @@
 "use client";
 
+import { TILE_TINTS } from "@/lib/brand/tints";
+
 // The pieces every storefront screen shares.
 //
 // A customer sees exactly one page of this shop, usually opened from a
@@ -19,14 +21,7 @@ export interface StorefrontProduct {
 // Deterministic tint for a product with no photo, so the same item is the
 // same colour every time rather than flickering between reloads. Six soft
 // grounds pulled from the design, none of them competing with the price.
-const TINTS = [
-  { bg: "#F0EAF6", ink: "#6B4F8F" },
-  { bg: "#E4F0EC", ink: "#0B6F65" },
-  { bg: "#FBEFD8", ink: "#9A6207" },
-  { bg: "#E7EEF6", ink: "#3F6494" },
-  { bg: "#FBECE8", ink: "#B0453A" },
-  { bg: "#EEF3F7", ink: "#33506A" },
-];
+const TINTS = TILE_TINTS;
 
 function tintFor(seed: string) {
   let n = 0;
@@ -161,7 +156,7 @@ export function BackButton({
       <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
         <polyline
           points="7.5,1 1,7.5 7.5,14"
-          stroke="#33506A"
+          stroke="#374151"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
