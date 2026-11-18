@@ -94,3 +94,11 @@ Decisions 1 to 7 approved by Collins, 18 November 2026. CLAUDE.md section 4 upda
 - Left out, as decision 5 says: the top bar's search, the location switcher, notifications and the sidebar's "synced with your phone" card, none of which Ascend has yet. The phone design's Insights and Action tabs wait for those pages.
 - The attention list and toasts moved to D3: Home is the only user of the first, and nothing in the app uses the second yet.
 - Checked at 1440px, 820px and 375px on a throwaway business; the till and public pages stay bare. Types, contrast (0 failures), authority and the production build pass.
+
+**D3, Home built, 18 November 2026 (not deployed).** Migration 0116 (`commerce_home_figures`, read only) run on live by Collins; 9/9 locally and 8/8 on live, where today's bar equalled "Sales today" exactly with a sale from the day before reversed today.
+- Greeting with the date and location and whether a till is open; "Open the till" beside it for till businesses.
+- Today's figures: sales, money received, owed, and low stock for a business that counts stock (customers otherwise).
+- The setup steps until the first sale. Left: sales over 14 days (every channel, after refunds) with top products and how customers paid (before refunds: money handed back is recorded as an adjustment, not against a method); the tills and phones selling now; the latest five sales, older ones with their date. Right: the shared attention list (`components/shell/AttentionList.tsx`, now also out-of-stock products), quick actions by capability, Ascend Balance with money on its way, the Sustainability Score card.
+- The navy gradient hero is gone. Without 0116 or devices, the right column takes the full width.
+- Checked at 1440px and 375px with real sales on a throwaway business.
+- Found, not changed: "Money received today" counts cash handed back by a till reversal as still received (the reversal is not a refund adjustment). Left for Collins to decide, because it changes a figure owners already read.
