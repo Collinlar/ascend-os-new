@@ -137,7 +137,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "pos/sync": { POST: { kind: "device", why: "Paired till, device token" } },
   "admin/discover": { POST: { kind: "admin", why: "Platform moderation" } },
   "admin/messaging": { POST: { kind: "admin", why: "Completing deletion requests and changing messaging limits" } },
-  "admin/risk": { POST: { kind: "admin", why: "Reviewing customer reports and deciding appeals" } },
+  "admin/risk": { POST: { kind: "admin", why: "The Risk desk: cases, states, restrictions, reports, appeals; each re-checked in the database" } },
 
   // ----- business setup -----
   "business/product-sets": { POST: member("body", { permission: ["business.settings"] }) },

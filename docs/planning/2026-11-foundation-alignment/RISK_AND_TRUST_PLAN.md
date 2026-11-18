@@ -69,6 +69,8 @@ Built and tested as before: local Postgres with every migration replayed, then t
 | R3 Signals | 0113 | Run on live, read only. On real businesses only the three "Adjoa Provisions" show, as likely duplicates |
 | R4 Customer reports | 0114 | Run on live, 13/13 through the real route on a throwaway business. Report link on the invoice, shop and booking pages; Risk page in the admin area. App code waits for a deploy |
 | R5 Appeals and what the business sees | 0115 | Run on live, 4 + 13 checks through the real pages and routes on a throwaway business. Dashboard notice and /standing for the business; appeals on the admin Risk page. An appeal against a suspension or termination is decided by an admin who neither asked for it nor confirmed it. App code waits for a deploy; WhatsApp notice of a decision waits for an approved operational template |
-| R6 The Risk desk | | Next; grows the Risk page from R4 and R5 |
+| R6 The Risk desk | none | Tested on live 18 Nov 2026 with two temporary admins at phone width: a case opened from a signal, refunds paused, the business's line written, a note, a suspension asked by one admin and confirmed by the other, back to normal, closed, all from the page; 10 route checks. App code waits for a deploy |
 
 Receipts: a receipt sent to a customer opens on the same document page as an invoice, so it carries the report link too.
+
+Risk and Trust is built. Still to come, named above: WhatsApp notice to the business when it is limited or its appeal is answered (needs an approved operational template), and platform admins on live (none yet; an appeal against a suspension needs three).
