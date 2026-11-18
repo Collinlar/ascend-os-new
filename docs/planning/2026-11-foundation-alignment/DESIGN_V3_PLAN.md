@@ -102,3 +102,7 @@ Decisions 1 to 7 approved by Collins, 18 November 2026. CLAUDE.md section 4 upda
 - The navy gradient hero is gone. Without 0116 or devices, the right column takes the full width.
 - Checked at 1440px and 375px with real sales on a throwaway business.
 - Found, not changed: "Money received today" counts cash handed back by a till reversal as still received (the reversal is not a refund adjustment). Left for Collins to decide, because it changes a figure owners already read.
+
+**0117, 18 November 2026.** "Money received today" now takes off cash handed back by till reversals, by the Financial Foundation's refund_paid rule; `commerce_dashboard_figures` is locked to the server (it had never been revoked from the public key). 6/6 locally, 4/4 on live. Found, not fixed: the Financial Foundation records the credit part of a till sale as money received (affects cash position, exports and the partner report), waiting on Collins.
+
+**D3, Products built, 18 November 2026.** The shared page frame takes the v3 shape for every page; Products shows the design's table from 1024px.

@@ -99,7 +99,7 @@ export default async function Dashboard() {
         ? UNAVAILABLE
         : data.verifiedReceived > 0
           ? `${formatGHS(data.verifiedReceived)} confirmed by Mobile Money`
-          : "Cash and recorded payments",
+          : "Cash and recorded payments, less money handed back",
     },
     {
       label: "Owed to you",
