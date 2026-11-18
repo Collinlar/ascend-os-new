@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
-import { EmptyState, Panel as Surface } from "@/components/shell/Page";
+import { EmptyState, FigureRow, Panel as Surface, primaryAction, secondaryAction } from "@/components/shell/Page";
+import Pills from "@/components/shell/Pills";
+import { Icon } from "@/components/shell/icons";
 
 export interface DocumentRow {
   id: string;
@@ -14,7 +16,18 @@ export interface DocumentRow {
   total: number | null;
   dueDate: string | null;
   createdAt: string;
+  issuedAt: string | null;
+  /** Still owed after payments and credits (Financial Foundation); null when nothing is. */
+  outstanding: number | null;
   customerName: string | null;
+}
+
+/** What is owed on invoices, from the Financial Foundation (receivables_aging). */
+export interface OwedSummary {
+  total: number;
+  count: number;
+  overdueCount: number;
+  overdueTotal: number;
 }
 
 interface DraftLine {
@@ -40,16 +53,6 @@ const BLANK_LINE: DraftLine = {
   unitPrice: "",
 };
 
-// Three letters on the spine, the way a filing cabinet labels one.
-const SPINE: Record<string, string> = {
-  quotation: "QTE",
-  proforma: "PRO",
-  invoice: "INV",
-  receipt: "RCT",
-  credit_note: "CRN",
-  purchase_order: "PO",
-};
-
 const TYPE_LABEL: Record<string, string> = {
   quotation: "Quote",
   proforma: "Proforma",
@@ -70,10 +73,12 @@ export default function DocumentWorkspace({
   businessId,
   documents,
   catalogue,
+  owed,
 }: {
   businessId: string;
   documents: DocumentRow[];
   catalogue: CatalogueOption[];
+  owed: OwedSummary;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -251,69 +256,94 @@ export default function DocumentWorkspace({
     });
   }, [documents, query, shelf]);
 
-  // The two figures a merchant actually opens this screen for.
-  const owedTotal = useMemo(
-    () =>
-      documents
-        .filter((d) => d.type === "invoice" && OWED.has(d.status))
-        .reduce((sum, d) => sum + (d.total ?? 0), 0),
-    [documents]
-  );
-  const owedCount = useMemo(
-    () => documents.filter((d) => d.type === "invoice" && OWED.has(d.status)).length,
-    [documents]
-  );
-  const overdueCount = useMemo(
-    () => documents.filter((d) => d.status === "overdue").length,
-    [documents]
-  );
+  const drafts = useMemo(() => documents.filter((d) => !d.number).length, [documents]);
 
   const SHELVES: Array<[typeof shelf, string]> = [
     ["all", "Everything"],
     ["owed", "Not paid yet"],
     ["invoice", "Invoices"],
+    ["quotation", "Quotations"],
     ["receipt", "Receipts"],
-    ["quotation", "Quotes"],
     ["purchase_order", "Purchase orders"],
   ];
+  const shelfCount = (key: typeof shelf) =>
+    key === "all"
+      ? undefined
+      : documents.filter((d) => (key === "owed" ? d.type === "invoice" && OWED.has(d.status) : d.type === key)).length;
+  const startCreating = (t: DocumentType) => {
+    setType(t);
+    setCreating(true);
+  };
 
   return (
     <div className="space-y-6">
       {note && (
-        <p className="border border-teal bg-teal-light px-4 py-3 text-sm font-medium text-teal-dark">
+        <p className="rounded-panel bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800" role="status">
           {note}
         </p>
       )}
 
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700" role="alert">
           {error}
         </p>
       )}
 
+      {/* What is owed, from the Financial Foundation: after payments and
+          credits, not the face value of the invoices. */}
+      {(owed.total > 0 || drafts > 0) && (
+        <FigureRow
+          figures={[
+            {
+              label: "Owed on invoices",
+              value: formatGHS(owed.total),
+              sub: owed.count > 0 ? `${owed.count} invoice${owed.count === 1 ? "" : "s"} still to be paid` : "Nothing outstanding",
+            },
+            {
+              label: "Overdue",
+              value: formatGHS(owed.overdueTotal),
+              sub: owed.overdueCount > 0 ? `${owed.overdueCount} past the due date` : "None past the due date",
+              tone: owed.overdueCount > 0 ? "warn" : undefined,
+            },
+            { label: "Drafts", value: String(drafts), sub: drafts > 0 ? "Not sent out yet" : "None waiting" },
+          ]}
+        />
+      )}
+
       {!creating ? (
-        // A button, not a banner. Making a document is one thing this
-        // screen can do, not the screen's whole reason for existing: the
-        // list of what has already been issued is.
-        <div className="mb-3.5 flex justify-end">
-          <button
-            onClick={() => setCreating(true)}
-            className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
-          >
-            Create a document
-          </button>
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          {documents.length > 0 && (
+            <label className="flex h-11 flex-1 items-center gap-2.5 rounded-control border border-line-brand bg-white px-3.5 text-neutral-500 focus-within:border-teal">
+              <Icon name="search" size={16} />
+              <span className="sr-only">Search your documents</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Which one? A number or a name"
+                className="min-h-0 w-full border-0 bg-transparent text-base text-ink placeholder:text-neutral-500 focus:outline-none"
+              />
+            </label>
+          )}
+          <div className="flex flex-none gap-2 sm:ml-auto">
+            <button onClick={() => startCreating("quotation")} className={`${secondaryAction} flex-1 justify-center sm:flex-none`}>
+              <Icon name="plus" size={16} />
+              New quotation
+            </button>
+            <button onClick={() => startCreating("invoice")} className={`${primaryAction} flex-1 justify-center sm:flex-none`}>
+              <Icon name="plus" size={16} />
+              New invoice
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+        <div className="rounded-[18px] border border-line-brand bg-white p-5">
           <div className="flex flex-wrap gap-2">
             {(["invoice", "quotation", "receipt", "purchase_order"] as DocumentType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setType(t)}
-                className={`tap border px-3 py-2 text-sm font-medium ${
-                  type === t
-                    ? "border-teal bg-teal-light text-teal-dark"
-                    : "border-line text-ink-muted"
+                className={`tap rounded-full border-[1.5px] px-3.5 text-[12.5px] font-semibold ${
+                  type === t ? "border-teal bg-teal-50 text-teal-800" : "border-neutral-200 text-neutral-700"
                 }`}
               >
                 {TYPE_LABEL[t]}
@@ -331,7 +361,7 @@ export default function DocumentWorkspace({
                 type === "purchase_order" ? "Who are you ordering from?" : "Who is this for?"
               }
               aria-label={type === "purchase_order" ? "Supplier name" : "Customer name"}
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="min-h-[44px] w-full rounded-control border border-neutral-200 px-3 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <input
               value={customerPhone}
@@ -341,7 +371,7 @@ export default function DocumentWorkspace({
                 type === "purchase_order" ? "Their phone number" : "Their WhatsApp number"
               }
               aria-label={type === "purchase_order" ? "Supplier phone" : "Customer WhatsApp number"}
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="min-h-[44px] w-full rounded-control border border-neutral-200 px-3 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             {/* Optional, and second to WhatsApp on purpose. A company
                 paying on account wants it in the inbox its accounts team
@@ -353,7 +383,7 @@ export default function DocumentWorkspace({
                 inputMode="email"
                 placeholder="Their email, if they use one"
                 aria-label="Customer email address"
-                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:col-span-2"
+                className="min-h-[44px] w-full rounded-control border border-neutral-200 px-3 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none sm:col-span-2"
               />
             )}
           </div>
@@ -369,10 +399,10 @@ export default function DocumentWorkspace({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search what you sell"
                 aria-label="Search your products and services"
-                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                className="min-h-[44px] w-full rounded-control border border-neutral-200 px-3 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
               />
               {matches.length > 0 && (
-                <div className="mt-2 divide-y divide-line-soft border border-line-soft">
+                <div className="mt-2 divide-y divide-neutral-100 overflow-hidden rounded-control border border-neutral-100">
                   {matches.map((item) => (
                     <button
                       key={item.id}
@@ -401,7 +431,7 @@ export default function DocumentWorkspace({
             {lines.map((line, i) => (
               <div key={i} className="grid grid-cols-6 gap-2">
                 {line.itemId ? (
-                  <span className="col-span-3 flex items-center justify-between gap-2 border border-teal-light bg-teal-light px-3 py-2.5 text-sm font-semibold text-teal-dark">
+                  <span className="col-span-3 flex items-center justify-between gap-2 rounded-control bg-teal-50 px-3 py-2.5 text-sm font-semibold text-teal-800">
                     <span className="min-w-0 truncate">{line.description}</span>
                     <button
                       onClick={() => updateLine(i, { itemId: null })}
@@ -416,7 +446,7 @@ export default function DocumentWorkspace({
                     value={line.description}
                     onChange={(e) => updateLine(i, { description: e.target.value })}
                     placeholder="What are you charging for?"
-                    className="col-span-3 border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                    className="col-span-3 min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
                   />
                 )}
                 <input
@@ -424,14 +454,14 @@ export default function DocumentWorkspace({
                   onChange={(e) => updateLine(i, { quantity: e.target.value })}
                   inputMode="decimal"
                   placeholder="Qty"
-                  className="border border-line px-2 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                  className="min-h-[44px] rounded-control border border-neutral-200 px-2 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
                 />
                 <input
                   value={line.unitPrice}
                   onChange={(e) => updateLine(i, { unitPrice: e.target.value })}
                   inputMode="decimal"
                   placeholder="Price"
-                  className="col-span-2 border border-line px-2 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                  className="col-span-2 min-h-[44px] rounded-control border border-neutral-200 px-2 py-2.5 text-base text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
                 />
               </div>
             ))}
@@ -443,82 +473,40 @@ export default function DocumentWorkspace({
             </button>
           </div>
 
-          <p className="mt-4 text-right text-lg font-semibold text-ink">
-            {formatGHS(total)}
-          </p>
+          <p className="num mt-4 text-right font-heading text-xl font-extrabold text-ink-heading">{formatGHS(total)}</p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               onClick={() => create(true)}
               disabled={busy === "create"}
-              className="tap flex-1 bg-teal px-4 py-3 font-medium text-white disabled:opacity-60"
+              className={`${primaryAction} flex-1 justify-center disabled:opacity-60`}
             >
-              {busy === "create" ? "Saving..." : `Send this ${TYPE_LABEL[type].toLowerCase()} out`}
+              {busy === "create" ? `Sending your ${TYPE_LABEL[type].toLowerCase()} out...` : `Send this ${TYPE_LABEL[type].toLowerCase()} out`}
             </button>
             <button
               onClick={() => create(false)}
               disabled={busy === "create"}
-              className="tap border border-line px-4 py-3 font-medium text-ink disabled:opacity-60"
+              className={`${secondaryAction} disabled:opacity-60`}
             >
               Save as draft
             </button>
             <button
               onClick={() => setCreating(false)}
-              className="tap px-3 py-3 text-sm font-medium text-ink-muted"
+              className="tap px-3 text-sm font-semibold text-neutral-600"
             >
-              Cancel
+              Not now
             </button>
           </div>
         </div>
       )}
 
       {documents.length > 0 && (
-        <>
-          {owedTotal > 0 && (
-            <div className="mb-3.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[18px] border border-line-soft bg-white px-[22px] py-4 shadow-lift">
-              <span className="num text-2xl font-extrabold tracking-[-0.02em] text-ink">
-                {formatGHS(owedTotal)}
-              </span>
-              <span className="text-sm font-medium text-slate-grey">
-                owed to you across {owedCount}{" "}
-                {owedCount === 1 ? "invoice" : "invoices"}
-                {overdueCount > 0 && (
-                  <>
-                    {", "}
-                    <span className="font-bold text-gold-ink">
-                      {overdueCount} past the due date
-                    </span>
-                  </>
-                )}
-              </span>
-            </div>
-          )}
-
-          <div className="mb-3.5 space-y-2.5">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by number, customer or kind"
-              aria-label="Search your documents"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
-            />
-            <div className="scr -mx-5 flex gap-2 overflow-x-auto px-5 sm:mx-0 sm:flex-wrap sm:px-0">
-              {SHELVES.map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setShelf(key)}
-                  className={`tap flex flex-none items-center whitespace-nowrap rounded-chip border px-4 text-[13px] font-bold ${
-                    shelf === key
-                      ? "border-ink bg-ink text-white"
-                      : "border-line bg-white text-ink-slate"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
+        <Pills
+          pills={SHELVES.map(([key, label]) => ({ label, count: shelfCount(key) }))}
+          active={SHELVES.find(([key]) => key === shelf)?.[1] ?? "Everything"}
+          onPick={(label) => setShelf(SHELVES.find(([, l]) => l === label)?.[0] ?? "all")}
+          trailing={`${visible.length} ${visible.length === 1 ? "document" : "documents"}`}
+        />
       )}
 
       {documents.length === 0 ? (
@@ -533,6 +521,17 @@ export default function DocumentWorkspace({
         />
       ) : (
         <Surface>
+          <div
+            aria-hidden
+            className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${DOC_COLS}`}
+          >
+            <span>Number</span>
+            <span>Who</span>
+            <span>Issued</span>
+            <span>Due</span>
+            <span>Status</span>
+            <span className="text-right">Amount</span>
+          </div>
           {visible.map((doc, i) => {
             const conversions = doc.number
               ? (DOCUMENT_CONVERSIONS[doc.type as DocumentType] ?? [])
@@ -548,55 +547,54 @@ export default function DocumentWorkspace({
                 !["paid", "cancelled", "credited", "expired"].includes(doc.status) &&
                 new Date(doc.dueDate) < new Date());
 
-            return (
-              <div
-                key={doc.id}
-                className={`flex flex-wrap items-center gap-x-4 gap-y-3 px-[22px] py-[15px] ${
-                  i < visible.length - 1 ? "border-b border-line-soft" : ""
-                }`}
-              >
-                {/* The spine of a filed document, so a long list can be
-                    read by shape before it is read by name. */}
-                <span
-                  aria-hidden
-                  className="flex h-12 w-10 flex-none items-end justify-center rounded-lg border border-line bg-light-grey pb-[7px]"
-                >
-                  <span className="mono text-[8.5px] font-medium tracking-[0.04em] text-slate-grey">
-                    {SPINE[doc.type] ?? "DOC"}
-                  </span>
-                </span>
+            const status = statusChip(doc, overdue);
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-bold leading-snug text-ink sm:truncate">
+            return (
+              <div key={doc.id} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
+                <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-5 pt-3 text-[13.5px] ${DOC_COLS}`}>
+                  <span className={`min-w-0 truncate font-semibold text-ink lg:text-[13px] ${doc.number ? "mono" : ""}`}>
+                    <span className="sr-only">Number: </span>
                     {doc.number ?? `${TYPE_LABEL[doc.type] ?? doc.type} draft`}
-                    {doc.customerName && ` · ${doc.customerName}`}
-                  </p>
-                  <p className="text-[12.5px] font-medium text-slate-grey">
-                    {sent ? "Sent out" : "Not sent yet"}
-                    {doc.total !== null && ` · ${formatGHS(doc.total)}`}
-                  </p>
+                    <span className="font-sans font-normal text-neutral-500 lg:hidden"> · {TYPE_LABEL[doc.type] ?? doc.type}</span>
+                  </span>
+                  <span className="min-w-0 basis-full truncate text-ink lg:basis-auto">
+                    <span className="sr-only">Who: </span>
+                    {doc.customerName ?? "No name given"}
+                    <span className="block text-xs text-neutral-500 lg:hidden">
+                      {[
+                        doc.issuedAt ? `Issued ${shortDay(doc.issuedAt)}` : "Not sent yet",
+                        doc.dueDate ? `due ${shortDay(doc.dueDate)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  </span>
+                  <span className="hidden text-neutral-600 lg:block">
+                    <span className="sr-only">Issued: </span>
+                    {doc.issuedAt ? shortDay(doc.issuedAt) : "Not yet"}
+                  </span>
+                  <span className="hidden text-neutral-600 lg:block">
+                    <span className="sr-only">Due: </span>
+                    {doc.dueDate ? shortDay(doc.dueDate) : "None set"}
+                  </span>
+                  <span className="flex-none">
+                    <span className="sr-only">Status: </span>
+                    <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${status.cls}`}>{status.text}</span>
+                  </span>
+                  <span className="num ml-auto flex-none text-right font-bold text-ink lg:ml-0">
+                    <span className="sr-only">Amount: </span>
+                    {doc.total !== null ? formatGHS(doc.total) : "None"}
+                  </span>
                 </div>
 
-                <span
-                  className={`flex-none rounded-full px-2.5 py-[3px] text-[11.5px] font-extrabold ${
-                    overdue
-                      ? "bg-gold-tint text-gold-ink"
-                      : sent
-                        ? "bg-light-grey text-slate-grey"
-                        : "bg-teal-light text-teal-dark"
-                  }`}
-                >
-                  {overdue ? "Overdue" : sent ? "Filed" : "Draft"}
-                </span>
-
-                <div className="flex w-full flex-none flex-wrap justify-end gap-2 sm:w-auto">
+                <div className="flex flex-wrap justify-end gap-2 px-5 pb-3 pt-2">
                   {!doc.number && (
                     <button
                       onClick={() => act(doc.id, "issue")}
                       disabled={busy === doc.id}
-                      className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale disabled:opacity-60"
+                      className="tap flex items-center rounded-control bg-teal-50 px-3.5 text-[13px] font-bold text-teal-800 hover:bg-teal-100 disabled:opacity-60"
                     >
-                      {busy === doc.id ? "Sending..." : "Send it out"}
+                      {busy === doc.id ? "Sending it out..." : "Send it out"}
                     </button>
                   )}
                   {/* Only an issued document has a number and a frozen
@@ -607,7 +605,7 @@ export default function DocumentWorkspace({
                       href={`/api/documents/${doc.id}/pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
                     >
                       Open the PDF
                     </a>
@@ -617,7 +615,7 @@ export default function DocumentWorkspace({
                       key={target}
                       onClick={() => act(doc.id, "convert", target)}
                       disabled={busy === doc.id}
-                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey disabled:opacity-60"
+                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
                     >
                       {CONVERT_LABEL[target] ?? `Convert to ${target}`}
                     </button>
@@ -631,7 +629,7 @@ export default function DocumentWorkspace({
                         setCreditReason("");
                         setCreditAmount("");
                       }}
-                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
                     >
                       Give money back
                     </button>
@@ -639,7 +637,7 @@ export default function DocumentWorkspace({
                 </div>
 
                 {crediting === doc.id && (
-                  <div className="w-full border-t border-line-soft pt-4">
+                  <div className="mx-5 mb-4 border-t border-neutral-100 pt-4">
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                       <input
                         value={creditReason}
@@ -659,9 +657,9 @@ export default function DocumentWorkspace({
                       <button
                         onClick={() => credit(doc.id)}
                         disabled={busy === doc.id || creditReason.trim().length < 4}
-                        className="tap flex items-center justify-center rounded-chip bg-teal px-5 text-[13px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
+                        className={`${primaryAction} justify-center disabled:opacity-60`}
                       >
-                        {busy === doc.id ? "Issuing..." : "Issue the credit note"}
+                        {busy === doc.id ? "Issuing the credit note..." : "Issue the credit note"}
                       </button>
                     </div>
                     <p className="mt-2 text-[12.5px] font-medium text-slate-grey">
@@ -677,4 +675,46 @@ export default function DocumentWorkspace({
       )}
     </div>
   );
+}
+
+// The design's table, from 1024px: number, who, issued, due, status, amount.
+const DOC_COLS = "lg:grid lg:grid-cols-[130px_minmax(0,1fr)_100px_100px_170px_120px] lg:items-center lg:gap-4";
+
+// What the customer still owes, and whether it is late, said the way the
+// design says it: "12 days overdue", "Part paid", "Paid".
+function statusChip(doc: DocumentRow, overdue: boolean): { text: string; cls: string } {
+  if (!doc.number) return { text: "Draft", cls: "bg-neutral-100 text-neutral-700" };
+  const late = doc.dueDate ? Math.floor((Date.now() - new Date(`${doc.dueDate}T23:59:59`).getTime()) / 86400000) + 1 : 0;
+  switch (doc.status) {
+    case "paid":
+      return { text: "Paid", cls: "bg-success-tint text-success-ink" };
+    case "credited":
+      return { text: "Credited", cls: "bg-neutral-100 text-neutral-700" };
+    case "refunded":
+      return { text: "Refunded", cls: "bg-neutral-100 text-neutral-700" };
+    case "cancelled":
+      return { text: "Cancelled", cls: "bg-neutral-100 text-neutral-700" };
+    case "expired":
+      return { text: "Expired", cls: "bg-neutral-100 text-neutral-700" };
+    case "accepted":
+    case "approved":
+      return { text: "Accepted", cls: "bg-success-tint text-success-ink" };
+    case "pending_approval":
+      return { text: "Waiting for approval", cls: "bg-gold-100 text-gold-700" };
+    case "change_requested":
+      return { text: "Change asked for", cls: "bg-gold-100 text-gold-700" };
+  }
+  if (overdue && late > 0) {
+    return { text: `${late} day${late === 1 ? "" : "s"} overdue`, cls: late > 30 ? "bg-danger-tint text-danger-ink" : "bg-gold-100 text-gold-700" };
+  }
+  if (doc.status === "partially_paid") {
+    return { text: doc.outstanding ? `Part paid, ${formatGHS(doc.outstanding)} to go` : "Part paid", cls: "bg-teal-50 text-teal-800" };
+  }
+  if (doc.status === "viewed") return { text: "Seen by them", cls: "bg-info-light text-info-ink" };
+  if (doc.type === "receipt") return { text: "Issued", cls: "bg-neutral-100 text-neutral-700" };
+  return { text: "Sent", cls: "bg-info-light text-info-ink" };
+}
+
+function shortDay(iso: string): string {
+  return new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }

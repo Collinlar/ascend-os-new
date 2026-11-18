@@ -5,6 +5,7 @@ import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
 import DocumentWorkspace, {
   type CatalogueOption,
   type DocumentRow,
+  type OwedSummary,
 } from "@/components/documents/DocumentWorkspace";
 import BrandingPanel, { type Branding } from "@/components/documents/BrandingPanel";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 async function load(): Promise<{
   businessId: string;
+  owed: OwedSummary;
   documents: DocumentRow[];
   catalogue: CatalogueOption[];
   branding: Branding | null;
@@ -32,10 +34,10 @@ async function load(): Promise<{
     // than searched over the network, because a Ghanaian SME's list is
     // small enough to hold and a picker that waits on a request every
     // keystroke is a picker nobody uses on a slow connection.
-    const [{ data }, { data: items }, { data: brand }] = await Promise.all([
+    const [{ data }, { data: items }, { data: brand }, { data: owed }] = await Promise.all([
       db
         .from("document")
-        .select("id, type, status, number, total, currency_code, due_date, created_at, customer:customer_id(display_name), supplier:supplier_id(name)")
+        .select("id, type, status, number, total, currency_code, due_date, created_at, issued_at, customer:customer_id(display_name), supplier:supplier_id(name)")
         .eq("business_id", membership.business_id)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -51,10 +53,26 @@ async function load(): Promise<{
         .select("trading_name, address_line, phone, footer_note, accent_colour")
         .eq("business_id", membership.business_id)
         .maybeSingle(),
+      // What is really still owed on each invoice, after payments and
+      // credits (Financial Foundation, 0102), not its face value.
+      db.rpc("receivables_aging", { p_business: membership.business_id }),
     ]);
+    const outstandingBy = new Map<string, number>();
+    const summary = { total: 0, count: 0, overdueCount: 0, overdueTotal: 0 };
+    for (const r of (owed ?? []) as Array<{ document_number: string | null; origin_type: string; outstanding: number; days_overdue: number | null }>) {
+      if (r.document_number) outstandingBy.set(r.document_number, (outstandingBy.get(r.document_number) ?? 0) + Number(r.outstanding));
+      if (r.origin_type !== "document") continue;
+      summary.total += Number(r.outstanding);
+      summary.count += 1;
+      if ((r.days_overdue ?? 0) > 0) {
+        summary.overdueCount += 1;
+        summary.overdueTotal += Number(r.outstanding);
+      }
+    }
 
     return {
       businessId: membership.business_id,
+      owed: summary,
       branding: brand
         ? {
             tradingName: brand.trading_name,
@@ -78,6 +96,8 @@ async function load(): Promise<{
         total: d.total === null ? null : Number(d.total),
         dueDate: d.due_date,
         createdAt: d.created_at,
+        issuedAt: (d.issued_at as string | null) ?? null,
+        outstanding: d.number ? outstandingBy.get(d.number) ?? null : null,
         // A purchase order names the supplier it went to. Same column on
         // the row, because from the merchant's side both answer "who".
         customerName:
@@ -102,7 +122,7 @@ export default async function Documents() {
     <PageShell>
       <PageHeader
         title="Documents"
-        intro="Invoices, receipts and statements, kept where a bank or a buyer can check them. Once you send one out it keeps its number and cannot be quietly changed."
+        intro="Quotations, invoices and receipts. Once one is sent out it keeps its number and cannot be quietly changed."
       />
 
       {data === null ? (
@@ -117,6 +137,7 @@ export default async function Documents() {
             businessId={data.businessId}
             documents={data.documents}
             catalogue={data.catalogue}
+            owed={data.owed}
           />
         </>
       )}
