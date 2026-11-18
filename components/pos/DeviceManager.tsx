@@ -4,13 +4,17 @@ import { useState } from "react";
 import { callApi } from "@/lib/http";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
-import { EmptyState } from "@/components/shell/Page";
+import { EmptyState, Panel, primaryAction } from "@/components/shell/Page";
+import { Icon } from "@/components/shell/icons";
 
 export interface DeviceRow {
   id: string;
   label: string;
   status: string;
+  /** terminal (a dedicated till) or business_mobile (a phone). */
+  mode: string;
   model: string | null;
+  serial: string | null;
   lastSyncAt: string | null;
   pendingCount: number;
   leaseExpiresAt: string | null;
@@ -147,19 +151,18 @@ export default function DeviceManager({
               setCode(null);
               router.refresh();
             }}
-            className="tap mt-4 text-sm font-medium text-teal-dark underline"
+            className="tap mt-4 text-sm font-semibold text-teal-dark underline"
           >
-            Done setting up
+            The new till is set up
           </button>
         </div>
       ) : (
-        <button
-          onClick={generateCode}
-          disabled={busy}
-          className="tap flex w-full items-center justify-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
-        >
-          {busy ? "Creating your code..." : "Set up a new till"}
-        </button>
+        <div className="flex justify-end">
+          <button onClick={generateCode} disabled={busy} className={`${primaryAction} w-full justify-center disabled:opacity-60 sm:w-auto`}>
+            <Icon name="plus" size={16} />
+            {busy ? "Creating your code..." : "Set up a new till"}
+          </button>
+        </div>
       )}
 
       {devices.length === 0 ? (
@@ -168,123 +171,94 @@ export default function DeviceManager({
           detail="Create a code above, then type it on the selling device."
         />
       ) : (
-        <div className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-3">
-          {devices.map((device) => {
-            const stopped =
-              device.status === "revoked" || device.status === "retired";
+        <Panel>
+          <div
+            aria-hidden
+            className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}
+          >
+            <span>Device</span>
+            <span>Kind</span>
+            <span className="text-right">Today</span>
+            <span>Last sync</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {devices.map((device, i) => {
+            const stopped = device.status === "revoked" || device.status === "retired";
+            const chip = statusChip(device, stopped);
+            const phone = device.mode === "business_mobile";
             return (
-              <div
-                key={device.id}
-                className="flex flex-col gap-4 rounded-[18px] border border-line-soft bg-white px-[22px] py-5 shadow-card"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
+              <div key={device.id} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
+                <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-[13.5px] ${COLS}`}>
+                  <div className={`flex min-w-0 basis-full items-center gap-3 lg:basis-auto ${stopped ? "opacity-60" : ""}`}>
                     <span
                       aria-hidden
-                      className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-control bg-teal-light"
+                      className="flex h-10 w-10 flex-none items-center justify-center rounded-[10px] bg-teal-50 text-teal-800"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <rect
-                          x="3"
-                          y="7"
-                          width="18"
-                          height="12"
-                          rx="2.4"
-                          stroke="#006B62"
-                          strokeWidth="1.7"
-                        />
-                        <path d="M3 11h18" stroke="#006B62" strokeWidth="1.7" />
-                        <path
-                          d="M7 15h3"
-                          stroke="#006B62"
-                          strokeWidth="1.7"
-                          strokeLinecap="round"
-                        />
-                      </svg>
+                      <Icon name={phone ? "phone" : "device"} />
                     </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-extrabold tracking-[-0.02em] text-ink">
-                        {device.label}
-                      </p>
-                      <p className="text-xs font-medium text-slate-grey">
-                        {device.lastSyncAt
-                          ? `Last sent ${timeAgo(device.lastSyncAt)}`
-                          : "Has never sent a sale"}
-                      </p>
-                    </div>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-[14px] font-semibold text-ink">{device.label}</span>
+                      <span className="truncate text-xs text-neutral-500">
+                        {[device.model, device.serial].filter(Boolean).join(" · ") || (phone ? "A phone" : "A till")}
+                        <span className="lg:hidden">
+                          {" · "}
+                          {device.lastSyncAt ? `last sent ${timeAgo(device.lastSyncAt)}` : "never sent a sale"}
+                          {" · "}
+                          {formatGHS(device.takingsToday)} today
+                        </span>
+                      </span>
+                    </span>
                   </div>
-                  {device.pendingCount > 0 && (
-                    <span className="num flex-none rounded-full bg-gold-tint px-2.5 py-0.5 text-[11.5px] font-extrabold text-gold-ink">
-                      {device.pendingCount} unsent
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    aria-hidden
-                    className={`h-[7px] w-[7px] rounded-full ${
-                      device.selling
-                        ? "bg-teal-live ring-[3px] ring-teal-live/20"
-                        : stopped
-                          ? "bg-danger-ink"
-                          : "bg-line-stronger"
-                    }`}
-                  />
-                  <span
-                    className={`text-[12.5px] font-bold ${
-                      device.selling
-                        ? "text-teal-dark"
-                        : stopped
-                          ? "text-danger-ink"
-                          : "text-slate-grey"
-                    }`}
-                  >
-                    {device.selling
-                      ? "Selling"
-                      : STATUS_LABEL[device.status] ?? device.status}
+                  <span className="hidden text-neutral-600 lg:block">
+                    <span className="sr-only">Kind: </span>
+                    {phone ? "Phone" : "Till"}
                   </span>
-                  <span aria-hidden className="h-3 w-px bg-line" />
-                  <span className="num text-[12.5px] font-semibold text-slate-grey">
-                    {formatGHS(device.takingsToday)} today
+                  <span className="num hidden text-right font-semibold text-ink lg:block">
+                    <span className="sr-only">Today: </span>
+                    {formatGHS(device.takingsToday)}
                   </span>
-                </div>
-
-                {!stopped && (
-                  <div className="flex flex-wrap gap-2">
-                    {confirming === device.id ? (
-                      <>
-                        <p className="w-full text-[13px] font-medium text-ink">
-                          Stop this till? It cannot sell after this.
-                        </p>
-                        <button
-                          onClick={() => stopDevice(device.id)}
-                          disabled={busy}
-                          className="tap flex items-center rounded-chip bg-danger-tint px-4 text-[13px] font-bold text-danger-ink disabled:opacity-60"
-                        >
-                          Yes, stop it
-                        </button>
-                        <button
-                          onClick={() => setConfirming(null)}
-                          className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate"
-                        >
-                          Keep it
-                        </button>
-                      </>
-                    ) : (
+                  <span className="hidden text-neutral-600 lg:block">
+                    <span className="sr-only">Last sync: </span>
+                    {device.lastSyncAt ? timeAgo(device.lastSyncAt) : "Never"}
+                  </span>
+                  <span className="flex-none">
+                    <span className="sr-only">Status: </span>
+                    <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${chip.cls}`}>{chip.text}</span>
+                  </span>
+                  <span className="ml-auto flex flex-none justify-end lg:ml-0">
+                    {!stopped && confirming !== device.id && (
                       <button
                         onClick={() => setConfirming(device.id)}
-                        className="tap flex items-center rounded-chip bg-danger-tint px-4 text-[13px] font-bold text-danger-ink"
+                        className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-danger-ink hover:border-danger-soft"
                       >
                         Stop this till
                       </button>
                     )}
+                  </span>
+                </div>
+                {!stopped && confirming === device.id && (
+                  <div className="flex flex-wrap items-center justify-end gap-2 px-5 pb-3">
+                    <span className="text-[13px] text-neutral-600">Stop {device.label}? It cannot sell after this.</span>
+                    <button
+                      onClick={() => stopDevice(device.id)}
+                      disabled={busy}
+                      className="tap flex items-center rounded-control bg-danger-tint px-3.5 text-[13px] font-bold text-danger-ink disabled:opacity-60"
+                    >
+                      {busy ? "Stopping it..." : "Yes, stop it"}
+                    </button>
+                    <button
+                      onClick={() => setConfirming(null)}
+                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800"
+                    >
+                      Keep it
+                    </button>
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
+        </Panel>
       )}
     </div>
   );
@@ -297,4 +271,16 @@ function timeAgo(iso: string): string {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} hr ago`;
   return `${Math.round(hours / 24)} days ago`;
+}
+
+// The design's device table, from 1024px: device, kind, today, last sync,
+// status, and the way to stop it.
+const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_80px_120px_120px_150px_140px] lg:items-center lg:gap-4";
+
+function statusChip(device: DeviceRow, stopped: boolean): { text: string; cls: string } {
+  if (stopped) return { text: STATUS_LABEL[device.status] ?? "Stopped", cls: "bg-danger-tint text-danger-ink" };
+  if (device.pendingCount > 0) return { text: `${device.pendingCount} unsent`, cls: "bg-gold-100 text-gold-700" };
+  if (device.selling) return { text: "Selling now", cls: "bg-success-tint text-success-ink" };
+  if (device.status === "registered") return { text: "Waiting for first sale", cls: "bg-info-light text-info-ink" };
+  return { text: "Not open", cls: "bg-neutral-100 text-neutral-700" };
 }

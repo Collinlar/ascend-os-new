@@ -38,7 +38,7 @@ async function load(): Promise<PageData | null> {
 
     const { data: devices } = await db
       .from("device_registration")
-      .select("id, label, status, model, last_sync_at, pending_transaction_count, offline_lease_expires_at, paired_at")
+      .select("id, label, status, mode, model, serial_number, last_sync_at, pending_transaction_count, offline_lease_expires_at, paired_at")
       .eq("business_id", membership.business_id)
       .order("paired_at", { ascending: false, nullsFirst: false });
 
@@ -95,7 +95,9 @@ async function load(): Promise<PageData | null> {
         id: d.id,
         label: d.label ?? "Till",
         status: d.status,
+        mode: String(d.mode ?? ""),
         model: d.model,
+        serial: (d.serial_number as string | null) ?? null,
         lastSyncAt: d.last_sync_at,
         takingsToday: takings.get(d.id) ?? 0,
       selling: selling.has(d.id),
@@ -119,7 +121,7 @@ export default async function Devices() {
     <PageShell>
       <PageHeader
         title="Devices"
-        intro="Set up a new till, see which ones are selling, and stop one you no longer trust."
+        intro="Every till that sells for your business. Set up a new one, see which are selling, and stop one you no longer trust."
       />
 
       {data === null ? (
