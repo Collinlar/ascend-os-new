@@ -82,7 +82,7 @@ export default async function Customers({
   return (
     <PageShell>
       <PageHeader
-        title="Your customers"
+        title="Customers"
         intro="Everyone who has bought from you, however they did it. A till sale, an online order, a booking and an invoice all sit under one person."
       />
 

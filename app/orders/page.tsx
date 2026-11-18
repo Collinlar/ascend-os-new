@@ -68,7 +68,7 @@ export default async function Orders() {
   return (
     <PageShell>
       <PageHeader
-        title="Your orders"
+        title="Orders"
         intro="New orders first. Confirm quickly, customers are waiting on WhatsApp."
       />
 

@@ -71,10 +71,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} ${plexMono.variable}`}>
       <body>
-        {/* One navigation for every workspace surface. It renders nothing
-            when signed out, and nothing on the till or the public pages. */}
-        <WorkspaceNav />
-        {children}
+        {/* One shell for every workspace surface: the sidebar on a desktop,
+            the tab bar on a phone. It steps aside when signed out, on the
+            till and on the public pages. */}
+        <WorkspaceNav>{children}</WorkspaceNav>
       </body>
     </html>
   );

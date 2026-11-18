@@ -5,11 +5,17 @@
 // the browser bundle, which TypeScript cannot see because the client and
 // server boundary is not part of the type system.
 
+import type { IconName } from "@/components/shell/icons";
+
 export interface NavItem {
   href: string;
+  /** The name in the sidebar (v3 design: plain nouns). */
   label: string;
   /** Short enough for a tab under an icon on a 375px screen. */
   short: string;
+  icon: IconName;
+  /** Under "More": set up once, opened rarely. */
+  more?: boolean;
 }
 
 // Surfaces that must not carry the workspace nav: the till runs full screen

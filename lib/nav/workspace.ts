@@ -17,6 +17,8 @@ export { isBareRoute } from "./routes";
 export interface Workspace {
   personId: UUID;
   personName: string;
+  /** Owner, Manager or Cashier, as the shell shows it. */
+  roleName: string | null;
   businessId: UUID;
   businessName: string;
   /** How many businesses this person could be looking at instead. */
@@ -36,7 +38,8 @@ export interface Workspace {
 // two that happen to share a URL.
 //
 // Ordered by how often a merchant needs it, because only the first few
-// become tabs and the rest go behind More. Serving customers outranks
+// become phone tabs; the ones marked `more` sit under More in the sidebar
+// and are never tabs. Serving customers outranks
 // setting the business up: a shop with orders waiting should not have to
 // open a menu to find them while Tills sits in a tab.
 // `requires` is one capability, or several where a destination is earned
@@ -44,48 +47,33 @@ export interface Workspace {
 // business gets cashier accounts as an embedded essential of POS, and Full
 // Office gets the same screen through people.core.
 const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
-  { href: "/pos", label: "Sell at the counter", short: "Sell", requires: "pos.sell" },
-  { href: "/orders", label: "Online orders", short: "Orders", requires: "shop.orders" },
-  { href: "/bookings", label: "Bookings", short: "Bookings", requires: "services.bookings" },
-  {
-    href: "/services",
-    label: "What you offer",
-    short: "Services",
-    requires: "services.bookings",
-  },
-  {
-    href: "/documents",
-    label: "Quotes and invoices",
-    short: "Documents",
-    requires: "documents.issue",
-  },
+  { href: "/pos", label: "Sell", short: "Sell", icon: "sell", requires: "pos.sell" },
+  { href: "/orders", label: "Orders", short: "Orders", icon: "inbox", requires: "shop.orders" },
+  { href: "/bookings", label: "Bookings", short: "Bookings", icon: "calendar", requires: "services.bookings" },
+  { href: "/documents", label: "Documents", short: "Documents", icon: "file", requires: "documents.issue" },
   {
     href: "/customers",
-    label: "Who buys from you",
+    label: "Customers",
     short: "Customers",
+    icon: "users",
     // Earned by any set that creates customers, because the record is
     // shared and the screen reads all of them at once.
     requires: ["customers.core", "customers.basic"],
   },
-  { href: "/products", label: "What you sell", short: "Products", requires: "catalogue.core" },
-  { href: "/shop", label: "Your shop", short: "Shop", requires: "shop.storefront" },
-  { href: "/devices", label: "Tills and team", short: "Tills", requires: "pos.tills" },
-  {
-    href: "/availability",
-    label: "When you are free",
-    short: "Availability",
-    requires: "services.basic_availability",
-  },
+  { href: "/products", label: "Products", short: "Products", icon: "tag", requires: "catalogue.core" },
+  { href: "/shop", label: "Shop", short: "Shop", icon: "store", requires: "shop.storefront" },
   {
     href: "/team",
-    label: "Your team",
+    label: "Team",
     short: "Team",
+    icon: "team",
     requires: ["people.cashiers", "people.core"],
   },
   {
     href: "/work",
-    label: "People and work",
+    label: "Work",
     short: "Work",
+    icon: "clipboard",
     // Full Office is paid, but the PRD embeds parts of it in the anchor
     // products (31): POS carries attendance and shifts, Shop carries
     // fulfilment assignment, Services carries provider assignment. A
@@ -100,17 +88,38 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
       "people.provider_assignment",
     ],
   },
-  { href: "/promote", label: "Get found", short: "Promote", requires: "discover.listing" },
+  { href: "/promote", label: "Promote", short: "Promote", icon: "target", requires: "discover.listing" },
   {
     href: "/readiness",
     label: "Investment readiness",
     short: "Readiness",
+    icon: "shield",
     requires: "readiness.score",
   },
+  // Set up once, opened rarely: under More.
+  {
+    href: "/services",
+    label: "Service catalogue",
+    short: "Services",
+    icon: "briefcase",
+    more: true,
+    requires: "services.bookings",
+  },
+  {
+    href: "/availability",
+    label: "Availability",
+    short: "Availability",
+    icon: "clock",
+    more: true,
+    requires: "services.basic_availability",
+  },
+  { href: "/devices", label: "Devices", short: "Devices", icon: "device", more: true, requires: "pos.tills" },
   {
     href: "/sharing",
-    label: "What you share",
+    label: "Sharing",
     short: "Sharing",
+    icon: "share",
+    more: true,
     requires: "readiness.score",
   },
 ];
@@ -122,6 +131,8 @@ const GROW: NavItem = {
   href: "/grow",
   label: "Add to your business",
   short: "Add",
+  icon: "plus",
+  more: true,
 };
 
 // The sets a merchant can take on themselves, mirroring what the product
@@ -130,11 +141,19 @@ const SELF_SERVE: ProductSetKey[] = ["pos", "shop", "services", "documents"];
 
 const BILLING: NavItem = {
   href: "/billing",
-  label: "What you pay for",
+  label: "Plan and billing",
   short: "Billing",
+  icon: "grid",
+  more: true,
 };
 
-const HOME: NavItem = { href: "/dashboard", label: "Today at your business", short: "Home" };
+const HOME: NavItem = { href: "/dashboard", label: "Home", short: "Home", icon: "home" };
+
+const ROLE_NAME: Record<string, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  cashier: "Cashier",
+};
 
 export async function currentWorkspace(): Promise<Workspace | null> {
   const personId = await currentPersonId();
@@ -154,7 +173,7 @@ export async function currentWorkspace(): Promise<Workspace | null> {
 
   const { data: memberships } = await db
     .from("business_membership")
-    .select("business_id, created_at, business:business_id(name)")
+    .select("business_id, created_at, business:business_id(name), role:role_id(key)")
     .eq("person_id", personId)
     .eq("status", "active")
     // An expired membership does not open the business (Phase 1, step 1e).
@@ -198,11 +217,8 @@ export async function currentWorkspace(): Promise<Workspace | null> {
     if (!needed.some((capability) => capabilities.has(capability))) continue;
     if (seen.has(destination.href)) continue;
     seen.add(destination.href);
-    items.push({
-      href: destination.href,
-      label: destination.label,
-      short: destination.short,
-    });
+    const { requires: _requires, ...item } = destination;
+    items.push(item);
   }
 
   // Only while there is something left to add. A business already running
@@ -216,6 +232,7 @@ export async function currentWorkspace(): Promise<Workspace | null> {
   return {
     personId,
     personName: (person?.full_name as string | null) ?? "You",
+    roleName: ROLE_NAME[(membership.role as unknown as { key: string } | null)?.key ?? ""] ?? null,
     businessId,
     businessName:
       (membership.business as unknown as { name: string } | null)?.name ?? "Your business",

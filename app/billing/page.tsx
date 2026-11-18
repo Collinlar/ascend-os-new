@@ -59,7 +59,7 @@ export default async function Billing() {
   if (data === null) {
     return (
       <PageShell>
-        <PageHeader title="What you pay for" />
+        <PageHeader title="Plan and billing" />
         <EmptyState
           title="Sign in to see this."
           detail="We send a code to the WhatsApp number your business is set up with."
@@ -80,7 +80,7 @@ export default async function Billing() {
   return (
     <PageShell>
       <PageHeader
-        title="What you pay for"
+        title="Plan and billing"
         intro="Nothing here renews on its own and nothing is billed monthly. You buy a thing, you keep it for the time it says, and it stops."
       />
 

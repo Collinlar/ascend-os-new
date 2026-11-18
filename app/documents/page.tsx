@@ -101,7 +101,7 @@ export default async function Documents() {
   return (
     <PageShell>
       <PageHeader
-        title="Your documents"
+        title="Documents"
         intro="Invoices, receipts and statements, kept where a bank or a buyer can check them. Once you send one out it keeps its number and cannot be quietly changed."
       />
 

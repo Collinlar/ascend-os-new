@@ -95,7 +95,7 @@ export default async function Bookings() {
   return (
     <PageShell>
       <PageHeader
-        title="Your schedule"
+        title="Bookings"
         intro="Requests needing an answer come first, then what is coming up."
       />
 

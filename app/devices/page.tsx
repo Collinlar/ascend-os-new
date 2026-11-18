@@ -118,7 +118,7 @@ export default async function Devices() {
   return (
     <PageShell>
       <PageHeader
-        title="Your tills"
+        title="Devices"
         intro="Set up a new till, see which ones are selling, and stop one you no longer trust."
       />
 

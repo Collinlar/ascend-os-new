@@ -1,25 +1,38 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isBareRoute, type NavItem } from "@/lib/nav/routes";
+import { Icon } from "./icons";
 
-// The workspace shell.
+// The workspace shell (v3 design, D2).
 //
-// Two shapes of the same thing. On a phone it is a bottom row under a
-// thumb, because 77% of the traffic here is a 375px screen. On a desktop
-// it is the Business Web app bar from the design: identity on the left,
-// account on the right, and a row of tabs with the open one underlined.
+// Two shapes of the same thing. On a desktop it is the Business Web
+// sidebar: the logo, whose business this is, the destinations, More, and
+// the person at the foot. On a phone (77% of the traffic) it is a slim top
+// bar with the business's name and a frosted row of tabs under the thumb.
+//
+// It wraps the page rather than sitting beside it, so the sidebar can hold
+// the left edge and every page keeps its own layout inside the space left.
+// On the till, onboarding and the public pages it steps aside entirely.
 //
 // One component rather than two, because the tabs, the badges and the
 // account menu all have to agree about what is open and who is signed in.
 
-const MAX_TABS = 4;
+const PHONE_TABS = 4;
 
 export interface NavBadge {
   href: string;
   count: number;
+}
+
+function initials(name: string): string {
+  const words = name.replace(/[^A-Za-z0-9\s]/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "A";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 export default function NavBar({
@@ -27,16 +40,20 @@ export default function NavBar({
   businessName,
   locationName,
   personName,
+  roleName,
   businessCount = 1,
   badges = [],
+  children,
 }: {
   items: NavItem[];
   businessName: string;
   locationName?: string | null;
   personName?: string;
+  roleName?: string | null;
   businessCount?: number;
-  /** Counts shown against a tab, for work that is waiting. */
+  /** Counts shown against a destination, for work that is waiting. */
   badges?: NavBadge[];
+  children: ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -62,6 +79,15 @@ export default function NavBar({
     };
   }, [accountOpen]);
 
+  // The More sheet closes on Escape too, and whenever the page changes.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const escape = (e: KeyboardEvent) => e.key === "Escape" && setMoreOpen(false);
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [moreOpen]);
+  useEffect(() => setMoreOpen(false), [pathname]);
+
   async function signOut() {
     setSigningOut(true);
     try {
@@ -75,165 +101,177 @@ export default function NavBar({
     router.refresh();
   }
 
-  if (isBareRoute(pathname)) return null;
-  if (items.length === 0) return null;
+  if (isBareRoute(pathname) || items.length === 0) return <>{children}</>;
 
-  const tabs = items.slice(0, MAX_TABS);
-  const rest = items.slice(MAX_TABS);
-  const activeInRest = rest.some((i) => pathname.startsWith(i.href));
+  const main = items.filter((i) => !i.more);
+  const more = items.filter((i) => i.more);
+  const tabs = main.slice(0, PHONE_TABS);
+  const behindMore = [...main.slice(PHONE_TABS), ...more];
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  const activeBehindMore = behindMore.some((i) => isActive(i.href));
 
   const badgeFor = (href: string) =>
     badges.find((b) => b.href === href && b.count > 0)?.count ?? 0;
 
-  const initial = (personName ?? "You").trim().charAt(0).toUpperCase() || "Y";
+  const person = personName ?? "You";
+
+  const sideLink = (item: NavItem) => {
+    const on = isActive(item.href);
+    const count = badgeFor(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={on ? "page" : undefined}
+        className={`tap flex h-10 min-h-[40px] items-center gap-[11px] rounded-[10px] px-2.5 text-sm ${
+          on ? "bg-teal-50 font-bold text-teal-800" : "font-medium text-neutral-700 hover:bg-teal-50"
+        }`}
+      >
+        <Icon name={item.icon} />
+        <span className="flex-1 truncate">{item.label}</span>
+        {count > 0 && (
+          <span className="num flex h-5 min-w-[20px] items-center justify-center rounded-full bg-orange-700 px-1.5 text-[11px] font-bold text-white">
+            {count}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <>
-      <div className="sticky top-0 z-30 border-b border-line-soft bg-white">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-6 px-5 py-2.5 sm:h-[66px] sm:px-8 sm:py-0">
-          {/* Identity. Whose books these are, on every screen. */}
-          <div className="flex min-w-0 items-center gap-3">
-            <span
-              aria-hidden
-              className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-teal"
-            >
-              <span className="grid grid-cols-2 gap-1">
-                <span className="h-[5px] w-[5px] rounded-full bg-white" />
-                <span className="h-[5px] w-[5px] rounded-full bg-white/55" />
-                <span className="h-[5px] w-[5px] rounded-full bg-white/55" />
-                <span className="h-[5px] w-[5px] rounded-full bg-white" />
-              </span>
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-base font-extrabold tracking-[-0.02em] text-ink">
-                {businessName}
-              </span>
-              {locationName && (
-                <span className="block truncate text-[11px] font-semibold text-slate-grey">
-                  {locationName}
-                </span>
-              )}
-            </span>
-          </div>
-
-          {/* Account. The design puts a person chip here, so it does the
-              job a person chip should: it is the way out. */}
-          <div ref={account} className="relative hidden flex-none sm:block">
-            <button
-              type="button"
-              onClick={() => setAccountOpen((o) => !o)}
-              aria-haspopup="menu"
-              aria-expanded={accountOpen}
-              className="tap flex items-center gap-2.5 rounded-control bg-light-grey py-1.5 pl-1.5 pr-3 hover:bg-line-soft"
-            >
-              <span
-                aria-hidden
-                className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-navy-deep text-xs font-extrabold text-on-dark-strong"
-              >
-                {initial}
-              </span>
-              <span className="text-[13px] font-bold text-ink">{personName}</span>
-            </button>
-
-            {accountOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-[calc(100%+8px)] w-64 rounded-panel border border-line-soft bg-white p-2 shadow-lift"
-              >
-                <p className="px-3 py-2 text-xs font-medium text-slate-grey">
-                  Signed in to{" "}
-                  <span className="font-bold text-ink">{businessName}</span>
-                </p>
-                {businessCount > 1 && (
-                  <Link
-                    href="/switch"
-                    onClick={() => setAccountOpen(false)}
-                    className="tap block rounded-chip px-3 py-2.5 text-sm font-bold text-teal-dark hover:bg-teal-light"
-                  >
-                    Open another business
-                  </Link>
-                )}
-                <button
-                  onClick={signOut}
-                  disabled={signingOut}
-                  className="tap block w-full rounded-chip px-3 py-2.5 text-left text-sm font-bold text-ink-muted hover:bg-light-grey disabled:opacity-60"
-                >
-                  {signingOut ? "Signing you out..." : "Sign out"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tabs. Desktop only: the phone gets the same destinations as a
-            bottom row instead, where a thumb can reach them. */}
-        <div className="mx-auto hidden max-w-[1200px] px-8 sm:block">
-          {/* Scrolls rather than clips. A business running every set has
-              thirteen destinations, which fits today and would not if one
-              more were ever added. */}
-          <div className="scr flex gap-1 overflow-x-auto">
-            {items.map((item) => {
-              const on = isActive(item.href);
-              const count = badgeFor(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={on ? "page" : undefined}
-                  className={`relative flex items-center gap-2 px-[18px] pb-[15px] pt-3.5 text-sm tracking-[-0.01em] ${
-                    on ? "font-bold text-teal-dark" : "font-semibold text-ink-muted"
-                  }`}
-                >
-                  {item.short}
-                  {count > 0 && (
-                    <span className="num rounded-full bg-gold-tint px-[7px] py-0.5 text-[10.5px] font-extrabold text-gold-ink">
-                      {count}
-                    </span>
-                  )}
-                  <span
-                    aria-hidden
-                    className={`absolute inset-x-3.5 bottom-0 h-[3px] rounded-t-[3px] ${
-                      on ? "bg-teal" : "bg-transparent"
-                    }`}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Spacer so the fixed bar never covers the last row of content */}
-      <div aria-hidden className="h-[env(safe-area-inset-bottom)] sm:hidden" />
-
+      {/* ------------------------------------------------ desktop sidebar */}
       <nav
         aria-label="Your business"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] sm:hidden"
+        className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col gap-3.5 border-r border-neutral-100 bg-white px-3.5 pb-3.5 pt-[18px] lg:flex"
       >
-        <div className="mx-auto flex max-w-2xl">
+        <Link href="/dashboard" className="ml-1.5 self-start" aria-label="AscendSME, home">
+          <Image src="/brand/ascendsme-logo.webp" alt="AscendSME" width={140} height={24} priority />
+        </Link>
+
+        <div className="flex items-center gap-2.5 rounded-[14px] bg-neutral-50 p-2.5">
+          <span
+            aria-hidden
+            className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[11px] bg-teal font-heading text-sm font-extrabold text-white"
+          >
+            {initials(businessName)}
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-[13.5px] font-bold text-ink">{businessName}</span>
+            {locationName && <span className="truncate text-[11.5px] text-neutral-500">{locationName}</span>}
+          </span>
+        </div>
+
+        <div className="scr flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
+          {main.map(sideLink)}
+          {more.length > 0 && (
+            <>
+              <span className="px-2.5 pb-1.5 pt-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                More
+              </span>
+              {more.map(sideLink)}
+            </>
+          )}
+        </div>
+
+        {/* The person, and the way out. */}
+        <div ref={account} className="relative">
+          <button
+            type="button"
+            onClick={() => setAccountOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            className="tap flex w-full items-center gap-2.5 rounded-[12px] px-1.5 py-1 text-left hover:bg-neutral-50"
+          >
+            <span
+              aria-hidden
+              className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-ink text-[11.5px] font-bold text-white"
+            >
+              {initials(person)}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[13px] font-semibold text-ink">{person}</span>
+              {roleName && <span className="text-[11.5px] text-neutral-500">{roleName}</span>}
+            </span>
+            <Icon name="up" size={16} />
+          </button>
+
+          {accountOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-[calc(100%+8px)] left-0 w-full rounded-panel border border-neutral-100 bg-white p-2 shadow-float"
+            >
+              <p className="px-3 py-2 text-xs font-medium text-neutral-500">
+                Signed in to <span className="font-bold text-ink">{businessName}</span>
+              </p>
+              {businessCount > 1 && (
+                <Link
+                  href="/switch"
+                  onClick={() => setAccountOpen(false)}
+                  className="tap flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-sm font-semibold text-teal-dark hover:bg-teal-50"
+                >
+                  <Icon name="swap" size={16} />
+                  Open another business
+                </Link>
+              )}
+              <button
+                onClick={signOut}
+                disabled={signingOut}
+                className="tap flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-60"
+              >
+                <Icon name="logout" size={16} />
+                {signingOut ? "Signing you out..." : "Sign out"}
+              </button>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* -------------------------------------------------- phone top bar */}
+      <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white lg:hidden">
+        <div className="flex items-center gap-3 px-5 py-2.5">
+          <span
+            aria-hidden
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-[11px] bg-teal font-heading text-[13px] font-extrabold text-white"
+          >
+            {initials(businessName)}
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[15px] font-bold text-ink">{businessName}</span>
+            {locationName && (
+              <span className="block truncate text-[11.5px] font-medium text-neutral-500">{locationName}</span>
+            )}
+          </span>
+        </div>
+      </header>
+
+      {/* The page, in the space the sidebar leaves. */}
+      <div className="lg:pl-[248px]">{children}</div>
+
+      {/* ---------------------------------------------- phone bottom tabs */}
+      <nav
+        aria-label="Your business"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] lg:hidden"
+      >
+        <div className="mx-auto grid max-w-2xl grid-cols-5">
           {tabs.map((item) => {
+            const on = isActive(item.href);
             const count = badgeFor(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                aria-current={isActive(item.href) ? "page" : undefined}
-                className={`tap relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold ${
-                  isActive(item.href) ? "text-teal-dark" : "text-ink-muted"
+                aria-current={on ? "page" : undefined}
+                className={`tap relative flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold ${
+                  on ? "text-teal-800" : "text-neutral-500"
                 }`}
               >
-                <span
-                  aria-hidden
-                  className={`h-0.5 w-6 rounded-full ${
-                    isActive(item.href) ? "bg-teal" : "bg-transparent"
-                  }`}
-                />
+                <Icon name={item.icon} size={22} />
                 {item.short}
                 {count > 0 && (
-                  <span className="num absolute right-[18%] top-1 rounded-full bg-gold-tint px-1.5 text-[9.5px] font-extrabold text-gold-ink">
+                  <span className="num absolute left-1/2 top-1 ml-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-orange-700 px-1 text-[10px] font-bold text-white">
                     {count}
                   </span>
                 )}
@@ -241,23 +279,17 @@ export default function NavBar({
             );
           })}
 
-          {/* Permanent. It holds the way out, and a business with four
-              destinations used to have no More button at all, which would
-              have left sign out unreachable for exactly the people with the
-              simplest setup. */}
+          {/* Permanent. It holds the way out, so even a business with four
+              destinations can always sign out. */}
           <button
             onClick={() => setMoreOpen(true)}
             aria-haspopup="dialog"
-            className={`tap flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold ${
-              activeInRest ? "text-teal-dark" : "text-ink-muted"
+            aria-expanded={moreOpen}
+            className={`tap flex flex-col items-center justify-center gap-1 py-2 text-[11px] font-semibold ${
+              activeBehindMore ? "text-teal-800" : "text-neutral-500"
             }`}
           >
-            <span
-              aria-hidden
-              className={`h-0.5 w-6 rounded-full ${
-                activeInRest ? "bg-teal" : "bg-transparent"
-              }`}
-            />
+            <Icon name="menu" size={22} />
             More
           </button>
         </div>
@@ -266,53 +298,64 @@ export default function NavBar({
       {moreOpen && (
         <div
           role="dialog"
+          aria-modal="true"
           aria-label="More"
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 sm:hidden"
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-navy/40 lg:hidden"
           onClick={() => setMoreOpen(false)}
         >
           <div
-            className="rounded-t-card bg-white px-4 pb-8 pt-4"
+            className="max-h-[85vh] animate-sheetup overflow-y-auto rounded-t-hero bg-white px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-2">
-              <p className="font-semibold text-ink">Everything else</p>
+              <p className="font-heading text-lg font-bold text-ink">Everything else</p>
               <button
                 onClick={() => setMoreOpen(false)}
-                className="tap px-2 text-sm font-medium text-ink-muted"
+                className="tap px-2 text-sm font-semibold text-neutral-600"
               >
                 Close
               </button>
             </div>
-            {rest.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMoreOpen(false)}
-                className="tap block rounded-panel px-3 py-3 text-ink hover:bg-light-grey"
-              >
-                {item.label}
-              </Link>
-            ))}
+            <div className="flex flex-col gap-0.5">
+              {behindMore.map((item) => {
+                const on = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={on ? "page" : undefined}
+                    className={`tap flex items-center gap-3 rounded-[12px] px-3 py-3 text-[15px] ${
+                      on ? "bg-teal-50 font-bold text-teal-800" : "font-medium text-ink hover:bg-neutral-50"
+                    }`}
+                  >
+                    <Icon name={item.icon} size={20} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
 
-            <div className="mt-2 border-t border-line pt-3">
-              <p className="px-3 text-xs font-medium text-ink-muted">
-                Signed in to{" "}
+            <div className="mt-3 border-t border-neutral-100 pt-3">
+              <p className="px-3 text-xs font-medium text-neutral-500">
+                {person}
+                {roleName ? `, ${roleName.toLowerCase()} at ` : " at "}
                 <span className="font-bold text-ink">{businessName}</span>
               </p>
               {businessCount > 1 && (
                 <Link
                   href="/switch"
-                  onClick={() => setMoreOpen(false)}
-                  className="tap mt-1 block rounded-panel px-3 py-3 font-medium text-teal-dark hover:bg-light-grey"
+                  className="tap mt-1 flex items-center gap-3 rounded-[12px] px-3 py-3 font-semibold text-teal-dark hover:bg-neutral-50"
                 >
+                  <Icon name="swap" size={20} />
                   Open another business
                 </Link>
               )}
               <button
                 onClick={signOut}
                 disabled={signingOut}
-                className="tap mt-1 block w-full rounded-panel px-3 py-3 text-left font-medium text-ink-muted hover:bg-light-grey disabled:opacity-60"
+                className="tap mt-1 flex w-full items-center gap-3 rounded-[12px] px-3 py-3 text-left font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-60"
               >
+                <Icon name="logout" size={20} />
                 {signingOut ? "Signing you out..." : "Sign out"}
               </button>
             </div>

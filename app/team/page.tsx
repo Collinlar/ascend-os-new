@@ -134,7 +134,7 @@ export default async function Team() {
   return (
     <PageShell>
       <PageHeader
-        title="Your team"
+        title="Team"
         intro="Everyone who works here, and what each of them is allowed to do. Their hours, sales and approvals all count toward what your business can show a lender."
       />
 

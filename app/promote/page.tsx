@@ -64,7 +64,7 @@ export default async function Promote() {
   return (
     <PageShell>
       <PageHeader
-        title="Getting found"
+        title="Promote"
         intro="Being listed is free once you have products and a live shop. Paying puts you higher up, and customers are told it is paid."
       />
 

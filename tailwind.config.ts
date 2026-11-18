@@ -142,6 +142,9 @@ const config: Config = {
         orange: {
           100: "#FFE7D1",
           500: "#FF7A00",
+          // The design's attention badge is orange-500 with white, which
+          // reads at 2.61:1. This carries white at 5.18.
+          700: "#C2410C",
         },
         tier: {
           foundation: "#64748B",

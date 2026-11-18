@@ -105,7 +105,7 @@ export default async function ServicesHome() {
   return (
     <PageShell>
       <PageHeader
-        title="Your bookings setup"
+        title="Service catalogue"
         intro="What you offer, who can do it, and the link that lets somebody take a time."
       />
 

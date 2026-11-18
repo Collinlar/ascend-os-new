@@ -115,7 +115,7 @@ export default async function Products() {
   return (
     <PageShell>
       <PageHeader
-        title="What you sell"
+        title="Products"
         intro="Set your prices, add barcodes so the till can scan, and keep your counts honest."
         action={
           data.kind === "ok" && data.items.length > 0 ? (

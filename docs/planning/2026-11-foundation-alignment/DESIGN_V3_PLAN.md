@@ -85,3 +85,12 @@ Decisions 1 to 7 approved by Collins, 18 November 2026. CLAUDE.md section 4 upda
 - Hard-coded colours gone except WhatsApp's own green and merchant-chosen document colours. The repeated tile palettes now live in `lib/brand/tints.ts`; the till's category tints are redrawn from the design.
 - `npm run check:contrast` reads the numeric tokens too: 113 files, 92 tokens, 0 failures. Production build passes.
 - Checked in the browser at 375px and desktop on a throwaway business (dashboard, products) and on the website, a live shop and Discover. One bug found and fixed: a global heading colour turned the website's white headline on navy dark.
+
+**D2 built, 18 November 2026 (not deployed; ships with D1).**
+- The shell wraps every page now (`components/shell/NavBar.tsx`, from `WorkspaceNav` in the root layout) instead of sitting above it. From 1024px: the design's 248px sidebar, with the logo, the business card (initials, name, location), the destinations with icons, a "More" section, and the person and their role at the foot, which opens the switch-business and sign-out menu. Below 1024px: a slim top bar with the business, and a frosted row of four tabs plus More, with icons; More opens a sheet with the rest and the way out.
+- The navigation speaks the design's words: Home, Sell, Orders, Bookings, Documents, Customers, Products, Shop, Team, Work, Promote, Investment readiness; under More, Service catalogue, Availability, Devices, Sharing, Add to your business, Plan and billing. Investment readiness stays in the main list, because the Sustainability Score is the point of Ascend, although the design leaves it out. Page headings now use the same words.
+- The design's orange badge (white on `#FF7A00`, 2.61:1) is drawn in `#C2410C` (5.18:1).
+- The logo is the design's wordmark, cropped and converted to WebP (9.5 KB, `public/brand/ascendsme-logo.webp`).
+- Left out, as decision 5 says: the top bar's search, the location switcher, notifications and the sidebar's "synced with your phone" card, none of which Ascend has yet. The phone design's Insights and Action tabs wait for those pages.
+- The attention list and toasts moved to D3: Home is the only user of the first, and nothing in the app uses the second yet.
+- Checked at 1440px, 820px and 375px on a throwaway business; the till and public pages stay bare. Types, contrast (0 failures), authority and the production build pass.

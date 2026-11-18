@@ -233,7 +233,7 @@ export default async function Work() {
     <main className="min-h-screen bg-light-grey">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Your work</h1>
+          <h1 className="text-lg font-semibold text-ink">Work</h1>
           <p className="text-sm text-ink-muted">
             What is late, who is here, and what needs deciding.
           </p>

@@ -82,7 +82,7 @@ export default async function Availability() {
   return (
     <PageShell>
       <PageHeader
-        title="When you are free"
+        title="Availability"
         intro="Your normal week, and the days you are shut. Customers only ever see times that survive both."
       />
 

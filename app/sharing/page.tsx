@@ -82,7 +82,7 @@ export default async function Sharing() {
     <main className="min-h-screen bg-light-grey">
       <header className="border-b border-line bg-white">
         <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Who can see your record</h1>
+          <h1 className="text-lg font-semibold text-ink">Sharing</h1>
           <p className="text-sm text-ink-muted">
             You choose what to share, with whom, and for how long. You can stop
             any of it at any moment.
