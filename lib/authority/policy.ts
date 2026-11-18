@@ -273,6 +273,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
 export const PAGE_POLICY: Record<string, MemberRule> = {
   "/orders": { permission: ["orders.manage", "orders.manage_assigned"], capability: ["shop.orders"] },
   "/sales": { permission: ["sales.view"] },
+  "/money": { permission: ["payments.view"] },
   "/bookings": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.bookings"] },
   "/services": { permission: ["catalogue.manage"], capability: ["services.bookings"] },
   "/documents": { permission: ["documents.view"], capability: ["documents.issue"] },

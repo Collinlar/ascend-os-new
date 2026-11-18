@@ -68,6 +68,14 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     // shared and the screen reads all of them at once.
     requires: ["customers.core", "customers.basic"],
   },
+  {
+    href: "/money",
+    label: "Money",
+    short: "Money",
+    icon: "money",
+    // Read from the Financial Foundation, which every way of selling feeds.
+    requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
+  },
   { href: "/products", label: "Products", short: "Products", icon: "tag", requires: "catalogue.core" },
   { href: "/shop", label: "Shop", short: "Shop", icon: "store", requires: "shop.storefront" },
   {
