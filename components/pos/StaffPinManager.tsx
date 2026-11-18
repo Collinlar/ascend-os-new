@@ -348,7 +348,7 @@ export default function StaffPinManager({
                       setError(null);
                       setDone(null);
                     }}
-                    className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale"
+                    className="tap flex items-center rounded-control bg-teal-50 px-4 text-[13px] font-bold text-teal-800 hover:bg-teal-100"
                   >
                     {person.hasPin ? "Change PIN" : "Give a PIN"}
                   </button>

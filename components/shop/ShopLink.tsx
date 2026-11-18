@@ -23,7 +23,7 @@ export default function ShopLink({
   const url = shopUrl ?? "";
 
   return (
-    <section className="border border-line bg-white p-5">
+    <section className="rounded-panel border border-line-brand bg-white p-5">
       <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
         Your shop address
       </p>

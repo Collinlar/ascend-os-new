@@ -327,7 +327,7 @@ export default function WorkBoard({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
@@ -338,17 +338,17 @@ export default function WorkBoard({
       )}
 
       {modules.attendance && (
-      <section className="flex flex-wrap items-center justify-between gap-3 border border-line bg-white px-4 py-3">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-line-brand bg-white px-4 py-3">
         <p className="text-sm text-ink">
           {checkedIn ? "You are checked in." : "You are not checked in."}
         </p>
         <button
           onClick={() => post("attendance", { action: "attendance" })}
           disabled={busy === "attendance"}
-          className="tap border border-teal px-4 py-2.5 text-sm font-medium text-teal-dark disabled:opacity-60"
+          className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
         >
           {busy === "attendance"
-            ? "Saving..."
+            ? checkedIn ? "Checking you out..." : "Checking you in..."
             : checkedIn
               ? "Check out"
               : "Check in"}
@@ -392,7 +392,7 @@ export default function WorkBoard({
                         })
                       }
                       disabled={busy === approval.id}
-                      className="tap bg-teal px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+                      className="tap inline-flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
                     >
                       Approve
                     </button>
@@ -405,7 +405,7 @@ export default function WorkBoard({
                         })
                       }
                       disabled={busy === approval.id}
-                      className="tap border border-line px-4 py-2.5 text-sm font-medium text-ink disabled:opacity-60"
+                      className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
                     >
                       Turn it down
                     </button>
@@ -432,20 +432,20 @@ export default function WorkBoard({
         </div>
 
         {showTask && (
-          <div className="mt-3 border border-line bg-white p-4">
+          <div className="mt-3 rounded-panel border border-line-brand bg-white p-4">
             <input
               value={taskTitle}
               onChange={(e) => setTaskTitle(e.target.value)}
               placeholder="What needs doing?"
               aria-label="What needs doing"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <input
               value={taskDetail}
               onChange={(e) => setTaskDetail(e.target.value)}
               placeholder="Anything else worth knowing"
               aria-label="Task detail"
-              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {/* Unassigned is allowed and common: a small team picks work
@@ -454,7 +454,7 @@ export default function WorkBoard({
                 value={taskAssignee}
                 onChange={(e) => setTaskAssignee(e.target.value)}
                 aria-label="Who should do it"
-                className="w-full border border-line bg-white px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                className="w-full min-h-[44px] rounded-control border border-neutral-200 bg-white px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
               >
                 <option value="">Anyone on the team</option>
                 {team.map((m) => (
@@ -468,20 +468,20 @@ export default function WorkBoard({
                 value={taskDue}
                 onChange={(e) => setTaskDue(e.target.value)}
                 aria-label="When it is needed by"
-                className="w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
               />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={addTask}
                 disabled={busy === "new-task"}
-                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="tap inline-flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
               >
                 {busy === "new-task" ? "Adding..." : "Add it to the list"}
               </button>
               <button
                 onClick={() => setShowTask(false)}
-                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+                className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
               >
                 Cancel
               </button>
@@ -491,14 +491,14 @@ export default function WorkBoard({
 
         <div className="mt-3 space-y-2">
           {tasks.length === 0 ? (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
+            <p className="rounded-panel border border-line-brand bg-white px-4 py-4 text-sm text-ink-muted">
               Nothing outstanding.
             </p>
           ) : (
             tasks.map((task) => (
               <div
                 key={task.id}
-                className="flex flex-col justify-between gap-2 border border-line bg-white px-4 py-3 sm:flex-row sm:items-center"
+                className="flex flex-col justify-between gap-2 rounded-panel border border-line-brand bg-white px-4 py-3 sm:flex-row sm:items-center"
               >
                 <div>
                   <p className="text-sm font-medium text-ink">{task.title}</p>
@@ -514,9 +514,9 @@ export default function WorkBoard({
                     post(task.id, { action: "complete_task", taskId: task.id })
                   }
                   disabled={busy === task.id}
-                  className="tap self-start whitespace-nowrap border border-teal px-4 py-2 text-sm font-medium text-teal-dark disabled:opacity-60 sm:self-auto"
+                  className="tap inline-flex items-center self-start whitespace-nowrap rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60 sm:self-auto"
                 >
-                  {busy === task.id ? "Saving..." : "Mark done"}
+                  {busy === task.id ? "Marking it done..." : "Mark done"}
                 </button>
               </div>
             ))
@@ -543,20 +543,20 @@ export default function WorkBoard({
         </div>
 
         {showProject && (
-          <div className="mt-3 border border-line bg-white p-4">
+          <div className="mt-3 rounded-panel border border-line-brand bg-white p-4">
             <input
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="What is the job?"
               aria-label="Job name"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <input
               type="date"
               value={projectDue}
               onChange={(e) => setProjectDue(e.target.value)}
               aria-label="When the job is due"
-              className="mt-2 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+              className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
             />
             <textarea
               value={projectSteps}
@@ -564,19 +564,19 @@ export default function WorkBoard({
               rows={4}
               placeholder={"The steps, one per line\nBook the venue\nConfirm the menu\nDeliver"}
               aria-label="Steps, one per line"
-              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={addProject}
                 disabled={busy === "project"}
-                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="tap inline-flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
               >
-                {busy === "project" ? "Saving..." : "Save the job"}
+                {busy === "project" ? "Saving the job..." : "Save the job"}
               </button>
               <button
                 onClick={() => setShowProject(false)}
-                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+                className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
               >
                 Cancel
               </button>
@@ -586,12 +586,12 @@ export default function WorkBoard({
 
         <div className="mt-3 space-y-2">
           {projects.length === 0 ? (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
+            <p className="rounded-panel border border-line-brand bg-white px-4 py-4 text-sm text-ink-muted">
               No jobs on at the moment.
             </p>
           ) : (
             projects.map((p) => (
-              <div key={p.id} className="border border-line bg-white px-4 py-3">
+              <div key={p.id} className="rounded-panel border border-line-brand bg-white px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-sm font-medium text-ink">{p.name}</p>
                   <p className="num text-xs font-bold text-ink-muted">
@@ -630,7 +630,7 @@ export default function WorkBoard({
         </div>
 
         {showLeave && (
-          <div className="mt-3 border border-line bg-white p-4">
+          <div className="mt-3 rounded-panel border border-line-brand bg-white p-4">
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="text-xs font-medium text-ink-muted">
                 First day
@@ -638,7 +638,7 @@ export default function WorkBoard({
                   type="date"
                   value={leaveFrom}
                   onChange={(e) => setLeaveFrom(e.target.value)}
-                  className="mt-1 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                  className="mt-1 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
                 />
               </label>
               <label className="text-xs font-medium text-ink-muted">
@@ -647,7 +647,7 @@ export default function WorkBoard({
                   type="date"
                   value={leaveTo}
                   onChange={(e) => setLeaveTo(e.target.value)}
-                  className="mt-1 w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+                  className="mt-1 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
                 />
               </label>
             </div>
@@ -656,19 +656,19 @@ export default function WorkBoard({
               onChange={(e) => setLeaveReason(e.target.value)}
               placeholder="Why, if you want to say"
               aria-label="Reason"
-              className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={askForLeave}
                 disabled={busy === "leave"}
-                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="tap inline-flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
               >
                 {busy === "leave" ? "Asking..." : "Ask for these days"}
               </button>
               <button
                 onClick={() => setShowLeave(false)}
-                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+                className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
               >
                 Cancel
               </button>
@@ -681,7 +681,7 @@ export default function WorkBoard({
             {leave.map((l) => (
               <div
                 key={l.id}
-                className="flex flex-wrap items-center justify-between gap-2 border border-line bg-white px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-panel border border-line-brand bg-white px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-medium text-ink">
@@ -717,7 +717,7 @@ export default function WorkBoard({
       {/* Buying something, which is a different question from having spent
           it. This one waits for a yes. */}
       {modules.purchases && (
-      <section className="border border-line bg-white p-5">
+      <section className="rounded-panel border border-line-brand bg-white p-5">
         <h2 className="font-medium text-ink">Something you need to buy</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Ask first. Once it is agreed we raise the purchase order for you.
@@ -729,7 +729,7 @@ export default function WorkBoard({
               onChange={(e) => setBuyWhat(e.target.value)}
               placeholder="What do you need?"
               aria-label="What you need to buy"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <input
@@ -738,27 +738,27 @@ export default function WorkBoard({
                 inputMode="decimal"
                 placeholder="Roughly how much?"
                 aria-label="Rough cost"
-                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+                className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
               />
               <input
                 value={buyFrom}
                 onChange={(e) => setBuyFrom(e.target.value)}
                 placeholder="Who from?"
                 aria-label="Supplier"
-                className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-ink-muted focus:border-teal focus:outline-none"
+                className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
               />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={askToBuy}
                 disabled={busy === "buy"}
-                className="tap border border-teal bg-teal px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="tap inline-flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
               >
                 {busy === "buy" ? "Asking..." : "Ask to buy it"}
               </button>
               <button
                 onClick={() => setShowBuy(false)}
-                className="tap border border-line px-4 py-2 text-sm font-medium text-ink-slate"
+                className="tap inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
               >
                 Cancel
               </button>
@@ -767,7 +767,7 @@ export default function WorkBoard({
         ) : (
           <button
             onClick={() => setShowBuy(true)}
-            className="tap mt-3 border border-line px-4 py-2 text-sm font-medium text-ink"
+            className="tap mt-3 inline-flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
           >
             Ask to buy something
           </button>
@@ -776,7 +776,7 @@ export default function WorkBoard({
       )}
 
       {modules.expenses && (
-      <section className="border border-line bg-white p-5">
+      <section className="rounded-panel border border-line-brand bg-white p-5">
         <h2 className="font-medium text-ink">Money you spent</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Record it here. Above your business&apos;s limit it goes for approval
@@ -790,34 +790,34 @@ export default function WorkBoard({
               onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal"
               placeholder="How much?"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <input
               value={detail}
               onChange={(e) => setDetail(e.target.value)}
               placeholder="What was it for?"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <div className="flex gap-2">
               <button
                 onClick={() => setShowExpense(false)}
-                className="tap flex-1 border border-line py-2.5 text-sm font-medium text-ink"
+                className="tap inline-flex flex-1 items-center justify-center rounded-control border border-line-brand text-[13px] font-bold text-teal-800"
               >
                 Cancel
               </button>
               <button
                 onClick={submitExpense}
                 disabled={busy === "expense"}
-                className="tap flex-[2] bg-teal py-2.5 text-sm font-medium text-white disabled:opacity-60"
+                className="tap inline-flex flex-[2] items-center justify-center rounded-control bg-teal text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
               >
-                {busy === "expense" ? "Saving..." : "Record it"}
+                {busy === "expense" ? "Recording it..." : "Record it"}
               </button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setShowExpense(true)}
-            className="tap mt-3 w-full border border-teal px-4 py-3 font-medium text-teal-dark"
+            className="tap mt-3 inline-flex w-full items-center justify-center rounded-control border border-line-brand px-4 text-[13.5px] font-bold text-teal-800 hover:border-teal-brand"
           >
             Record money spent
           </button>

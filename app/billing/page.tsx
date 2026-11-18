@@ -86,7 +86,7 @@ export default async function Billing() {
 
       {data.bought.length > 0 && (
         <div className="mb-5">
-          <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             What you have bought
           </h2>
           <Panel>
@@ -122,7 +122,7 @@ export default async function Billing() {
       ) : (
         Array.from(groups.entries()).map(([kind, offers]) => (
           <div key={kind} className="mb-5">
-            <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
               {KIND_LABEL[kind] ?? kind}
             </h2>
             <Panel>

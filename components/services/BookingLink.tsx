@@ -25,7 +25,7 @@ export default function BookingLink({
   const address = url ?? "";
 
   return (
-    <section className="rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+    <section className="rounded-[18px] border border-line-brand bg-white p-5">
       <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
         Your booking page
       </p>

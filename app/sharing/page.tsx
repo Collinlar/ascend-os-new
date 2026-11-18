@@ -1,3 +1,4 @@
+import { PageHeader, PageShell } from "@/components/shell/Page";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
@@ -79,30 +80,25 @@ export default async function Sharing() {
   const data = await load();
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Sharing</h1>
-          <p className="text-sm text-ink-muted">
-            You choose what to share, with whom, and for how long. You can stop
-            any of it at any moment.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Sharing"
+        intro="You choose what to share, with whom, and for how long. You can stop any of it at any moment."
+      />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
+      <div className="max-w-3xl">
         {data === null ? (
           <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to manage sharing.
           </p>
         ) : !data.isOwner ? (
-          <p className="border border-line bg-white px-5 py-6 text-sm text-ink-muted">
+          <p className="rounded-panel border border-line-brand bg-white px-5 py-6 text-sm text-neutral-600">
             Only the owner can share the business record.
           </p>
         ) : (
           <ShareManager shares={data.shares} />
         )}
       </div>
-    </main>
+    </PageShell>
   );
 }

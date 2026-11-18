@@ -236,7 +236,7 @@ export default function BookingList({
           </div>
         </div>
 
-        <div className="flex overflow-hidden rounded-panel border border-line-soft bg-white">
+        <div className="flex overflow-hidden rounded-panel border border-line-brand bg-white">
           <div className="w-14 flex-none border-r border-line-soft pt-11">
             {Array.from({ length: week.to - week.from }, (_, i) => (
               <div key={i} className="relative" style={{ height: hourHeight }}>
@@ -339,7 +339,7 @@ export default function BookingList({
 
       {waiting.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             Waiting for your answer
           </h2>
           <div className="flex flex-col gap-3.5">
@@ -360,7 +360,7 @@ export default function BookingList({
 
       {upcoming.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             Coming up
           </h2>
           <div className="flex flex-col gap-3.5">
@@ -387,7 +387,7 @@ export default function BookingList({
 
       {settled.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             Settled
           </h2>
           <div className="flex flex-col gap-2.5">
@@ -494,7 +494,7 @@ function Card({
                       if (!e.target.value) return;
                       onAssign?.(booking.id, e.target.value);
                     }}
-                    className="w-full max-w-[220px] border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-slate focus:border-teal focus:outline-none"
+                    className="w-full max-w-[220px] min-h-[44px] rounded-control border border-neutral-200 bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-slate focus:border-teal focus:outline-none"
                   >
                     <option value="">Nobody assigned yet</option>
                     {team.map((p) => (

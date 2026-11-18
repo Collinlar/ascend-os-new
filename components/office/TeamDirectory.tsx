@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { EmptyState, Panel, PanelRow } from "@/components/shell/Page";
+import { EmptyState, Panel, primaryAction } from "@/components/shell/Page";
+import { Icon } from "@/components/shell/icons";
 
 // The people who work here.
 //
@@ -18,6 +19,9 @@ export interface TeamRow {
   status: string;
   isSelf: boolean;
 }
+
+// What the team screen can add someone as (add_team_member, 0077).
+const ADDABLE_ROLES = ["cashier", "manager"];
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -50,7 +54,9 @@ export default function TeamDirectory({
   const [adding, setAdding] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const [roleKey, setRoleKey] = useState("staff");
+  // add_team_member (0077) accepts a cashier or a manager; offering more
+  // here only produced a refusal after the owner filled the form in.
+  const [roleKey, setRoleKey] = useState("cashier");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -105,7 +111,7 @@ export default function TeamDirectory({
       setAdding(false);
       setFullName("");
       setPhone("");
-      setRoleKey("staff");
+      setRoleKey("cashier");
       router.refresh();
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
@@ -140,31 +146,29 @@ export default function TeamDirectory({
   return (
     <div>
       {error && (
-        <p className="mb-3.5 border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="mb-3.5 rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
 
       {canManage && !adding && (
         <div className="mb-3.5 flex justify-end">
-          <button
-            onClick={() => setAdding(true)}
-            className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
-          >
+          <button onClick={() => setAdding(true)} className={primaryAction}>
+            <Icon name="plus" size={16} />
             Add someone
           </button>
         </div>
       )}
 
       {adding && (
-        <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+        <div className="mb-3.5 rounded-[18px] border border-line-brand bg-white p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Their name"
               aria-label="Name"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <input
               value={phone}
@@ -172,14 +176,14 @@ export default function TeamDirectory({
               inputMode="tel"
               placeholder="Their WhatsApp number, if they have one"
               aria-label="WhatsApp number"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
           </div>
 
           <div className="mt-3">
             <p className="text-[13px] font-bold text-ink">What they can do</p>
             <div className="mt-2 space-y-1.5">
-              {["staff", "cashier", "manager", "accountant"].map((key) => (
+              {ADDABLE_ROLES.map((key) => (
                 <button
                   key={key}
                   onClick={() => setRoleKey(key)}
@@ -214,15 +218,15 @@ export default function TeamDirectory({
             <button
               onClick={add}
               disabled={busy === "add"}
-              className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60"
+              className="tap flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
             >
-              {busy === "add" ? "Adding..." : "Add them to the team"}
+              {busy === "add" ? "Adding them to the team..." : "Add them to the team"}
             </button>
             <button
               onClick={() => setAdding(false)}
-              className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+              className="tap flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
             >
-              Cancel
+              Not now
             </button>
           </div>
         </div>
@@ -235,90 +239,114 @@ export default function TeamDirectory({
         />
       ) : (
         <Panel>
-          {team.map((m, i) => (
-            <PanelRow key={m.membershipId} last={i === team.length - 1}>
-              <span
-                aria-hidden
-                className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-light-grey text-sm font-extrabold text-ink-slate"
-              >
-                {initials(m.name)}
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-bold leading-snug text-ink">
-                  {m.name}
-                  {m.isSelf && (
-                    <span className="ml-2 text-[12px] font-bold text-slate-grey">
-                      you
+          <div
+            aria-hidden
+            className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}
+          >
+            <span>Person</span>
+            <span>Role</span>
+            <span>Phone</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {team.map((m, i) => {
+            const status = STATUS[m.status] ?? { text: m.status, cls: "bg-neutral-100 text-neutral-700" };
+            const managed = canManage && !m.isSelf && m.roleKey !== "owner";
+            return (
+              <div key={m.membershipId} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
+                <div className={`flex flex-wrap items-center gap-3 px-5 py-3 ${COLS}`}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-teal-50 text-[11.5px] font-bold text-teal-800"
+                    >
+                      {initials(m.name)}
                     </span>
-                  )}
-                </p>
-                <p className="text-[12.5px] font-medium text-slate-grey">
-                  {ROLE_LABEL[m.roleKey] ?? m.roleKey}
-                  {m.phone && ` · ${m.phone}`}
-                  {m.status !== "active" && ` · ${m.status}`}
-                </p>
-              </div>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate text-[14px] font-semibold text-ink">
+                        {m.name}
+                        {m.isSelf && <span className="ml-1.5 text-xs font-semibold text-neutral-500">you</span>}
+                      </span>
+                      <span className="truncate text-xs text-neutral-500 lg:hidden">
+                        {ROLE_LABEL[m.roleKey] ?? m.roleKey}
+                        {m.phone ? ` · ${local(m.phone)}` : ""}
+                      </span>
+                    </span>
+                  </div>
+                  <span className="hidden min-w-0 lg:block">
+                    <span className="sr-only">Role: </span>
+                    <span className="block text-[13.5px] font-semibold text-ink">{ROLE_LABEL[m.roleKey] ?? m.roleKey}</span>
+                    <span className="block truncate text-xs text-neutral-500">{ROLE_MEANS[m.roleKey]}</span>
+                  </span>
+                  <span className="hidden truncate text-[13.5px] text-neutral-600 lg:block">
+                    <span className="sr-only">Phone: </span>
+                    {m.phone ? local(m.phone) : "None given"}
+                  </span>
+                  <span className="flex-none">
+                    <span className="sr-only">Status: </span>
+                    <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${status.cls}`}>{status.text}</span>
+                  </span>
+                  <span className="flex flex-none flex-wrap justify-end gap-2 lg:justify-end">
+                    {managed && changing !== m.membershipId && confirming !== m.membershipId && (
+                      <>
+                        <button
+                          onClick={() => setChanging(m.membershipId)}
+                          className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
+                        >
+                          Change what they do
+                        </button>
+                        <button
+                          onClick={() => setConfirming(m.membershipId)}
+                          className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
+                        >
+                          They have left
+                        </button>
+                      </>
+                    )}
+                  </span>
+                </div>
 
-              {canManage && !m.isSelf && m.roleKey !== "owner" && (
-                changing === m.membershipId ? (
-                  <span className="flex w-full flex-wrap gap-1.5">
+                {managed && changing === m.membershipId && (
+                  <div className="flex flex-wrap gap-1.5 px-5 pb-3">
                     {["staff", "cashier", "manager", "accountant"].map((key) => (
                       <button
                         key={key}
                         onClick={() => changeRole(m.membershipId, key)}
                         disabled={busy === m.membershipId || key === m.roleKey}
-                        className={`tap flex items-center rounded-chip border px-3.5 text-[13px] font-bold disabled:opacity-50 ${
-                          key === m.roleKey
-                            ? "border-teal bg-teal-light text-teal-dark"
-                            : "border-line text-ink-slate hover:bg-light-grey"
+                        className={`tap flex items-center rounded-full border-[1.5px] px-3.5 text-[12.5px] font-semibold disabled:opacity-60 ${
+                          key === m.roleKey ? "border-teal bg-teal-50 text-teal-800" : "border-neutral-200 text-neutral-700 hover:border-teal-brand"
                         }`}
                       >
-                        {ROLE_LABEL[key]}
+                        {busy === m.membershipId && key !== m.roleKey ? `Making them ${ROLE_LABEL[key].toLowerCase()}...` : ROLE_LABEL[key]}
                       </button>
                     ))}
-                    <button
-                      onClick={() => setChanging(null)}
-                      className="tap flex items-center px-2 text-[13px] font-bold text-slate-grey"
-                    >
+                    <button onClick={() => setChanging(null)} className="tap flex items-center px-2 text-[13px] font-bold text-neutral-600">
                       Close
                     </button>
-                  </span>
-                ) : confirming === m.membershipId ? (
-                  <span className="flex flex-none gap-2">
+                  </div>
+                )}
+
+                {managed && confirming === m.membershipId && (
+                  <div className="flex flex-wrap items-center justify-end gap-2 px-5 pb-3">
+                    <span className="text-[13px] text-neutral-600">Remove {m.name.split(/\s+/)[0]} from the team? Their past work stays on record.</span>
                     <button
                       onClick={() => remove(m.membershipId)}
                       disabled={busy === m.membershipId}
-                      className="tap flex items-center rounded-chip bg-danger-tint px-3.5 text-[13px] font-bold text-danger-ink disabled:opacity-60"
+                      className="tap flex items-center rounded-control bg-danger-tint px-3.5 text-[13px] font-bold text-danger-ink disabled:opacity-60"
                     >
-                      {busy === m.membershipId ? "Removing..." : "Yes, remove"}
+                      {busy === m.membershipId ? "Removing them..." : "Yes, remove"}
                     </button>
                     <button
                       onClick={() => setConfirming(null)}
-                      className="tap flex items-center rounded-chip border border-line px-3.5 text-[13px] font-bold text-ink-slate"
+                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800"
                     >
-                      Keep
+                      Keep them
                     </button>
-                  </span>
-                ) : (
-                  <span className="flex flex-none gap-2">
-                    <button
-                      onClick={() => setChanging(m.membershipId)}
-                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
-                    >
-                      Change what they do
-                    </button>
-                    <button
-                      onClick={() => setConfirming(m.membershipId)}
-                      className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
-                    >
-                      They have left
-                    </button>
-                  </span>
-                )
-              )}
-            </PanelRow>
-          ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </Panel>
       )}
     </div>
@@ -333,4 +361,22 @@ function initials(name: string): string {
     .map((w) => w[0].toUpperCase())
     .join("");
   return letters || name.slice(0, 1).toUpperCase();
+}
+
+// The design's team table, from 1024px: person, role, phone, status, actions.
+const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_230px_140px_110px_300px] lg:items-center lg:gap-4";
+
+const STATUS: Record<string, { text: string; cls: string }> = {
+  active: { text: "Active", cls: "bg-success-tint text-success-ink" },
+  invited: { text: "Invited", cls: "bg-info-light text-info-ink" },
+  suspended: { text: "Paused", cls: "bg-gold-100 text-gold-700" },
+};
+
+// +233 24 771 0932 reads as the number people say: 024 771 0932.
+function local(e164: string): string {
+  if (e164.startsWith("+233") && e164.length === 13) {
+    const d = "0" + e164.slice(4);
+    return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
+  }
+  return e164;
 }

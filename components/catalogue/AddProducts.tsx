@@ -355,7 +355,7 @@ export default function AddProducts({
                       value={draft.name}
                       onChange={(e) => patch(draft.id, { name: e.target.value })}
                       placeholder="What is this product called?"
-                      className="mt-2 w-full border border-line px-3 py-2 text-ink focus:border-teal focus:outline-none"
+                      className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2 text-ink focus:border-teal focus:outline-none"
                     />
 
                     <textarea
@@ -363,7 +363,7 @@ export default function AddProducts({
                       onChange={(e) => patch(draft.id, { description: e.target.value })}
                       rows={3}
                       placeholder="A line or two about it, if you want one"
-                      className="mt-2 w-full resize-y border border-line px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
+                      className="mt-2 w-full resize-y min-h-[44px] rounded-control border border-neutral-200 px-3 py-2 text-sm text-ink focus:border-teal focus:outline-none"
                     />
 
                     <input
@@ -373,7 +373,7 @@ export default function AddProducts({
                       }
                       inputMode="decimal"
                       placeholder="Your price in GHS"
-                      className="num mt-2 w-full border border-line px-3 py-2 text-ink focus:border-teal focus:outline-none"
+                      className="num mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2 text-ink focus:border-teal focus:outline-none"
                     />
 
                     {draft.suggestion?.suggested_price_note && (

@@ -156,7 +156,7 @@ export default function DeviceManager({
         <button
           onClick={generateCode}
           disabled={busy}
-          className="tap flex w-full items-center justify-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
+          className="tap flex w-full items-center justify-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
         >
           {busy ? "Creating your code..." : "Set up a new till"}
         </button>

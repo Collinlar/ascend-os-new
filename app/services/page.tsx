@@ -180,14 +180,14 @@ export default async function ServicesHome() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/availability"
-            className="tap flex flex-1 items-center justify-between rounded-panel border border-line-soft bg-white px-[18px] py-4 shadow-card"
+            className="tap flex flex-1 items-center justify-between rounded-panel border border-line-brand bg-white px-[18px] py-4 shadow-card"
           >
             <span className="text-sm font-bold text-ink">When you are free</span>
             <span className="text-sm font-bold text-teal-dark">Set your hours</span>
           </Link>
           <Link
             href="/bookings"
-            className="tap flex flex-1 items-center justify-between rounded-panel border border-line-soft bg-white px-[18px] py-4 shadow-card"
+            className="tap flex flex-1 items-center justify-between rounded-panel border border-line-brand bg-white px-[18px] py-4 shadow-card"
           >
             <span className="text-sm font-bold text-ink">Every booking</span>
             <span className="text-sm font-bold text-teal-dark">Open the diary</span>

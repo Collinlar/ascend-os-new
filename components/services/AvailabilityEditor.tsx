@@ -216,7 +216,7 @@ export default function AvailabilityEditor({
         <button
           onClick={saveHours}
           disabled={busy}
-          className="tap mt-5 flex items-center justify-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
+          className="tap mt-5 flex items-center justify-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60 sm:w-auto"
         >
           {busy ? "Saving..." : saved ? "Saved" : "Save my hours"}
         </button>
@@ -251,7 +251,7 @@ export default function AvailabilityEditor({
           value={offReason}
           onChange={(e) => setOffReason(e.target.value)}
           placeholder="Why? Only you see this"
-          className="mt-2 w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+          className="mt-2 w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
         />
         <button
           onClick={blockTime}

@@ -1,3 +1,4 @@
+import { PageHeader, PageShell } from "@/components/shell/Page";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
@@ -230,17 +231,10 @@ export default async function Work() {
   if (data === "not_included") redirect("/grow");
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-2xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Work</h1>
-          <p className="text-sm text-ink-muted">
-            What is late, who is here, and what needs deciding.
-          </p>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader title="Work" intro="What is late, who is here, and what needs deciding." />
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
+      <div className="max-w-3xl">
         {data === "signed_out" ? (
           <p className="py-16 text-center text-ink-muted">
             Verify your WhatsApp number to see your work.
@@ -273,6 +267,6 @@ export default async function Work() {
           </div>
         )}
       </div>
-    </main>
+    </PageShell>
   );
 }

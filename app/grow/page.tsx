@@ -1,3 +1,4 @@
+import { PageHeader, PageShell } from "@/components/shell/Page";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -25,29 +26,24 @@ export default async function Grow() {
   const held = options.filter((o) => o.held);
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Add to your business</h1>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="Add to your business"
+        intro="Nothing here starts you over. What you have already built comes with you, which is the whole point of keeping it in one place."
+      />
 
-      <div className="mx-auto max-w-3xl px-5 py-8">
-        <p className="max-w-lg text-sm text-ink-muted">
-          Nothing here starts you over. What you have already built comes with
-          you, which is the whole point of keeping it in one place.
-        </p>
+      <div className="max-w-3xl">
 
         <div className="mt-6 space-y-4">
           {available.length === 0 && (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
+            <p className="rounded-panel border border-line-brand bg-white px-4 py-4 text-sm text-ink-muted">
               You have taken on everything available to you. Nothing else to add
               right now.
             </p>
           )}
 
           {available.map((option) => (
-            <section key={option.key} className="border border-line bg-white p-5">
+            <section key={option.key} className="rounded-panel border border-line-brand bg-white p-5">
               <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-teal-dark">
                 {option.suits}
               </p>
@@ -101,6 +97,6 @@ export default async function Grow() {
           </section>
         )}
       </div>
-    </main>
+    </PageShell>
   );
 }

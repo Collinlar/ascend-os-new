@@ -1,3 +1,4 @@
+import { PageHeader, PageShell } from "@/components/shell/Page";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -98,14 +99,10 @@ export default async function ShopHome() {
   const empty = shop.listed === 0;
 
   return (
-    <main className="min-h-screen bg-light-grey">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-4">
-          <h1 className="text-lg font-semibold text-ink">Shop</h1>
-        </div>
-      </header>
+    <PageShell>
+      <PageHeader title="Shop" intro="Your products online, with one link to share on WhatsApp and Instagram." />
 
-      <div className="mx-auto max-w-3xl space-y-6 px-5 py-8">
+      <div className="max-w-3xl space-y-6">
         {/* A shop that is open with nothing on it is the failure nobody
             sees, because the page loads perfectly and is simply empty. */}
         {empty && (
@@ -171,13 +168,13 @@ export default async function ShopHome() {
 
         <Link
           href="/orders"
-          className="tap flex items-center justify-between border border-line bg-white px-4 py-4"
+          className="tap flex items-center justify-between rounded-panel border border-line-brand bg-white px-4 py-4"
         >
           <span className="text-sm font-medium text-ink">Every order</span>
           <span className="text-sm text-teal-dark">Open the order list</span>
         </Link>
       </div>
-    </main>
+    </PageShell>
   );
 }
 

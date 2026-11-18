@@ -87,35 +87,35 @@ export default function Locations({
   }
 
   const form = (
-    <div className="rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+    <div className="rounded-[18px] border border-line-brand bg-white p-5">
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="What you call this place"
           aria-label="Location name"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
         />
         <input
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder="Town or city"
           aria-label="City"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
         />
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="Where to find it"
           aria-label="Address"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:col-span-2"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none sm:col-span-2"
         />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={save}
           disabled={busy === "save"}
-          className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60"
+          className="tap flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
         >
           {busy === "save" ? "Saving..." : "Save this place"}
         </button>
@@ -124,7 +124,7 @@ export default function Locations({
             setEditing(null);
             setAdding(false);
           }}
-          className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+          className="tap flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
         >
           Cancel
         </button>
@@ -155,7 +155,7 @@ export default function Locations({
       </div>
 
       {error && (
-        <p className="mb-3.5 border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="mb-3.5 rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
@@ -182,7 +182,7 @@ export default function Locations({
             {canManage && (
               <button
                 onClick={() => open(l)}
-                className="tap flex flex-none items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+                className="tap flex flex-none items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
               >
                 Change
               </button>

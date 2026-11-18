@@ -132,7 +132,7 @@ export default function ServiceManager({
           <button
             type="button"
             onClick={openNew}
-            className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover"
+            className="tap flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover"
           >
             Add a service
           </button>
@@ -146,7 +146,7 @@ export default function ServiceManager({
       )}
 
       {editing !== null && (
-        <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+        <div className="mb-3.5 rounded-[18px] border border-line-brand bg-white p-5">
           <div className="flex flex-col gap-4">
             <Field
               id="svc-name"
@@ -263,7 +263,7 @@ export default function ServiceManager({
                 <button
                   type="button"
                   onClick={() => openEdit(row)}
-                  className="tap flex items-center rounded-chip bg-teal-light px-4 text-[13px] font-bold text-teal-dark hover:bg-teal-pale"
+                  className="tap flex items-center rounded-control bg-teal-50 px-4 text-[13px] font-bold text-teal-800 hover:bg-teal-100"
                 >
                   Edit
                 </button>
@@ -271,7 +271,7 @@ export default function ServiceManager({
                   type="button"
                   onClick={() => setActive(row, !row.active)}
                   disabled={busy}
-                  className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey disabled:opacity-60"
+                  className="tap flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
                 >
                   {row.active ? "Stop offering" : "Offer again"}
                 </button>

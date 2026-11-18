@@ -26,10 +26,10 @@ export default function Schedule({ entries }: { entries: ScheduleEntry[] }) {
   if (entries.length === 0) {
     return (
       <section>
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+        <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
           What is coming
         </h2>
-        <p className="mt-2 rounded-panel border border-line-soft bg-white px-[18px] py-3.5 text-[13px] font-medium text-slate-grey">
+        <p className="mt-2 rounded-panel border border-line-brand bg-white px-[18px] py-3.5 text-[13px] font-medium text-slate-grey">
           Nothing booked or due in the next two weeks.
         </p>
       </section>
@@ -45,14 +45,14 @@ export default function Schedule({ entries }: { entries: ScheduleEntry[] }) {
 
   return (
     <section>
-      <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+      <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
         What is coming
       </h2>
       <div className="mt-2 space-y-2.5">
         {Array.from(byDay.entries()).map(([day, items]) => (
           <div
             key={day}
-            className="overflow-hidden rounded-panel border border-line-soft bg-white"
+            className="overflow-hidden rounded-panel border border-line-brand bg-white"
           >
             <p className="border-b border-line-soft px-[18px] py-2 text-[12px] font-bold text-ink">
               {dayLabel(day)}

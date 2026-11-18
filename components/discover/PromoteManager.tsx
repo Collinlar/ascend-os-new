@@ -74,7 +74,7 @@ export default function PromoteManager({
   return (
     <div className="space-y-8">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
@@ -91,13 +91,13 @@ export default function PromoteManager({
         <h2 className="text-sm font-medium text-ink-muted">Where you appear</h2>
         <div className="mt-3 space-y-2">
           {listings.length === 0 && (
-            <p className="border border-line bg-white px-4 py-4 text-sm text-ink-muted">
+            <p className="rounded-panel border border-line-brand bg-white px-4 py-4 text-sm text-ink-muted">
               You are not listed on Discover yet.
             </p>
           )}
 
           {listings.map((listing) => (
-            <div key={listing.id} className="border border-line bg-white px-4 py-4">
+            <div key={listing.id} className="rounded-panel border border-line-brand bg-white px-4 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-ink">{listing.name}</p>
                 <p
@@ -123,7 +123,7 @@ export default function PromoteManager({
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                         placeholder="Tell us what we should reconsider"
-                        className="w-full border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                        className="w-full min-h-[44px] rounded-control border border-neutral-200 bg-white px-3 py-2 text-sm text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
                       />
                       <div className="flex gap-2">
                         <button
@@ -178,7 +178,7 @@ export default function PromoteManager({
                         onChange={(e) => setBudget(e.target.value)}
                         inputMode="decimal"
                         placeholder="Budget in GHS"
-                        className="flex-1 border border-line px-3 py-2 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+                        className="flex-1 min-h-[44px] rounded-control border border-neutral-200 px-3 py-2 text-sm text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
                       />
                       <button
                         onClick={async () => {
@@ -226,7 +226,7 @@ export default function PromoteManager({
             {campaigns.map((campaign) => (
               <div
                 key={campaign.campaign_id}
-                className="border border-line bg-white px-4 py-4"
+                className="rounded-panel border border-line-brand bg-white px-4 py-4"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-sm font-medium text-ink">

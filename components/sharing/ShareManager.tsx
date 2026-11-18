@@ -160,7 +160,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
   return (
     <div className="space-y-6">
       {error && (
-        <p className="border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
@@ -187,7 +187,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                className="mt-1 w-full border border-line bg-white px-3 py-2.5 text-base text-ink focus:border-teal focus:outline-none"
+                className="mt-1 w-full min-h-[44px] rounded-control border border-neutral-200 bg-white px-3 py-2.5 text-base text-ink focus:border-teal focus:outline-none"
               />
               <div className="mt-3 flex gap-2">
                 <button
@@ -237,7 +237,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
           Share my record with someone
         </button>
       ) : (
-        <div className="border border-line bg-white p-5">
+        <div className="rounded-panel border border-line-brand bg-white p-5">
           <h2 className="font-medium text-ink">What they will see</h2>
           <p className="mt-1 text-sm text-ink-muted">
             They never see your customers, your staff, or individual sales.
@@ -271,12 +271,12 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Who is this for? e.g. Stanbic loan application"
-              className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
             />
             <select
               value={days}
               onChange={(e) => setDays(e.target.value)}
-              className="w-full border border-line px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
+              className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink focus:border-teal focus:outline-none"
               aria-label="How long they can see it"
             >
               <option value="7">They can see it for 7 days</option>
@@ -318,7 +318,7 @@ export default function ShareManager({ shares }: { shares: ShareRow[] }) {
           const expired =
             share.expiresAt !== null && new Date(share.expiresAt) < new Date();
           return (
-            <div key={share.id} className="border border-line bg-white px-4 py-4">
+            <div key={share.id} className="rounded-panel border border-line-brand bg-white px-4 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium text-ink">
                   {share.purpose ?? "No purpose recorded"}

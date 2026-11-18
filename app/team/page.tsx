@@ -135,7 +135,11 @@ export default async function Team() {
     <PageShell>
       <PageHeader
         title="Team"
-        intro="Everyone who works here, and what each of them is allowed to do. Their hours, sales and approvals all count toward what your business can show a lender."
+        intro={
+          data && data.team.length > 1
+            ? `${data.team.length} people · who can do what. Their hours, sales and approvals count toward your Sustainability Score.`
+            : "Everyone who works here, and what each of them is allowed to do. Their hours, sales and approvals count toward your Sustainability Score."
+        }
       />
 
       {data === null ? (

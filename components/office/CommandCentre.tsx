@@ -62,11 +62,11 @@ export default function CommandCentreView({
       {/* Who is actually at work. The one thing an owner away from the shop
           cannot otherwise find out. */}
       <section>
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+        <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
           Team today
         </h2>
         {data.teamToday.length === 0 ? (
-          <p className="mt-2 rounded-panel border border-line-soft bg-white px-[18px] py-3.5 text-[13px] font-medium text-slate-grey">
+          <p className="mt-2 rounded-panel border border-line-brand bg-white px-[18px] py-3.5 text-[13px] font-medium text-slate-grey">
             Nobody is checked in right now.
           </p>
         ) : (
@@ -95,10 +95,10 @@ export default function CommandCentreView({
           not have to open POS to find out whether anyone is selling. */}
       {data.openShifts.length > 0 && (
         <section>
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             Selling now
           </h2>
-          <div className="mt-2 divide-y divide-line-soft rounded-panel border border-line-soft bg-white">
+          <div className="mt-2 divide-y divide-line-soft rounded-panel border border-line-brand bg-white">
             {data.openShifts.map((s) => (
               <div
                 key={s.id}
@@ -125,8 +125,8 @@ export default function CommandCentreView({
       {/* Business Pulse (Office PRD 28). Five facts about the week, not a
           chart: an owner wants to know whether the place ran, not to
           interpret a graph on a 375px screen. */}
-      <section className="rounded-panel border border-line-soft bg-white px-[22px] py-[17px] shadow-card">
-        <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+      <section className="rounded-panel border border-line-brand bg-white px-[22px] py-[17px] shadow-card">
+        <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
           This week
         </h2>
         <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-4">
@@ -139,10 +139,10 @@ export default function CommandCentreView({
 
       {data.activity.length > 0 && (
         <section>
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-grey">
+          <h2 className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">
             Recently
           </h2>
-          <div className="mt-2 divide-y divide-line-soft rounded-panel border border-line-soft bg-white">
+          <div className="mt-2 divide-y divide-line-soft rounded-panel border border-line-brand bg-white">
             {data.activity.map((item) => (
               <div key={item.id} className="px-[18px] py-3">
                 <p className="text-[13.5px] font-medium text-ink">

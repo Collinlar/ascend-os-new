@@ -90,7 +90,7 @@ export default function BrandingPanel({
   }
 
   return (
-    <div className="mb-3.5 rounded-[18px] border border-line-soft bg-white p-5 shadow-lift">
+    <div className="mb-3.5 rounded-[18px] border border-line-brand bg-white p-5">
       <p className="text-base font-bold text-ink">How your documents look</p>
       <p className="mt-1 text-[13px] font-medium text-slate-grey">
         This goes on every document you send from now on. Anything already
@@ -98,12 +98,12 @@ export default function BrandingPanel({
       </p>
 
       {error && (
-        <p className="mt-3 border border-gold bg-gold-light px-4 py-3 text-sm text-gold-ink">
+        <p className="mt-3 rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">
           {error}
         </p>
       )}
       {saved && !error && (
-        <p className="mt-3 border border-teal bg-teal-light px-4 py-3 text-sm font-medium text-teal-dark">
+        <p className="mt-3 rounded-panel bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-800">
           Saved. Your next document will carry it.
         </p>
       )}
@@ -114,7 +114,7 @@ export default function BrandingPanel({
           onChange={(e) => setTradingName(e.target.value)}
           placeholder="What you trade as"
           aria-label="Trading name"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
         />
         <input
           value={phone}
@@ -122,21 +122,21 @@ export default function BrandingPanel({
           inputMode="tel"
           placeholder="Number customers should call"
           aria-label="Phone shown on documents"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
         />
         <input
           value={addressLine}
           onChange={(e) => setAddressLine(e.target.value)}
           placeholder="Where you trade from"
           aria-label="Address shown on documents"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:col-span-2"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none sm:col-span-2"
         />
         <input
           value={footerNote}
           onChange={(e) => setFooterNote(e.target.value)}
           placeholder="Say something at the bottom, like how to pay you"
           aria-label="Footer note"
-          className="w-full border border-line px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:col-span-2"
+          className="w-full min-h-[44px] rounded-control border border-neutral-200 px-3 py-2.5 text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none sm:col-span-2"
         />
       </div>
 
@@ -168,13 +168,13 @@ export default function BrandingPanel({
         <button
           onClick={save}
           disabled={busy}
-          className="tap flex items-center rounded-[13px] bg-teal px-[22px] font-bold text-white shadow-action hover:bg-teal-hover disabled:opacity-60"
+          className="tap flex items-center rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover disabled:opacity-60"
         >
           {busy ? "Saving..." : "Save how they look"}
         </button>
         <button
           onClick={() => setOpen(false)}
-          className="tap flex items-center rounded-chip border border-line px-4 text-[13px] font-bold text-ink-slate hover:bg-light-grey"
+          className="tap flex items-center rounded-control border border-line-brand px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
         >
           Close
         </button>
