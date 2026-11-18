@@ -156,6 +156,21 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ error: "That is not a payment we handle." }, { status: 422 });
   }
 
+  // A risk restriction on online payments (0112). The database refuses the
+  // intent anyway; asking first lets the customer read why, not a failure.
+  if (body.purpose !== "balance_topup") {
+    const { data: restricted } = await db.rpc("has_restriction", {
+      p_business: businessId,
+      p_control: "payment_collection",
+    });
+    if (restricted === true) {
+      return NextResponse.json(
+        { error: "Online payment is not available for this business right now." },
+        { status: 403 }
+      );
+    }
+  }
+
   const { error: intentError } = await db.from("payment_intent").insert({
     reference,
     business_id: businessId,
