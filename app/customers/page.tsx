@@ -50,7 +50,8 @@ async function load(query: string): Promise<{
         documents: Number(c.documents ?? 0),
         spent: Number(c.spent ?? 0),
         owed: Number(c.owed ?? 0),
-        lastSeen: (c.last_seen as string) ?? null,
+        // business_customers (0090) answers "never" with the epoch.
+        lastSeen: c.last_seen && new Date(c.last_seen as string).getUTCFullYear() > 2000 ? (c.last_seen as string) : null,
         marketingConsent: Boolean(c.marketing_consent),
       }));
 
@@ -83,7 +84,11 @@ export default async function Customers({
     <PageShell>
       <PageHeader
         title="Customers"
-        intro="Everyone who has bought from you, however they did it. A till sale, an online order, a booking and an invoice all sit under one person."
+        intro={
+          data && data.customers.length > 0 && !data.query
+            ? `${data.customers.length} ${data.customers.length === 1 ? "customer" : "customers"} · one record each, however they bought`
+            : "Everyone who has bought from you. A till sale, an online order, a booking and an invoice all sit under one person."
+        }
       />
 
       {data === null ? (

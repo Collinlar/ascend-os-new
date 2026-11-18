@@ -173,6 +173,8 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // ----- customers -----
   // Customer permissions since 0088. Consent is evidence under the Data
   // Protection Act, so recording it is the owner's and managers' (customers.manage).
+  // Adding someone by hand; the same record the till and the shop would make.
+  customers: { POST: member("active", { permission: ["customers.manage"] }) },
   "customers/[id]/consent": {
     POST: member({ table: "customer", param: "id" }, { permission: ["customers.manage"] }),
   },
