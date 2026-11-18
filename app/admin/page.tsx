@@ -36,6 +36,16 @@ async function counts() {
   };
 }
 
+// What the messaging desk is waiting on: deletion requests and flags.
+async function messagingCounts() {
+  const db = supabaseServer();
+  const [requests, flags] = await Promise.all([db.rpc("open_deletion_requests"), db.rpc("messaging_flags")]);
+  return {
+    deletions: Array.isArray(requests.data) ? requests.data.length : 0,
+    flags: Array.isArray(flags.data) ? flags.data.length : 0,
+  };
+}
+
 export default async function Admin() {
   const admin = await currentAdmin();
   if (!admin) notFound();
@@ -45,6 +55,7 @@ export default async function Admin() {
     suspended: 0,
     listed: 0,
   }));
+  const { deletions, flags } = await messagingCounts().catch(() => ({ deletions: 0, flags: 0 }));
 
   return (
     <PageShell>
@@ -69,6 +80,28 @@ export default async function Admin() {
           {appeals > 0 ? (
             <span className="num rounded-full bg-gold-tint px-3 py-1 text-[12.5px] font-extrabold text-gold-ink">
               {appeals} waiting on you
+            </span>
+          ) : (
+            <span className="text-sm font-bold text-teal-dark">Open</span>
+          )}
+        </div>
+      </Link>
+
+      <Link
+        href="/admin/messaging"
+        className="tap mt-3 block rounded-[18px] border border-line-soft bg-white px-[22px] py-5 shadow-lift"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-[17px] font-extrabold tracking-[-0.02em] text-ink">Messaging</p>
+            <p className="mt-1 text-sm font-medium text-slate-grey">
+              {deletions} {deletions === 1 ? "deletion request" : "deletion requests"} · {flags}{" "}
+              {flags === 1 ? "thing" : "things"} to look at
+            </p>
+          </div>
+          {deletions > 0 ? (
+            <span className="num rounded-full bg-gold-tint px-3 py-1 text-sm font-extrabold text-gold-ink">
+              {deletions} waiting on you
             </span>
           ) : (
             <span className="text-sm font-bold text-teal-dark">Open</span>
