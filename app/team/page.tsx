@@ -18,6 +18,7 @@ async function load(): Promise<{
   team: TeamRow[];
   locations: LocationRow[];
   canManage: boolean;
+  isOwner: boolean;
   canManageLocations: boolean;
 } | null> {
   try {
@@ -114,6 +115,7 @@ async function load(): Promise<{
       // The same rule the API enforces. This only decides whether to offer
       // the action; the server decides whether to allow it.
       canManage: me?.roleKey === "owner" || me?.roleKey === "manager",
+      isOwner: me?.roleKey === "owner",
       // Where the business trades from is a business setting: the owner's,
       // unless they have delegated it. The database refuses anyone else
       // (0079), so the controls are only offered to someone who holds it.
@@ -153,6 +155,7 @@ export default async function Team() {
             businessId={data.businessId}
             team={data.team}
             canManage={data.canManage}
+            isOwner={data.isOwner}
           />
           <Locations locations={data.locations} canManage={data.canManageLocations} />
         </>

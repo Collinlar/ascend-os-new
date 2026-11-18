@@ -106,7 +106,7 @@ async function handlePOST(request: NextRequest) {
     }
     if (/role_not_allowed/.test(error.message)) {
       return NextResponse.json(
-        { error: "Pick either cashier or manager." },
+        { error: "Pick cashier, staff, manager or accountant." },
         { status: 422 }
       );
     }

@@ -20,8 +20,11 @@ export interface TeamRow {
   isSelf: boolean;
 }
 
-// What the team screen can add someone as (add_team_member, 0077).
-const ADDABLE_ROLES = ["cashier", "manager"];
+// What the team screen can add someone as (add_team_member, 0119). A
+// manager or an accountant needs the owner; anyone who manages staff can
+// add a cashier or a staff member.
+const ROLES_ANYONE_ADDS = ["cashier", "staff"];
+const ROLES_OWNER_ADDS = ["cashier", "staff", "manager", "accountant"];
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -45,17 +48,20 @@ export default function TeamDirectory({
   businessId,
   team,
   canManage,
+  isOwner = false,
 }: {
   businessId: string;
   team: TeamRow[];
   canManage: boolean;
+  /** Only the owner adds managers and accountants (roles.change). */
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  // add_team_member (0077) accepts a cashier or a manager; offering more
-  // here only produced a refusal after the owner filled the form in.
+  // add_team_member (0119): cashier and staff for anyone who manages the
+  // team, manager and accountant for the owner. Only those are offered.
   const [roleKey, setRoleKey] = useState("cashier");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -183,7 +189,7 @@ export default function TeamDirectory({
           <div className="mt-3">
             <p className="text-[13px] font-bold text-ink">What they can do</p>
             <div className="mt-2 space-y-1.5">
-              {ADDABLE_ROLES.map((key) => (
+              {(isOwner ? ROLES_OWNER_ADDS : ROLES_ANYONE_ADDS).map((key) => (
                 <button
                   key={key}
                   onClick={() => setRoleKey(key)}
