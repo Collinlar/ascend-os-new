@@ -103,3 +103,5 @@ Found and fixed on the way:
 - **Two sends of one sale at the same moment** both missed each other and the second failed on the receipt number, leaving the till showing a refused sale the server already had. `0120_one_send_of_a_sale_at_a_time.sql` makes the database take one send of a sale at a time. 6/6 locally; waiting to be run.
 
 Noted, not changed: the outbox treats any 4xx as permanent, so a 404 from a deploy or CDN hiccup parks a sale or a shift close until someone taps "Try sending them again".
+
+**0121, 19 November 2026.** Approved by Collins. Till sales linked to the shift on the same till whose time covers them, and closed shifts' expected cash worked out again by close_pos_shift's rule. 10/10 locally. On live: CLASmart's shift of 23 August, 16:40, now expects GHS 870 against GHS 870 counted (was -20, showing GHS 890 over), with one audit entry saying what it was; six sales linked to shifts still open; six sales made with no shift open left alone.
