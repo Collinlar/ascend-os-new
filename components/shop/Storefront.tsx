@@ -22,12 +22,14 @@ interface Props {
   slug: string;
   businessName: string;
   city: string | null;
+  memberSince: string | null;
+  places: { name: string; city: string | null }[];
   products: StorefrontProduct[];
 }
 
 type View = "browse" | "product" | "basket" | "checkout" | "placed";
 
-export default function Storefront({ slug, businessName, city, products }: Props) {
+export default function Storefront({ slug, businessName, city, memberSince, places, products }: Props) {
   const [view, setView] = useState<View>("browse");
   const [openId, setOpenId] = useState<string | null>(null);
   const [basket, setBasket] = useState<Record<string, number>>({});
@@ -130,8 +132,8 @@ export default function Storefront({ slug, businessName, city, products }: Props
       {/* Identity strip. Stays on every screen so a customer four taps deep
           still knows whose shop they are in, which is the whole job of a
           page somebody reached from a forwarded link. */}
-      <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-11">
+      <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-8">
           <button
             type="button"
             onClick={() => (view === "placed" ? startAgain() : setView("browse"))}
@@ -185,8 +187,11 @@ export default function Storefront({ slug, businessName, city, products }: Props
 
       {view === "browse" && (
         <StoreBrowse
+          slug={slug}
           businessName={businessName}
           city={city}
+          memberSince={memberSince}
+          places={places}
           products={products}
           basket={basket}
           onOpen={(p) => {
@@ -270,8 +275,8 @@ export default function Storefront({ slug, businessName, city, products }: Props
         </div>
       )}
 
-      <footer className="border-t border-line bg-surface px-5 py-6 sm:px-11">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
+      <footer className="border-t border-neutral-100 bg-white px-4 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-2">
           <p className="text-[13px] font-semibold text-slate-grey">
             © {new Date().getFullYear()} {businessName}
           </p>

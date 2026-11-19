@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import Storefront, { StorefrontProduct } from "@/components/shop/Storefront";
-import ReportProblem from "@/components/risk/ReportProblem";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0F172A",
+  themeColor: "#FFFFFF",
 };
 
 interface ShopData {
@@ -26,6 +25,8 @@ interface ShopData {
   businessName: string;
   city: string | null;
   slug: string;
+  memberSince: string | null;
+  places: { name: string; city: string | null }[];
   products: StorefrontProduct[];
 }
 
@@ -34,7 +35,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     const db = supabaseServer();
     const { data: business } = await db
       .from("business")
-      .select("id, name, shop_slug")
+      .select("id, name, shop_slug, created_at")
       .eq("shop_slug", slug)
       .maybeSingle();
     if (!business) return null;
@@ -46,13 +47,14 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     const access = await effectiveAccess(business.id).catch(() => null);
     if (!access?.capabilities.has("shop.storefront")) return null;
 
-    const { data: location } = await db
+    const { data: locations } = await db
       .from("location")
-      .select("city")
+      .select("name, city")
       .eq("business_id", business.id)
       .eq("active", true)
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(10);
+    const location = locations?.[0] ?? null;
 
     const { data: items } = await db
       .from("catalogue_item")
@@ -88,6 +90,8 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       businessName: business.name,
       city: location?.city ?? null,
       slug: business.shop_slug,
+      memberSince: (business.created_at as string | null) ?? null,
+      places: (locations ?? []).map((l) => ({ name: l.name as string, city: (l.city as string | null) ?? null })),
       products,
     };
   } catch {
@@ -138,17 +142,13 @@ export default async function ShopPage({
   if (!shop) notFound();
 
   return (
-    <>
-      <Storefront
-        slug={shop.slug}
-        businessName={shop.businessName}
-        city={shop.city}
-        products={shop.products}
-      />
-      {/* Clear of the basket bar, which is fixed to the foot of the page. */}
-      <div className="mx-auto max-w-2xl px-5 pb-28">
-        <ReportProblem source="shop" slug={shop.slug} businessName={shop.businessName} />
-      </div>
-    </>
+    <Storefront
+      slug={shop.slug}
+      businessName={shop.businessName}
+      city={shop.city}
+      memberSince={shop.memberSince}
+      places={shop.places}
+      products={shop.products}
+    />
   );
 }
