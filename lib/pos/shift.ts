@@ -130,7 +130,9 @@ export async function shiftTotals(shift: LocalShift): Promise<ShiftTotals> {
     cashSales: round2(cashSales),
     expenses: round2(expenses),
     expectedCash: round2(shift.openingCash + cashSales - expenses),
-    saleCount: mine.length,
+    // Shown as "Cash sales (N)", so only the sales that put cash in the
+    // drawer. MoMo, card and credit sales are not in this count.
+    saleCount: mine.filter((s) => s.payments.some((p) => p.method === "cash")).length,
   };
 }
 

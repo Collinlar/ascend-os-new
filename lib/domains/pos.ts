@@ -56,6 +56,7 @@ export async function completeSale(
       shift_client_ref: input.shiftClientRef ?? "",
       cashier_membership_id: input.cashierMembershipId ?? "",
       customer_id: input.customerId ?? "",
+      discount_approved_by: input.discountApprovedBy ?? "",
       subtotal: input.subtotal,
       discount_total: input.discountTotal ?? 0,
       tax_total: input.taxTotal ?? 0,

@@ -126,3 +126,13 @@ Fixed on the way:
 - The "nothing to sell yet" panel was written for navy and would have been white on white in the light layouts; it has a light version, and points to Devices rather than Tills.
 
 Left for D4e: Lock empties the sale, as handing over always has; Sales and Returns on the rail.
+
+**D4d, ways to pay, a customer and a discount, 19 November 2026.** Both tills now take:
+- **Cash, MoMo, card, or on credit.** MoMo is the network (MTN MoMo, Telecel Cash, AT Money) and the transaction ID from the customer's message; card is the reference on the bank's slip. Both are recorded as confirmed and "recorded by you" (merchant declared), the same as cash, because a payment marked pending would never be confirmed by anything and would vanish from Sales and money received. QR and a MoMo prompt wait for Paystack. Credit needs a customer and shows as owed, not received (0118).
+- **A customer on the sale.** The till keeps the business's customers, names and phone numbers only, from a new device route (`/api/pos/customers`), and searches by name or by the number as people say it. A customer added at the till needs a phone number and travels with their sale; the sync route finds or creates them by phone (`find_or_create_customer`, created via "pos"), so nobody is created twice and the till never invents an id. The list is erased when the till is stopped (a 401) or set up as another till.
+- **A discount** of 5, 10, 15 or 20 percent, or an amount, never more than the sale. An owner or manager at the till gives it; a cashier asks, and an owner or manager types their PIN on the till to allow it. That PIN counts against the same tries and lockout as signing in, including a cashier's PIN typed there. The sale records who allowed it: `0122_who_allowed_a_discount.sql` (8/8 locally, waiting to be run; the till works before it is, the approver is simply not stored).
+- The shift close's "Cash sales (N)" counts only sales paid in cash.
+
+Checked at 1440px and 375px on a throwaway business: a GHS 76 sale with 10% off for an existing customer paid by MTN MoMo; a new customer added from the credit panel and GHS 95 put on their account; a cash sale; a cashier signed in (the till fetched the new staff list when it met an unknown PIN), their own PIN refused for a discount and the owner's accepted; a card sale; the shift closed at GHS 112 (100 opening plus the one cash sale) on the till and on the server. On the server every sale had the right subtotal, discount, total, customer and payment, and the new customer was created once, via pos.
+
+Noted, not changed: the Devices page shows a browser till's model as its whole user-agent string.

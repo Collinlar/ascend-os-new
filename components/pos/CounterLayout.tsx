@@ -23,16 +23,22 @@ import ScanSheet from "@/components/pos/ScanSheet";
 import TillNotReady from "@/components/pos/TillNotReady";
 import TileImage from "@/components/pos/TileImage";
 import TillNotices from "@/components/pos/TillNotices";
+import CustomerSheet from "@/components/pos/CustomerSheet";
+import DiscountSheet from "@/components/pos/DiscountSheet";
+import { CustomerRow, DiscountRow } from "@/components/pos/SaleExtras";
+import { OtherPayment, PayTabs, usePayChoice } from "@/components/pos/PayChoice";
 import { Icon } from "@/components/shell/icons";
 import type { Till } from "@/lib/pos/useTill";
 
 export default function CounterLayout({ till, onCloseShift }: { till: Till; onCloseShift: () => void }) {
-  const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, total, saving } = till;
+  const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, subtotal, total, saving } = till;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(false);
-  const [tendered, setTendered] = useState("");
+  const pay = usePayChoice(till);
+  const { tendered, setTendered, paid } = pay;
+  const [sheet, setSheet] = useState<"customer" | "discount" | null>(null);
   const [showHeld, setShowHeld] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [notFound, setNotFound] = useState<string | null>(null);
@@ -60,7 +66,6 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
 
   const inCart = useMemo(() => new Map(cart.map((l) => [l.item.id, l.quantity])), [cart]);
   const items = cart.reduce((n, l) => n + l.quantity, 0);
-  const paid = parseFloat(tendered) || 0;
   const enough = paid >= total && total > 0;
   const behind = status.kind === "needs_attention" || status.pending > 0;
 
@@ -83,8 +88,8 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
   }
 
   async function finish() {
-    if (await till.completeSale({ method: "cash", tendered: paid })) {
-      setTendered("");
+    if (pay.payment && (await till.completeSale(pay.payment))) {
+      pay.reset();
       setPaying(false);
       setDone(true);
     }
@@ -294,6 +299,9 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                   )}
                 </span>
               </div>
+              <div className="flex-none px-5 pb-3">
+                <CustomerRow till={till} onOpen={() => setSheet("customer")} />
+              </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto border-t border-neutral-100">
                 {cart.length === 0 ? (
@@ -347,7 +355,14 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
               </div>
 
               <div className="flex flex-none flex-col gap-2 border-t border-neutral-100 px-5 pb-[18px] pt-3.5">
-                <div className="flex items-baseline justify-between border-dashed pt-1">
+                {till.discount && (
+                  <div className="flex justify-between text-[14px]">
+                    <span className="text-neutral-600">Before the discount</span>
+                    <span className="num font-semibold text-ink">{formatGHS(subtotal)}</span>
+                  </div>
+                )}
+                <DiscountRow till={till} onOpen={() => setSheet("discount")} />
+                <div className="flex items-baseline justify-between border-t border-dashed border-neutral-200 pt-2">
                   <span className="font-heading text-[17px] font-bold text-ink-heading">Total</span>
                   <span className="num font-heading text-[30px] font-extrabold tracking-[-0.02em] text-ink-heading">{formatGHS(total)}</span>
                 </div>
@@ -361,7 +376,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                   </button>
                   <button
                     onClick={() => {
-                      setTendered("");
+                      pay.reset();
                       setPaying(true);
                     }}
                     disabled={cart.length === 0}
@@ -390,7 +405,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                 Back to the sale
               </button>
               <span className="flex flex-col">
-                <span className="text-[12.5px] text-neutral-500">To pay, in cash</span>
+                <span className="text-[12.5px] text-neutral-600">{till.customer ? `To pay, ${till.customer.name}` : "To pay"}</span>
                 <span className="num font-heading text-[44px] font-extrabold tracking-[-0.02em] text-ink-heading">{formatGHS(total)}</span>
               </span>
               <div className="min-h-0 flex-1 overflow-y-auto border-t border-neutral-200">
@@ -402,9 +417,21 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                     <span className="num font-semibold">{formatGHS(cents(l.item.price * l.quantity))}</span>
                   </div>
                 ))}
+                {till.discount && (
+                  <div className="flex justify-between gap-2.5 py-2.5 text-[13.5px] text-danger-ink">
+                    <span>Discount {till.discount.label}</span>
+                    <span className="num font-semibold">−{formatGHS(till.discount.amount)}</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-5 px-7 py-6">
+              <PayTabs choice={pay} large />
+              {pay.method !== "cash" ? (
+                <div className="min-h-0 max-w-xl flex-1 overflow-y-auto">
+                  <OtherPayment choice={pay} till={till} onAddCustomer={() => setSheet("customer")} />
+                </div>
+              ) : (
               <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_280px] gap-6">
                 <div className="flex flex-col gap-3.5">
                   <span className="flex flex-col">
@@ -450,12 +477,13 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                   ))}
                 </div>
               </div>
+              )}
               <button
                 onClick={finish}
-                disabled={!enough || saving}
+                disabled={!pay.payment || saving}
                 className="tap num flex h-16 flex-none items-center justify-center rounded-[18px] bg-teal font-heading text-[19px] font-extrabold text-white disabled:opacity-40"
               >
-                {saving ? "Saving the sale on this till..." : enough ? `Take ${formatGHS(paid)} cash` : "Enter what they gave you"}
+                {pay.label}
               </button>
             </div>
           </div>
@@ -480,6 +508,12 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                     <span>{lastReceipt.doc.cashierName}</span>
                   </span>
                 )}
+                {lastReceipt.doc.customerName && (
+                  <span className="flex justify-between">
+                    <span>Customer</span>
+                    <span>{lastReceipt.doc.customerName}</span>
+                  </span>
+                )}
                 <span className="border-t-[1.5px] border-dashed border-neutral-300" />
                 {lastReceipt.doc.lines.map((l, i) => (
                   <span key={i} className="flex flex-col">
@@ -493,18 +527,39 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                   </span>
                 ))}
                 <span className="border-t-[1.5px] border-dashed border-neutral-300" />
+                {lastReceipt.doc.discount ? (
+                  <>
+                    <span className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>{formatGHS(lastReceipt.doc.subtotal)}</span>
+                    </span>
+                    <span className="flex justify-between">
+                      <span>Discount</span>
+                      <span>−{formatGHS(lastReceipt.doc.discount)}</span>
+                    </span>
+                  </>
+                ) : null}
                 <span className="flex justify-between text-[13.5px] font-bold">
                   <span>Total</span>
                   <span>{formatGHS(lastReceipt.doc.total)}</span>
                 </span>
-                <span className="flex justify-between">
-                  <span>Cash</span>
-                  <span>{formatGHS(lastReceipt.doc.tendered ?? lastReceipt.doc.total)}</span>
-                </span>
-                <span className="flex justify-between">
-                  <span>Change</span>
-                  <span>{formatGHS(lastReceipt.doc.change ?? 0)}</span>
-                </span>
+                {lastReceipt.doc.tendered !== undefined ? (
+                  <>
+                    <span className="flex justify-between">
+                      <span>Cash</span>
+                      <span>{formatGHS(lastReceipt.doc.tendered)}</span>
+                    </span>
+                    <span className="flex justify-between">
+                      <span>Change</span>
+                      <span>{formatGHS(lastReceipt.doc.change ?? 0)}</span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex justify-between gap-3">
+                    <span>Paid by</span>
+                    <span className="text-right">{lastReceipt.doc.paymentMethod}</span>
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-5 px-8 pb-7 pt-8">
@@ -514,7 +569,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
               <span className="flex flex-col gap-1">
                 <span className="font-heading text-[30px] font-extrabold text-ink-heading">Sale complete</span>
                 <span className="mono text-[14px] text-neutral-600">
-                  {lastReceipt.number} · {formatGHS(lastReceipt.total)} cash
+                  {lastReceipt.number} · {formatGHS(lastReceipt.total)} · {lastReceipt.doc.paymentMethod}
                 </span>
               </span>
               {/* @contrast-surface navy */}
@@ -555,6 +610,9 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
           </div>
         </div>
       )}
+
+      {sheet === "customer" && <CustomerSheet till={till} onClose={() => setSheet(null)} />}
+      {sheet === "discount" && <DiscountSheet till={till} onClose={() => setSheet(null)} />}
 
       {scanning && (
         <ScanSheet catalogue={catalogue} onAdd={till.addToCart} onAttach={till.attachBarcode} onClose={() => setScanning(false)} />

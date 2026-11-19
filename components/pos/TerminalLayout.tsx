@@ -25,15 +25,21 @@ import { Icon } from "@/components/shell/icons";
 import type { Till } from "@/lib/pos/useTill";
 import { KEYPAD, cents, clock, initials, likelyNotes, pressKey } from "@/lib/pos/cash";
 import TillNotices from "@/components/pos/TillNotices";
+import CustomerSheet from "@/components/pos/CustomerSheet";
+import DiscountSheet from "@/components/pos/DiscountSheet";
+import { CustomerRow, DiscountRow } from "@/components/pos/SaleExtras";
+import { OtherPayment, PayTabs, usePayChoice } from "@/components/pos/PayChoice";
 
 type Screen = "sell" | "cart" | "pay" | "done";
 
 export default function TerminalLayout({ till, onCloseShift }: { till: Till; onCloseShift: () => void }) {
-  const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, total, saving } = till;
+  const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, subtotal, total, saving } = till;
   const [screen, setScreen] = useState<Screen>("sell");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
-  const [tendered, setTendered] = useState("");
+  const pay = usePayChoice(till);
+  const { tendered, setTendered, paid } = pay;
+  const [sheet, setSheet] = useState<"customer" | "discount" | null>(null);
   const [menu, setMenu] = useState(false);
   const [showHeld, setShowHeld] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -54,7 +60,6 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
 
   const inCart = useMemo(() => new Map(cart.map((l) => [l.item.id, l.quantity])), [cart]);
   const items = cart.reduce((n, l) => n + l.quantity, 0);
-  const paid = parseFloat(tendered) || 0;
   const enough = paid >= total && total > 0;
   const behind = status.kind === "needs_attention" || status.pending > 0;
 
@@ -63,8 +68,8 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
   }
 
   async function finish() {
-    if (await till.completeSale({ method: "cash", tendered: paid })) {
-      setTendered("");
+    if (pay.payment && (await till.completeSale(pay.payment))) {
+      pay.reset();
       setScreen("done");
     }
   }
@@ -280,6 +285,9 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
 
         {screen === "cart" && (
           <div className="flex min-h-0 flex-1 flex-col bg-white">
+            <div className="flex-none px-3 pb-1.5 pt-3">
+              <CustomerRow till={till} onOpen={() => setSheet("customer")} />
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {cart.length === 0 && <p className="px-4 py-8 text-center text-neutral-500">Nothing in this sale yet.</p>}
               {cart.map((line) => {
@@ -321,6 +329,13 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
               })}
             </div>
             <div className="flex flex-none flex-col gap-2 border-t border-neutral-100 px-3 pb-3 pt-2.5">
+              {till.discount && (
+                <div className="flex justify-between text-[13.5px]">
+                  <span className="text-neutral-600">Before the discount</span>
+                  <span className="num font-semibold text-ink">{formatGHS(subtotal)}</span>
+                </div>
+              )}
+              <DiscountRow till={till} onOpen={() => setSheet("discount")} />
               <div className="flex items-baseline justify-between">
                 <span className="font-heading text-[15px] font-bold text-ink-heading">Total</span>
                 <span className="num font-heading text-[26px] font-extrabold tracking-[-0.02em] text-ink-heading">{formatGHS(total)}</span>
@@ -337,7 +352,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
                 </button>
                 <button
                   onClick={() => {
-                    setTendered("");
+                    pay.reset();
                     setScreen("pay");
                   }}
                   disabled={cart.length === 0}
@@ -352,10 +367,18 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
 
         {screen === "pay" && (
           <div className="flex min-h-0 flex-1 flex-col bg-white">
-            <div className="flex flex-none items-baseline justify-between px-3.5 pb-2.5 pt-3">
-              <span className="text-[12.5px] text-neutral-500">To pay, in cash</span>
+            <div className="flex flex-none items-baseline justify-between px-3.5 pb-2 pt-3">
+              <span className="text-[12.5px] text-neutral-600">{till.customer ? `To pay, ${till.customer.name}` : "To pay"}</span>
               <span className="num font-heading text-[28px] font-extrabold tracking-[-0.02em] text-ink-heading">{formatGHS(total)}</span>
             </div>
+            <div className="flex-none px-3 pb-2">
+              <PayTabs choice={pay} />
+            </div>
+            {pay.method !== "cash" ? (
+              <div className="min-h-0 flex-1 overflow-y-auto px-3.5 pt-1">
+                <OtherPayment choice={pay} till={till} onAddCustomer={() => setSheet("customer")} />
+              </div>
+            ) : (
             <div className="flex min-h-0 flex-1 flex-col gap-2 px-3">
               <div className="flex items-center justify-between rounded-control bg-neutral-50 px-3 py-2">
                 <span className="text-[12.5px] text-neutral-600">Received</span>
@@ -399,12 +422,13 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
                 </span>
               </div>
             </div>
+            )}
             <button
               onClick={finish}
-              disabled={!enough || saving}
+              disabled={!pay.payment || saving}
               className="tap num mx-3 mb-3 mt-2.5 flex h-14 flex-none items-center justify-center rounded-[14px] bg-teal font-heading text-[16.5px] font-extrabold text-white disabled:opacity-40"
             >
-              {saving ? "Saving the sale on this till..." : enough ? `Take ${formatGHS(paid)} cash` : "Enter what they gave you"}
+              {pay.label}
             </button>
           </div>
         )}
@@ -417,9 +441,12 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
               </span>
               <span className="flex flex-col">
                 <span className="font-heading text-[21px] font-extrabold text-ink-heading">Sale complete</span>
-                <span className="mono text-[12.5px] text-neutral-500">
-                  {lastReceipt.number} · {formatGHS(lastReceipt.total)} cash
+                <span className="mono text-[12.5px] text-neutral-600">
+                  {lastReceipt.number} · {formatGHS(lastReceipt.total)} · {lastReceipt.doc.paymentMethod}
                 </span>
+                {lastReceipt.doc.customerName && (
+                  <span className="text-[12.5px] text-neutral-600">For {lastReceipt.doc.customerName}</span>
+                )}
               </span>
             </div>
             {/* @contrast-surface navy */}
@@ -460,6 +487,9 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
           </div>
         )}
       </div>
+
+      {sheet === "customer" && <CustomerSheet till={till} onClose={() => setSheet(null)} />}
+      {sheet === "discount" && <DiscountSheet till={till} onClose={() => setSheet(null)} />}
 
       {scanning && (
         <ScanSheet catalogue={catalogue} onAdd={till.addToCart} onAttach={till.attachBarcode} onClose={() => setScanning(false)} />

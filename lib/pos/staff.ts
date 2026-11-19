@@ -189,3 +189,39 @@ function timingSafeEqual(a: string, b: string): boolean {
   }
   return diff === 0;
 }
+
+// Who may allow a discount at the till: an owner or a manager.
+export const APPROVER_ROLES = ["owner", "manager"];
+
+export function canApprove(person: { roleKey: string } | undefined): boolean {
+  return !!person && APPROVER_ROLES.includes(person.roleKey);
+}
+
+export type ApprovalResult =
+  | { ok: true; approver: { membershipId: string; displayName: string } }
+  | { ok: false; reason: "wrong" | "locked" | "not_allowed"; triesLeft?: number; waitMs?: number };
+
+// A manager standing beside the cashier types their own PIN to allow a
+// discount. It counts against the same tries and lockout as signing in, so
+// the discount box is not a second, unguarded way to guess a PIN. It never
+// changes who is signed in at the till.
+export async function approveWithPin(pin: string): Promise<ApprovalResult> {
+  const state = await attemptState();
+  if (state.lockedUntil && state.lockedUntil > Date.now()) {
+    return { ok: false, reason: "locked", waitMs: state.lockedUntil - Date.now() };
+  }
+  const person = await matchAgainst(await getRoster(), pin);
+  if (person && canApprove(person)) {
+    await setMeta(ATTEMPTS_KEY, { failed: 0, lockedUntil: null });
+    return { ok: true, approver: { membershipId: person.membershipId, displayName: person.displayName } };
+  }
+  // A cashier's PIN counts as a try too. Otherwise this box would test
+  // anybody's PIN without limit, and say which ones are real.
+  const failed = state.failed + 1;
+  if (failed >= MAX_ATTEMPTS) {
+    await setMeta(ATTEMPTS_KEY, { failed: 0, lockedUntil: Date.now() + LOCKOUT_MS });
+    return { ok: false, reason: "locked", waitMs: LOCKOUT_MS };
+  }
+  await setMeta(ATTEMPTS_KEY, { failed, lockedUntil: null });
+  return { ok: false, reason: person ? "not_allowed" : "wrong", triesLeft: MAX_ATTEMPTS - failed };
+}

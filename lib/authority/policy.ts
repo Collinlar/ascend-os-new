@@ -132,6 +132,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
     POST: { kind: "cron", why: "Outbox relay" },
   },
   "pos/catalogue": { GET: { kind: "device", why: "Paired till, device token" } },
+  "pos/customers": { GET: { kind: "device", why: "Paired till, device token: names and phones only" } },
   "pos/refund-request": { POST: { kind: "device", why: "Paired till, device token" } },
   "pos/staff": { GET: { kind: "device", why: "Paired till, device token" } },
   "pos/sync": { POST: { kind: "device", why: "Paired till, device token" } },

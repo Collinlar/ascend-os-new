@@ -17,6 +17,7 @@ import { authenticateDevice } from "@/lib/pos/device-auth";
 import { supabaseServer } from "@/lib/supabase";
 import type { CompleteSaleInput } from "@/lib/domains/types";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { normalizePhone } from "@/lib/auth/phone";
 
 // The terminal never sends business, location or device: those are the
 // server's to decide from the token.
@@ -138,8 +139,18 @@ async function handlePOST(request: NextRequest) {
           difference: result.difference,
         });
       } else if (item.kind === "sale.completed") {
+        // A customer added at the till travels with their first sale and is
+        // found or created here, by phone, so a person already on the books
+        // is matched rather than created twice, and the till never has to
+        // invent an id the server might refuse.
+        const { newCustomer, ...sale } = item.payload;
+        let customerId = sale.customerId;
+        if (!customerId && newCustomer) {
+          customerId = await customerForTill(device.businessId, newCustomer);
+        }
         const result = await completeSale({
-          ...item.payload,
+          ...sale,
+          customerId,
           businessId: device.businessId,
           locationId: device.locationId,
           deviceId: device.deviceId,
@@ -231,6 +242,23 @@ async function handlePOST(request: NextRequest) {
     leaseExpiresAt: device.leaseExpiresAt,
     health,
   });
+}
+
+async function customerForTill(
+  businessId: string,
+  added: { name: string; phone: string }
+): Promise<string | undefined> {
+  const phone = normalizePhone(added.phone ?? "");
+  const name = (added.name ?? "").trim();
+  // The till insists on a good number before it lets the cashier save, so
+  // a bad one here is a till bug, not a reason to lose the sale: it is
+  // recorded without a customer.
+  if (!phone.ok || !name) return undefined;
+  const { data, error } = await supabaseServer().rpc("find_or_create_customer", {
+    p: { business_id: businessId, name, phone: phone.e164, created_via: "pos" },
+  });
+  if (error) throw new SyncRejection("customer_not_saved", "temporary");
+  return (data?.customer_id as string | null) ?? undefined;
 }
 
 export const POST = withAuthority("pos/sync", "POST", handlePOST);

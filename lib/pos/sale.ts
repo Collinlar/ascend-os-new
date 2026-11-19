@@ -1,26 +1,50 @@
 // Building a till sale, with nothing else attached.
 //
-// One function turns a basket and a payment into the three things a sale
-// is on a till: the record kept on the device, the entry the outbox sends,
-// and the receipt that is printed. It touches no storage and no screen, so
-// both till layouts share it and it can be checked on its own.
+// One function turns a basket, a payment, and optionally a customer and a
+// discount into the three things a sale is on a till: the record kept on
+// the device, the entry the outbox sends, and the receipt that is printed.
+// It touches no storage and no screen, so both till layouts share it and it
+// can be checked on its own.
 
 import { newClientRef, receiptNumber } from "@/lib/ids";
 import type { LocalItem, LocalSale, OutboxItem } from "@/lib/pos/db";
 import type { DeviceContext } from "@/lib/pos/registration";
 import type { ReceiptDoc } from "@/lib/pos/receipt";
+import type { SaleCustomer } from "@/lib/pos/customers";
 
 export interface CartLine {
   item: LocalItem;
   quantity: number;
 }
 
-export interface CashPayment {
-  method: "cash";
-  tendered: number;
-}
+export type MomoNetwork = "mtn_momo" | "telecel_cash" | "at_money";
 
-export type TillPayment = CashPayment;
+export const MOMO_NETWORKS: { key: MomoNetwork; label: string }[] = [
+  { key: "mtn_momo", label: "MTN MoMo" },
+  { key: "telecel_cash", label: "Telecel Cash" },
+  { key: "at_money", label: "AT Money" },
+];
+
+// Every way a till takes payment today. MoMo and card are recorded by the
+// cashier with the reference the customer's phone or the bank's machine
+// shows; nothing here pretends a provider confirmed them, and the sale says
+// "recorded by you" until one does. QR and a MoMo prompt wait for Paystack.
+export type TillPayment =
+  | { method: "cash"; tendered: number }
+  | { method: "momo"; network: MomoNetwork; reference: string }
+  | { method: "card"; reference: string }
+  | { method: "credit" };
+
+export interface TillDiscount {
+  /** Set for "10% off": the amount follows the basket as it changes. */
+  percent?: number;
+  amount: number;
+  /** Shown on the sale and the receipt: "10%" or "GH₵5.00". */
+  label: string;
+  /** The owner or manager who allowed it (0122). */
+  approvedBy: string;
+  approvedByName: string;
+}
 
 export interface BuiltSale {
   sale: LocalSale;
@@ -28,10 +52,28 @@ export interface BuiltSale {
   doc: ReceiptDoc;
 }
 
-const cents = (n: number) => Math.round(n * 100) / 100;
+export const cents = (n: number) => Math.round(n * 100) / 100;
 
 export function cartTotal(cart: CartLine[]): number {
-  return cart.reduce((sum, l) => sum + l.item.price * l.quantity, 0);
+  return cents(cart.reduce((sum, l) => sum + l.item.price * l.quantity, 0));
+}
+
+/** What the customer pays: the basket less any discount, never below nothing. */
+export function amountDue(cart: CartLine[], discount?: TillDiscount | null): number {
+  return cents(Math.max(0, cartTotal(cart) - (discount?.amount ?? 0)));
+}
+
+export function paymentLabel(p: TillPayment): string {
+  switch (p.method) {
+    case "cash":
+      return "Cash";
+    case "momo":
+      return MOMO_NETWORKS.find((n) => n.key === p.network)?.label ?? "Mobile money";
+    case "card":
+      return "Card";
+    case "credit":
+      return "On credit";
+  }
 }
 
 // Which till this is, for the receipt prefix. It used to be a constant, so
@@ -53,6 +95,8 @@ export function tillPrefix(device: DeviceContext | undefined): string {
 export function buildSale(input: {
   cart: CartLine[];
   payment: TillPayment;
+  customer?: SaleCustomer | null;
+  discount?: TillDiscount | null;
   /** The device's next receipt sequence number. */
   seq: number;
   now: Date;
@@ -60,15 +104,29 @@ export function buildSale(input: {
   shiftClientRef?: string;
   cashier?: { membershipId: string; displayName: string };
 }): BuiltSale {
-  const { cart, payment, seq, now, device, shiftClientRef, cashier } = input;
-  const total = cartTotal(cart);
+  const { cart, payment, customer, discount, seq, now, device, shiftClientRef, cashier } = input;
+  if (payment.method === "credit" && !customer) throw new Error("credit_needs_customer");
+  const subtotal = cartTotal(cart);
+  const discountTotal = cents(Math.min(discount?.amount ?? 0, subtotal));
+  const total = cents(subtotal - discountTotal);
   const clientRef = newClientRef("sale");
   const receiptNo = receiptNumber(tillPrefix(device), now, seq);
   const businessDate = now.toISOString().slice(0, 10);
 
+  const pay: LocalSale["payments"][number] =
+    payment.method === "cash"
+      ? { seq: "0", method: "cash", amount: total, tendered: payment.tendered }
+      : payment.method === "momo"
+        ? { seq: "0", method: "mobile_money", amount: total, provider: payment.network, providerReference: payment.reference.trim() }
+        : payment.method === "card"
+          ? { seq: "0", method: "card", amount: total, providerReference: payment.reference.trim() }
+          : { seq: "0", method: "credit", amount: total };
+
   const sale: LocalSale = {
     clientRef,
     receiptNumber: receiptNo,
+    subtotal,
+    discountTotal,
     total,
     currencyCode: "GHS",
     lines: cart.map((l) => ({
@@ -79,7 +137,8 @@ export function buildSale(input: {
       lineTotal: cents(l.item.price * l.quantity),
       trackStock: l.item.trackStock,
     })),
-    payments: [{ seq: "0", method: "cash", amount: total, tendered: payment.tendered }],
+    payments: [pay],
+    customerName: customer?.name,
     occurredAt: now.toISOString(),
     businessDate,
     shiftId: shiftClientRef,
@@ -94,7 +153,8 @@ export function buildSale(input: {
     // business it was paired with.
     payload: {
       clientRef,
-      subtotal: total,
+      subtotal,
+      discountTotal,
       total,
       currencyCode: "GHS",
       receiptNumber: receiptNo,
@@ -104,6 +164,9 @@ export function buildSale(input: {
       // synced; the outbox drains in creation order so it always has.
       shiftClientRef,
       cashierMembershipId: cashier?.membershipId,
+      customerId: customer && "id" in customer ? customer.id : undefined,
+      newCustomer: customer && "isNew" in customer ? { name: customer.name, phone: customer.phone } : undefined,
+      discountApprovedBy: discountTotal > 0 ? discount?.approvedBy : undefined,
       lines: sale.lines,
       payments: sale.payments,
     },
@@ -122,17 +185,22 @@ export function buildSale(input: {
     receiptNumber: receiptNo,
     issuedAt: now,
     cashierName: cashier?.displayName,
+    customerName: customer?.name,
     lines: cart.map((l) => ({
       name: l.item.name,
       quantity: l.quantity,
       unitPrice: l.item.price,
       amount: cents(l.item.price * l.quantity),
     })),
-    subtotal: total,
+    subtotal,
+    discount: discountTotal > 0 ? discountTotal : undefined,
     total,
-    paymentMethod: "Cash",
-    tendered: payment.tendered,
-    change: cents(payment.tendered - total),
+    paymentMethod:
+      payment.method === "momo" || payment.method === "card"
+        ? `${paymentLabel(payment)} ${payment.reference.trim()}`
+        : paymentLabel(payment),
+    tendered: payment.method === "cash" ? payment.tendered : undefined,
+    change: payment.method === "cash" ? cents(payment.tendered - total) : undefined,
   };
 
   return { sale, outboxItem, doc };

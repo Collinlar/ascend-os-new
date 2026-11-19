@@ -147,6 +147,9 @@ export async function pullCatalogue(): Promise<{ ok: boolean; count: number }> {
 export async function clearRegistration(): Promise<void> {
   await secureRemove(TOKEN_KEY);
   await setMeta(DEVICE_KEY, undefined);
+  // The customers belong to the till this device was. Kept here as a plain
+  // key rather than through lib/pos/customers, which imports this file.
+  await setMeta("customers", undefined);
 }
 
 async function deviceFingerprint(): Promise<string> {

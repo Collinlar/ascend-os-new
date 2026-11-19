@@ -60,7 +60,13 @@ export interface LocalSale {
     method: string;
     amount: number;
     tendered?: number;
+    provider?: string;
+    providerReference?: string;
   }>;
+  /** Before any discount. Older sales on a till do not have it. */
+  subtotal?: number;
+  discountTotal?: number;
+  customerName?: string;
   occurredAt: string;
   businessDate: string;
   shiftId?: string;

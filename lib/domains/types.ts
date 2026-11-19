@@ -141,6 +141,10 @@ export interface CompleteSaleInput {
   shiftClientRef?: string;
   cashierMembershipId?: UUID;
   customerId?: UUID; // optional: anonymous sales allowed (POS-SALE-004)
+  /** A customer the till added while selling, resolved by phone on the server. */
+  newCustomer?: { name: string; phone: string };
+  /** Who allowed the discount: an owner or manager at the till (0122). */
+  discountApprovedBy?: UUID;
   subtotal: number;
   discountTotal?: number;
   taxTotal?: number;

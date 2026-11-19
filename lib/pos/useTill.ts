@@ -44,7 +44,8 @@ import { getPrinter } from "@/lib/pos/printer";
 import type { ReceiptDoc } from "@/lib/pos/receipt";
 import { activeCashier, pullRoster, signOutCashier, type ActiveCashier } from "@/lib/pos/staff";
 import { discardHeld, holdSale, listHeld, resumeHeld, type HeldSale } from "@/lib/pos/held";
-import { buildSale, cartTotal, type CartLine, type TillPayment } from "@/lib/pos/sale";
+import { buildSale, cartTotal, cents, type CartLine, type TillDiscount, type TillPayment } from "@/lib/pos/sale";
+import { addCustomerHere, forSale, forgetCustomers, getCustomers, pullCustomers, type TillCustomer } from "@/lib/pos/customers";
 
 export type { CartLine } from "@/lib/pos/sale";
 
@@ -91,6 +92,11 @@ export function useTill() {
   const [stuck, setStuck] = useState<StuckItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Who this sale is for, if anyone, and the discount on it. Both belong to
+  // the sale in progress and go with it when it is finished or cleared.
+  const [customers, setCustomers] = useState<TillCustomer[]>([]);
+  const [customer, setCustomer] = useState<TillCustomer | null>(null);
+  const [discount, setDiscount] = useState<TillDiscount | null>(null);
 
   const refreshStatus = useCallback(() => {
     currentStatus().then(setStatus).catch(() => {});
@@ -124,6 +130,11 @@ export function useTill() {
         .catch(() => {});
       // The roster is what lets the till name its cashier with no network.
       pullRoster().catch(() => {});
+      // And the customer list is what lets it put a name on a sale.
+      setCustomers(await getCustomers());
+      pullCustomers()
+        .then(async () => setCustomers(await getCustomers()))
+        .catch(() => {});
     }
 
     const existing = await getAll<LocalItem>(STORE.catalogue);
@@ -180,7 +191,22 @@ export function useTill() {
     };
   }, [refreshStatus, boot]);
 
-  const total = useMemo(() => cartTotal(cart), [cart]);
+  const subtotal = useMemo(() => cartTotal(cart), [cart]);
+  // A percentage follows the basket; a fixed amount never comes to more
+  // than the basket.
+  const discountNow = useMemo<TillDiscount | null>(() => {
+    if (!discount || subtotal <= 0) return null;
+    const amount = discount.percent ? cents((subtotal * discount.percent) / 100) : Math.min(discount.amount, subtotal);
+    return { ...discount, amount };
+  }, [discount, subtotal]);
+  const total = cents(subtotal - (discountNow?.amount ?? 0));
+
+  /** Ends the sale in progress: nothing in it, nobody on it, no discount. */
+  function resetSale() {
+    setCart([]);
+    setCustomer(null);
+    setDiscount(null);
+  }
 
   function addToCart(item: LocalItem) {
     setCart((prev) => {
@@ -202,7 +228,16 @@ export function useTill() {
   }
 
   function clearCart() {
-    setCart([]);
+    resetSale();
+  }
+
+  async function addCustomer(name: string, phone: string) {
+    const result = await addCustomerHere(name, phone);
+    if (result.ok) {
+      setCustomers(await getCustomers());
+      setCustomer(result.customer);
+    }
+    return result;
   }
 
   // Park the basket so the queue behind can be served (POS-016). Nothing
@@ -211,7 +246,7 @@ export function useTill() {
     if (cart.length === 0) return false;
     const parked = await holdSale(cart.map((l) => ({ item: l.item, quantity: l.quantity })));
     if (!parked) return false;
-    setCart([]);
+    resetSale();
     setHeld(await listHeld());
     return true;
   }
@@ -244,6 +279,11 @@ export function useTill() {
   async function completeSale(payment: TillPayment): Promise<boolean> {
     if (cart.length === 0 || saving) return false;
     if (payment.method === "cash" && !(payment.tendered >= total)) return false;
+    if ((payment.method === "momo" || payment.method === "card") && payment.reference.trim().length < 4) return false;
+    if (payment.method === "credit" && !customer) {
+      setError("A sale on credit needs a customer. Add who is paying later.");
+      return false;
+    }
 
     setSaving(true);
     setError(null);
@@ -254,6 +294,8 @@ export function useTill() {
       const { sale, outboxItem, doc } = buildSale({
         cart,
         payment,
+        customer: customer ? forSale(customer) : null,
+        discount: discountNow,
         seq,
         now: new Date(),
         device,
@@ -281,7 +323,7 @@ export function useTill() {
       // and the record is on disk whatever the printer does.
       printReceipt(doc);
       setHeld(await listHeld());
-      setCart([]);
+      resetSale();
       refreshStatus();
       drainOutbox().then(refreshStatus).catch(() => {});
       return true;
@@ -299,6 +341,9 @@ export function useTill() {
     refreshStatus();
     if (outcome.revoked) {
       setRevoked(true);
+      // A stopped till keeps nobody's phone number.
+      await forgetCustomers();
+      setCustomers([]);
     } else if (outcome.blocked) {
       setError("Some sales could not be sent. Call support with your till number.");
     }
@@ -328,7 +373,7 @@ export function useTill() {
   // someone else's half-finished sale.
   async function handOver() {
     await signOutCashier();
-    setCart([]);
+    resetSale();
     setCashier(undefined);
   }
 
@@ -338,7 +383,7 @@ export function useTill() {
   // the last cashier's name and every sale in it says they served, which is
   // the exact confusion that putting a name on a receipt exists to prevent.
   async function afterShiftClosed() {
-    setCart([]);
+    resetSale();
     setLastReceipt(null);
     await signOutCashier();
     setCashier(undefined);
@@ -363,7 +408,14 @@ export function useTill() {
     shift,
     catalogue,
     cart,
+    subtotal,
     total,
+    customers,
+    customer,
+    setCustomer,
+    addCustomer,
+    discount: discountNow,
+    setDiscount,
     status,
     storage,
     stuck,
