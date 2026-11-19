@@ -23,38 +23,13 @@ import TillNotReady from "@/components/pos/TillNotReady";
 import TileImage from "@/components/pos/TileImage";
 import { Icon } from "@/components/shell/icons";
 import type { Till } from "@/lib/pos/useTill";
+import { KEYPAD, cents, clock, initials, likelyNotes, pressKey } from "@/lib/pos/cash";
+import TillNotices from "@/components/pos/TillNotices";
 
 type Screen = "sell" | "cart" | "pay" | "done";
 
-const cents = (n: number) => Math.round(n * 100) / 100;
-
-/** Notes a customer is likely to hand over for this total, smallest first. */
-function likelyNotes(total: number): number[] {
-  const out = new Set<number>([cents(total)]);
-  for (const step of [5, 10, 20, 50, 100, 200]) {
-    const up = Math.ceil(total / step) * step;
-    if (up > total) out.add(up);
-    if (out.size >= 4) break;
-  }
-  return Array.from(out).sort((a, b) => a - b).slice(0, 4);
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
-}
-
-function time(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GH", { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
 export default function TerminalLayout({ till, onCloseShift }: { till: Till; onCloseShift: () => void }) {
-  const { ready, device, cashier, shift, held, status, stuck, storage, error, lastReceipt, printNote, catalogue, cart, total, saving } =
-    till;
+  const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, total, saving } = till;
   const [screen, setScreen] = useState<Screen>("sell");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -84,14 +59,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
   const behind = status.kind === "needs_attention" || status.pending > 0;
 
   function key(k: string) {
-    setTendered((t) => {
-      if (k === "back") return t.slice(0, -1);
-      if (k === ".") return t.includes(".") ? t : (t || "0") + ".";
-      const [, dec] = t.split(".");
-      if (dec !== undefined && dec.length >= 2) return t;
-      if (t === "0") return k;
-      return (t + k).slice(0, 9);
-    });
+    setTendered((t) => pressKey(t, k));
   }
 
   async function finish() {
@@ -106,7 +74,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
   const subtitle =
     screen === "sell"
       ? shift
-        ? `Shift open since ${time(shift.openedAt)}`
+        ? `Shift open since ${clock(shift.openedAt)}`
         : "Ascend POS"
       : screen === "cart"
         ? `${items} item${items === 1 ? "" : "s"}`
@@ -194,32 +162,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
         </button>
       )}
 
-      {stuck.length > 0 && (
-        <div className="flex-none border-b border-gold-500/40 bg-gold-100 px-3.5 py-2.5 text-[13px] text-gold-700">
-          <p className="font-bold">
-            {stuck.length} thing{stuck.length === 1 ? "" : "s"} the office is not taking.
-          </p>
-          <p className="mt-0.5">
-            {stuck[0].lastError?.includes("receipt_number") || stuck[0].lastError?.includes("duplicate key")
-              ? "Their receipt numbers were already used. The office can give them new ones once this till is updated."
-              : (stuck[0].lastError ?? "The office did not say why.")}
-          </p>
-          <p className="mono mt-0.5 text-[11px]">
-            {stuck[0].kind} · tried {stuck[0].tries} times · {stuck[0].lastError ?? "no reason given"}
-          </p>
-          <button onClick={till.resendStuck} className="tap mt-1.5 rounded-control bg-gold-700 px-3.5 text-[13px] font-bold text-white">
-            Try sending them again
-          </button>
-        </div>
-      )}
-
-      {storage?.critical && (
-        <p className="flex-none bg-gold-500 px-3.5 py-2 text-[13px] font-bold text-ink">
-          This till is almost full. Send your sales and call support today.
-        </p>
-      )}
-
-      {error && <p className="flex-none bg-danger-tint px-3.5 py-2 text-[13px] font-semibold text-danger-ink">{error}</p>}
+      <TillNotices till={till} />
 
       <div className="relative flex min-h-0 flex-1 flex-col">
         {screen === "sell" && (
@@ -267,7 +210,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
               {!ready && <p className="col-span-full py-8 text-center text-neutral-500">Opening your till...</p>}
               {ready && catalogue.length === 0 && (
                 <div className="col-span-full">
-                  <TillNotReady reason="no_products" businessLabel={device?.label} onRetry={till.retryCatalogue} />
+                  <TillNotReady light reason="no_products" businessLabel={device?.label} onRetry={till.retryCatalogue} />
                 </div>
               )}
               {ready && catalogue.length > 0 && visibleItems.length === 0 && (
@@ -434,7 +377,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
                 ))}
               </div>
               <div className="grid min-h-[180px] flex-1 auto-rows-fr grid-cols-3 gap-1.5">
-                {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"].map((k) => (
+                {KEYPAD.map((k) => (
                   <button
                     key={k}
                     onClick={() => key(k)}

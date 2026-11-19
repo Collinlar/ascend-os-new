@@ -15,7 +15,7 @@ import TerminalSetup from "@/components/pos/TerminalSetup";
 import ShiftGate from "@/components/pos/ShiftGate";
 import ShiftClose from "@/components/pos/ShiftClose";
 import StaffPin from "@/components/pos/StaffPin";
-import SellScreen from "@/components/pos/SellScreen";
+import CounterLayout from "@/components/pos/CounterLayout";
 import TerminalLayout from "@/components/pos/TerminalLayout";
 import { Eyebrow } from "@/components/brand/Mark";
 import { useTill } from "@/lib/pos/useTill";
@@ -48,8 +48,7 @@ export default function PosTerminal() {
 
   // Which layout: the handheld Terminal below 1024px, the big screen above.
   // By width, not by how the device was set up, because a till set up as a
-  // terminal may be a handheld or a counter screen. Until the Counter layout
-  // exists (D4c) the wide screen keeps the till's earlier selling screen.
+  // terminal may be a handheld or a counter screen.
   const [wide, setWide] = useState(false);
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -146,7 +145,7 @@ export default function PosTerminal() {
   // Sales belong to a shift, so the drawer can be reconciled at the end of
   // the day (POS-SHF-001).
   if (ready && registered && !shift && !locked) {
-    return <ShiftGate onOpened={boot} cashierMembershipId={cashier?.membershipId} />;
+    return <ShiftGate onOpened={boot} cashierMembershipId={cashier?.membershipId} tillLabel={device?.label} />;
   }
 
   if (ready && shift && closing) {
@@ -230,7 +229,7 @@ export default function PosTerminal() {
   }
 
   return wide ? (
-    <SellScreen till={till} onCloseShift={() => setClosing(true)} />
+    <CounterLayout till={till} onCloseShift={() => setClosing(true)} />
   ) : (
     <TerminalLayout till={till} onCloseShift={() => setClosing(true)} />
   );

@@ -133,8 +133,13 @@ export async function drainOutbox(force = false): Promise<SyncOutcome> {
       }
 
       if (!response.ok) {
-        // 5xx is the server's problem and will pass; 4xx will not.
-        if (response.status >= 500) {
+        // Only a request the server could not read will never go through:
+        // 400, 413 and 422. The sync route refuses a single sale inside a
+        // 200, so every other status is the road, not the sale: 5xx, and a
+        // 404 or 429 from a deploy in progress or a busy edge. Those used to
+        // park the sale as refused until somebody tapped "Try sending them
+        // again", which a till on its own overnight never does.
+        if (![400, 413, 422].includes(response.status)) {
           await markTemporary(item, `server ${response.status}`);
           break;
         }

@@ -1,10 +1,8 @@
 "use client";
 
-// @contrast-surface navy
-// The till is a dark screen. Everything below reads on navy, which is
-// what npm run check:contrast measures against.
 import { useEffect, useState } from "react";
 import { pairTerminal, pullCatalogue } from "@/lib/pos/registration";
+import TillFrame, { tillInput, tillPrimary } from "@/components/pos/TillFrame";
 
 // One-time setup on a new till (IDN-006). Needs network once; after this
 // the terminal sells offline until its lease runs out.
@@ -30,13 +28,12 @@ export default function TerminalSetup({ onPaired }: { onPaired: () => void }) {
   const impossible = clean.match(/[01IO]/g);
 
   // A disabled button with no reason is the cashier's problem to solve
-  // blind. Say what is missing while they type (SEC-UX, code quality
-  // standards on real-time validation).
+  // blind. Say what is missing while they type.
   const hint = (() => {
     if (clean.length === 0) return null;
     if (impossible) {
       const shown = Array.from(new Set(impossible)).join(" and ");
-      return `A pairing code never has ${shown} in it. Check the code on the dashboard.`;
+      return `A pairing code never has ${shown} in it. Look at the code on the dashboard again.`;
     }
     if (/^\d+$/.test(clean) && clean.length <= 6) {
       return "That looks like a staff PIN. A pairing code has letters in it and comes from the dashboard.";
@@ -45,7 +42,7 @@ export default function TerminalSetup({ onPaired }: { onPaired: () => void }) {
       const left = 6 - clean.length;
       return `${left} more character${left === 1 ? "" : "s"} to go.`;
     }
-    if (clean.length > 6) return "That is longer than 6 characters. Check the code again.";
+    if (clean.length > 6) return "That is longer than 6 characters. Look at the code again.";
     return null;
   })();
 
@@ -65,21 +62,17 @@ export default function TerminalSetup({ onPaired }: { onPaired: () => void }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-navy px-5 text-white">
-      <form onSubmit={submit} className="w-full max-w-sm">
-        <p className="text-sm font-medium text-teal-light">Ascend POS</p>
-        <h1 className="mt-4 text-2xl font-semibold leading-display">
-          Set up this till.
-        </h1>
-        <p className="mt-3 text-white/70">
-          On the Ascend dashboard, open Your tills and tap Set up a new till.
-          Type the code it shows here. You only do this once.
-        </p>
-        <p className="mt-2 text-sm text-white/50">
-          This is not a staff PIN. Those come later, once the till is set up.
-        </p>
-
-        <label htmlFor="code" className="mt-8 block text-sm text-white/70">
+    <TillFrame
+      title="Set up this till"
+      intro={
+        <>
+          <p>On the Ascend dashboard, open Devices and tap Set up a new till. Type the code it shows here. You only do this once.</p>
+          <p className="mt-1.5 text-[13.5px] text-neutral-500">This is not a staff PIN. Those come once the till is set up.</p>
+        </>
+      }
+    >
+      <form onSubmit={submit}>
+        <label htmlFor="code" className="mt-6 block text-[13.5px] font-semibold text-ink">
           Pairing code
         </label>
         <input
@@ -89,26 +82,18 @@ export default function TerminalSetup({ onPaired }: { onPaired: () => void }) {
           autoCapitalize="characters"
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="ABC-234"
-          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold tracking-widest text-white placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-white/60 focus:outline-none"
+          className={`${tillInput} tracking-[0.18em] placeholder:tracking-normal`}
         />
-
         {error ? (
-          <p className="mt-3 text-sm text-gold">{error}</p>
+          <p className="mt-3 text-[13.5px] font-semibold text-gold-700">{error}</p>
         ) : (
-          hint && <p className="mt-3 text-sm text-white/60">{hint}</p>
+          hint && <p className="mt-3 text-[13.5px] text-neutral-600">{hint}</p>
         )}
-
-        <button
-          type="submit"
-          disabled={busy || clean.length !== 6}
-          className="tap mt-6 w-full bg-teal py-3.5 text-lg font-semibold disabled:opacity-40"
-        >
+        <button type="submit" disabled={busy || clean.length !== 6} className={`mt-6 ${tillPrimary}`}>
           {busy ? "Setting up your till..." : "Set up this till"}
         </button>
-        <p className="mt-3 text-center text-sm text-white/50">
-          This step needs network. Selling does not.
-        </p>
+        <p className="mt-3 text-center text-[13px] text-neutral-500">This step needs network. Selling does not.</p>
       </form>
-    </main>
+    </TillFrame>
   );
 }

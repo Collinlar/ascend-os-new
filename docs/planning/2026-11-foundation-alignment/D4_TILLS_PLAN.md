@@ -115,3 +115,14 @@ Checked at 375px on a throwaway business: pairing, PIN, a shift, a GHS 171 sale 
 Fixed on the way: a till that had just been set up said "Nobody can open this till yet" until it was reloaded, because the PIN screen read the staff list before it had arrived. It now fetches the list itself when it finds none.
 
 Noted, not changed: stock the till takes off as it sells offline is kept only on screen, so a reload before the sales are sent shows the old counts until they are; a sale that failed to send once waits out its retry delay unless someone taps the strip.
+
+**D4c, the Counter layout, 19 November 2026.** From 1024px the till is the design's counter (`components/pos/CounterLayout.tsx`): a navy bar with the till, the shift, whether sales have reached the office (gold when something waits, a tap sends it), who is selling and the time; a rail with Sell, Shift and Lock; a large box a counter scanner types into (Enter adds an exact barcode, or a search that leaves one product; an unknown code says so); category chips over a three or four column grid; the sale always in view on the right with steppers, "Park it" and "Charge". Paying opens over it (the sale on the left, likely notes and change in the middle, a keypad), and so does the finished sale, with the receipt as printed beside "Give change". The earlier navy selling screen is gone. Setting a till up, opening a shift and closing it now sit in one light frame (`TillFrame`) shared by both layouts; the PIN pad stays navy. The two layouts share the cash keypad rules and the notices (`lib/pos/cash.ts`, `TillNotices`).
+
+Checked at 1440px on a throwaway business: pairing straight to the PIN, a scanner Enter, an unknown code, a GHS 133 sale paid with GHS 150 (change GHS 17), park and bring back, Lock, and the shift closed at GHS 233 on the till and on the server.
+
+Fixed on the way:
+- A till that had just been set up said "This till is not set up yet" in its status while it sold. The status is worked out again at the end of every start.
+- A sale answered with 404 or 429 was parked as refused until somebody tapped "Try sending them again". Only 400, 413 and 422 now count as refused; everything else waits and tries again on its own. (The 404s seen while testing came from the dev server losing the sync route after a recompile; a deploy in progress can do the same on live.)
+- The "nothing to sell yet" panel was written for navy and would have been white on white in the light layouts; it has a light version, and points to Devices rather than Tills.
+
+Left for D4e: Lock empties the sale, as handing over always has; Sales and Returns on the rail.

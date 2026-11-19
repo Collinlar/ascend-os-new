@@ -1,10 +1,8 @@
 "use client";
 
-// @contrast-surface navy
-// The till is a dark screen. Everything below reads on navy, which is
-// what npm run check:contrast measures against.
 import { useState } from "react";
 import { openShift } from "@/lib/pos/shift";
+import TillFrame, { tillInput, tillPrimary } from "@/components/pos/TillFrame";
 
 // Sales belong to a shift (POS-SHF-001). The cashier declares the float
 // they are starting with, so the count at the end means something.
@@ -12,10 +10,12 @@ import { openShift } from "@/lib/pos/shift";
 export default function ShiftGate({
   onOpened,
   cashierMembershipId,
+  tillLabel,
 }: {
   onOpened: () => void;
   /** Recorded on the shift, so the business knows who was at the counter. */
   cashierMembershipId?: string;
+  tillLabel?: string | null;
 }) {
   const [openingCash, setOpeningCash] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,25 +34,20 @@ export default function ShiftGate({
       await openShift(amount, cashierMembershipId);
       onOpened();
     } catch {
-      setError("We could not open your shift. Tap again.");
+      setError("Your shift did not open. Tap again.");
       setBusy(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-navy px-5 text-white">
-      <form onSubmit={start} className="w-full max-w-sm">
-        <p className="text-sm font-medium text-teal-light">Ascend POS</p>
-        <h1 className="mt-4 text-2xl font-semibold leading-display">
-          Start your shift.
-        </h1>
-        <p className="mt-3 text-white/70">
-          Count the cash in the drawer before you sell. At close we compare it
-          with what should be there.
-        </p>
-
-        <label htmlFor="openingCash" className="mt-8 block text-sm text-white/70">
-          Cash in the drawer now
+    <TillFrame
+      eyebrow={tillLabel}
+      title="Start your shift"
+      intro="Count the cash in the drawer before you sell. At close we compare it with what should be there."
+    >
+      <form onSubmit={start}>
+        <label htmlFor="openingCash" className="mt-6 block text-[13.5px] font-semibold text-ink">
+          Cash in the drawer now, in GH₵
         </label>
         <input
           id="openingCash"
@@ -61,19 +56,13 @@ export default function ShiftGate({
           value={openingCash}
           onChange={(e) => setOpeningCash(e.target.value)}
           placeholder="0"
-          className="mt-2 w-full bg-white/10 px-4 py-3 text-2xl font-semibold text-white placeholder:text-base placeholder:font-normal placeholder:text-white/60 focus:outline-none"
+          className={`num ${tillInput}`}
         />
-
-        {error && <p className="mt-3 text-sm text-gold">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="tap mt-6 w-full bg-teal py-3.5 text-lg font-semibold disabled:opacity-40"
-        >
-          {busy ? "Opening..." : "Open my shift"}
+        {error && <p className="mt-3 text-[13.5px] font-semibold text-gold-700">{error}</p>}
+        <button type="submit" disabled={busy} className={`mt-6 ${tillPrimary}`}>
+          {busy ? "Opening your shift..." : "Open my shift"}
         </button>
       </form>
-    </main>
+    </TillFrame>
   );
 }

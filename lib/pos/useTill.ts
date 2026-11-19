@@ -139,7 +139,11 @@ export function useTill() {
       // spare the room.
       syncCatalogueImages(existing).catch(() => {});
     }
-  }, []);
+    // Whatever the till said about itself before this boot (before it was
+    // paired, say) is out of date now. Without this, a till that had just
+    // been set up went on saying "This till is not set up yet" while it sold.
+    refreshStatus();
+  }, [refreshStatus]);
 
   useEffect(() => {
     let stopSync: (() => void) | undefined;
