@@ -23,6 +23,10 @@ export interface NavItem {
 // merchant's customers rather than to the merchant.
 const BARE_PREFIXES = [
   "/pos",
+  // Discover is the customers' page, with its own header. A merchant who
+  // opens it signed in should see what their customers see, not their own
+  // business's sidebar around it.
+  "/discover",
   // The platform's own desk. An admin is usually a merchant too, and their
   // shop's navigation on a moderation screen would say they are somewhere
   // they are not.
