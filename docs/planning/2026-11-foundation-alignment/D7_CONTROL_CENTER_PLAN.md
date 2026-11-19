@@ -89,3 +89,11 @@ The existing desks move into it unchanged in what they do.
 - What the Risk desk, moderation and messaging desks do.
 - Who counts as an admin (`currentAdmin`, `platform_admin`).
 - Every admin action stays checked again in the database.
+
+## Build status
+
+**Approved 19 November 2026** as recommended.
+
+**D7 step 1, the chrome and Overview, 19 November 2026.** Every `/admin` page sits in the navy Control Center chrome (`components/admin/ControlShell.tsx`, `app/admin/layout.tsx`): a sidebar from 1024px with Overview, Businesses, Revenue, Risk, Discover, Messaging and Audit, and a scrolling row below that. The layout refuses anyone who is not a platform admin before anything is sent, so no chrome or list of desks reaches them. The Overview shows businesses (and new this week), how many added products, made a first sale and sold this week, each with its share; "Needs one of us", a list of risk appeals, customer reports, deletion requests, Discover appeals, risk signals and messaging flags, each opening its desk; businesses by product; Discover's listed and taken down. The figures come from `0124_control_center_figures.sql` (7/7 locally, waiting to be run) and are left out until it is. Checked at 1440px and 375px with a temporary ZZ admin, removed straight after.
+
+Found, not changed: every "not found" in the app answers with status 200, because the root `app/loading.tsx` makes every page stream and the status goes out first. A missing shop, document link or admin page shows "could not be found" correctly, but search engines and link checkers see a real page.
