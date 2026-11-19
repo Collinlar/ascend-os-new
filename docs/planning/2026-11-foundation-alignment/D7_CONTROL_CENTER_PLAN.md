@@ -105,3 +105,5 @@ Found, not changed: every "not found" in the app answers with status 200, becaus
 - The existing Risk, Discover and messaging desks sit inside the chrome unchanged; their own layouts read well in it, so step 5 needed nothing more.
 
 Checked at 1440px and 375px with a temporary ZZ admin, removed straight after.
+
+**0124 applied on live, 19 November 2026.** `control_center_figures` and `control_center_businesses` answer for the server: 31 businesses, 17 with products, 2 with a first sale, 1 sold this week; the stage list splits 14 signed up, 15 added products, 1 first sale, 1 sold this week, which agrees with the Overview. Overview, the stage filter, the name search and a business's page checked at 1440px and 375px with a temporary ZZ admin, removed straight after.
