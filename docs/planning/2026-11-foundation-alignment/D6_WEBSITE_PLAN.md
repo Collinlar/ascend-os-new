@@ -75,3 +75,17 @@ The design shows Ama's Provisions, a salon and a chop bar with figures ("Lunch r
 - Onboarding and sign-in.
 - The other BVM sites.
 - The page's metadata, except the title and description, which take the new headline.
+
+## Build status
+
+**Approved 19 November 2026** as recommended, keeping the example figures.
+
+**D6, the home page, 19 November 2026. D6 is complete.** `/` follows the design's six sections, every line rewritten to what Ascend does today:
+1. A left-aligned hero ("More customers. More sales. Less running around.") with "Start free" and "Works in your phone's browser. Add it to your home screen." where the store badges were, then "An example week for a" shop, salon or chop bar, labelled "An example, not a real shop", with takings, cash-up, stock flagged, orders and bookings.
+2. "Cash, MoMo and card, recorded in one place."
+3. "What do you want to fix first?": less chasing, be found, see what sells, each with what is true and an example card (the cash-up, customers found on Discover, a Sustainability Score); the Sustainability Score is "a record of how you really run that you can take to a lender".
+4. "Busier counter? Bigger setup. Same business.": phone, handheld, counter, more shops.
+5. "Selling today. Not next month.": three steps, then the four places to start (`/onboarding?path=`).
+6. A closing call to start.
+
+Signed in, every "Start free" reads "Open [business]" and goes to the dashboard. Checked at 1440px, 768px and 375px, signed out and signed in on a throwaway business: no sideways scroll, both sets of tabs switch, every start link opens its onboarding path. One claim I could not back ("No double bookings") became "Every booking in one diary". Contrast passes; the seven marked exceptions are grounds chosen by a tile or tab, each with its reason.
