@@ -30,6 +30,12 @@ import { CustomerRow, DiscountRow } from "@/components/pos/SaleExtras";
 import { OtherPayment, PayTabs, usePayChoice } from "@/components/pos/PayChoice";
 import { Icon } from "@/components/shell/icons";
 import type { Till } from "@/lib/pos/useTill";
+import { useCustomerDisplay } from "@/lib/pos/useCustomerDisplay";
+import { openCustomerDisplay } from "@/lib/pos/display";
+
+// What the customer display says they are paying by. Credit is not shown.
+const DISPLAY_METHOD: Record<string, string | undefined> = { cash: "cash", momo: "Mobile Money", card: "card" };
+
 
 export default function CounterLayout({ till, onCloseShift }: { till: Till; onCloseShift: () => void }) {
   const { ready, device, cashier, shift, held, status, lastReceipt, printNote, catalogue, cart, subtotal, total, saving } = till;
@@ -45,6 +51,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
   const [notFound, setNotFound] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const search = useRef<HTMLInputElement>(null);
+  useCustomerDisplay(till, { paying, done, method: DISPLAY_METHOD[pay.method] });
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -156,6 +163,13 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
             Shift
           </button>
           <span className="flex-1" />
+          <button
+            onClick={openCustomerDisplay}
+            className="tap flex h-[72px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-card text-center text-[12px] font-semibold leading-tight text-neutral-600 hover:bg-neutral-50"
+          >
+            <Icon name="monitor" size={22} />
+            Customer screen
+          </button>
           <button
             onClick={async () => {
               setPaying(false);

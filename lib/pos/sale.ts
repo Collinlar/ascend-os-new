@@ -181,7 +181,8 @@ export function buildSale(input: {
   // The receipt document, built once and kept so a reprint never
   // re-derives it from state the till has already moved on from.
   const doc: ReceiptDoc = {
-    businessName: device?.label ?? "Ascend POS",
+    businessName: device?.businessName ?? device?.label ?? "Ascend POS",
+    locationName: device?.locationName ?? undefined,
     receiptNumber: receiptNo,
     issuedAt: now,
     cashierName: cashier?.displayName,

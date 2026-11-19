@@ -21,6 +21,9 @@ export interface DeviceContext {
   businessId: string;
   locationId: string;
   label: string | null;
+  /** The business and the place, as the customer sees them on a receipt. */
+  businessName?: string | null;
+  locationName?: string | null;
   leaseExpiresAt: string;
   /** This till's number within the business. Receipt numbers are built
       from it, so two counters never issue the same one. */
@@ -106,6 +109,8 @@ export async function pullCatalogue(): Promise<{ ok: boolean; count: number }> {
       items: LocalItem[];
       leaseExpiresAt: string;
       label: string | null;
+      businessName?: string | null;
+      locationName?: string | null;
       deviceNumber?: number | null;
       receiptSeqHigh?: number;
     };
@@ -132,6 +137,8 @@ export async function pullCatalogue(): Promise<{ ok: boolean; count: number }> {
         ...context,
         leaseExpiresAt: data.leaseExpiresAt,
         label: data.label ?? context.label,
+        businessName: data.businessName ?? context.businessName ?? null,
+        locationName: data.locationName ?? context.locationName ?? null,
         // Tills paired before numbering existed pick theirs up here.
         deviceNumber: data.deviceNumber ?? context.deviceNumber ?? null,
       });

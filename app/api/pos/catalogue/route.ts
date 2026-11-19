@@ -73,6 +73,14 @@ async function handleGET(request: NextRequest) {
     // problem if that count was already lost.
   }
 
+  // The names the customer sees: on the receipt and on the customer display.
+  // A till used to print its own label ("Till 1") where the business name
+  // belongs.
+  const [{ data: biz }, { data: place }] = await Promise.all([
+    db.from("business").select("name").eq("id", device.businessId).maybeSingle(),
+    db.from("location").select("name").eq("id", device.locationId).maybeSingle(),
+  ]);
+
   // Location-aware stock so the till shows what is actually on this shelf.
   const { data: balances } = await db
     .from("stock_balance")
@@ -88,6 +96,8 @@ async function handleGET(request: NextRequest) {
     businessId: device.businessId,
     locationId: device.locationId,
     label: device.label,
+    businessName: (biz?.name as string | undefined) ?? null,
+    locationName: (place?.name as string | undefined) ?? null,
     leaseExpiresAt: device.leaseExpiresAt,
     deviceNumber: device.deviceNumber ?? null,
     // The highest receipt number this till has reached, so one whose local

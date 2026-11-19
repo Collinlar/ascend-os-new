@@ -130,7 +130,7 @@ export default function TillSales({ till, onClose }: { till: Till; onClose: () =
           ) : (
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => till.printReceipt(receiptFor(open, till.device?.label ?? "Ascend POS", till.cashier?.displayName))}
+                onClick={() => till.printReceipt(receiptFor(open, till.device?.businessName ?? till.device?.label ?? "Ascend POS", till.cashier?.displayName))}
                 className="tap flex h-12 flex-1 items-center justify-center rounded-control border-[1.5px] border-neutral-200 text-[14px] font-bold text-ink"
               >
                 Print the receipt again

@@ -23,6 +23,11 @@ import TillNotReady from "@/components/pos/TillNotReady";
 import TileImage from "@/components/pos/TileImage";
 import { Icon } from "@/components/shell/icons";
 import type { Till } from "@/lib/pos/useTill";
+import { useCustomerDisplay } from "@/lib/pos/useCustomerDisplay";
+
+// What the customer display says they are paying by. Credit is not shown.
+const DISPLAY_METHOD: Record<string, string | undefined> = { cash: "cash", momo: "Mobile Money", card: "card" };
+
 import { KEYPAD, cents, clock, initials, likelyNotes, pressKey } from "@/lib/pos/cash";
 import TillNotices from "@/components/pos/TillNotices";
 import CustomerSheet from "@/components/pos/CustomerSheet";
@@ -41,6 +46,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
   const pay = usePayChoice(till);
   const { tendered, setTendered, paid } = pay;
   const [sheet, setSheet] = useState<"customer" | "discount" | "sales" | null>(null);
+  useCustomerDisplay(till, { paying: screen === "pay", done: screen === "done", method: DISPLAY_METHOD[pay.method] });
   const [menu, setMenu] = useState(false);
   const [showHeld, setShowHeld] = useState(false);
   const [scanning, setScanning] = useState(false);
