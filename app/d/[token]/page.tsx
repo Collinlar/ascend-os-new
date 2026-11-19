@@ -105,19 +105,19 @@ async function load(token: string): Promise<Loaded> {
 
 function Unreachable({ token }: { token: string }) {
   return (
-    <main className="min-h-screen bg-light-grey py-8">
-      <div className="mx-auto max-w-lg bg-white px-6 py-8">
-        <p className="text-sm text-ink-muted">We could not open this just now</p>
-        <h1 className="mt-1 text-xl font-semibold text-ink">
+    <main className="min-h-screen bg-canvas px-4 py-8">
+      <div className="mx-auto max-w-lg rounded-[24px] border border-line-brand bg-white px-6 py-8 shadow-[0_18px_40px_rgba(2,60,55,0.06)] sm:px-8">
+        <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">We could not open this just now</p>
+        <h1 className="mt-1.5 font-heading text-[22px] font-extrabold text-ink-heading">
           The connection dropped for a moment.
         </h1>
-        <p className="mt-3 text-sm text-ink-muted">
+        <p className="mt-3 text-sm text-neutral-600">
           Nothing is wrong with your document or your link. Give it a few seconds and open it
           again.
         </p>
         <a
           href={`/d/${token}`}
-          className="tap mt-6 flex items-center justify-center bg-teal text-sm font-semibold text-white hover:bg-teal-dark"
+          className="tap mt-6 flex h-12 items-center justify-center rounded-control bg-teal text-[15px] font-bold text-white hover:bg-teal-hover"
         >
           Open it again
         </a>
@@ -140,17 +140,17 @@ export default async function CustomerDocument({
   const label = TYPE_LABEL[snapshot.type] ?? snapshot.type;
 
   return (
-    <main className="min-h-screen bg-light-grey py-8">
-      <div className="mx-auto max-w-lg bg-white px-6 py-8">
+    <main className="min-h-screen bg-canvas px-4 py-8">
+      <div className="mx-auto max-w-lg rounded-[24px] border border-line-brand bg-white px-6 py-8 shadow-[0_18px_40px_rgba(2,60,55,0.06)] sm:px-8">
         <div className="flex items-baseline justify-between gap-3">
           <div>
-            <p className="text-sm text-ink-muted">{label}</p>
-            <h1 className="text-xl font-semibold text-ink">{businessName}</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">{label}</p>
+            <h1 className="mt-1 font-heading text-[24px] font-extrabold leading-tight text-ink-heading">{businessName}</h1>
           </div>
-          <p className="text-sm font-medium text-ink">{snapshot.number}</p>
+          <p className="mono flex-none whitespace-nowrap text-[13px] font-medium text-ink">{snapshot.number}</p>
         </div>
 
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mt-1 text-sm text-neutral-600">
           {new Date(snapshot.issued_at).toLocaleDateString("en-GB", {
             day: "numeric",
             month: "long",
@@ -161,7 +161,7 @@ export default async function CustomerDocument({
 
         <table className="mt-8 w-full text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-ink-muted">
+            <tr className="border-b border-neutral-100 text-left text-neutral-600">
               <th className="pb-2 font-medium">Item</th>
               <th className="pb-2 text-right font-medium">Qty</th>
               <th className="pb-2 text-right font-medium">Amount</th>
@@ -169,30 +169,30 @@ export default async function CustomerDocument({
           </thead>
           <tbody>
             {(snapshot.lines ?? []).map((line, i) => (
-              <tr key={i} className="border-b border-line">
+              <tr key={i} className="border-b border-neutral-200">
                 <td className="py-3 text-ink">{line.description}</td>
-                <td className="py-3 text-right text-ink-muted">{line.quantity}</td>
-                <td className="py-3 text-right text-ink">{formatGHS(line.line_total)}</td>
+                <td className="py-3 text-right text-neutral-600">{line.quantity}</td>
+                <td className="num py-3 text-right font-semibold text-ink">{formatGHS(line.line_total)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <div className="mt-6 flex items-baseline justify-between">
-          <p className="font-medium text-ink">Total</p>
-          <p className="text-2xl font-semibold text-ink">{formatGHS(snapshot.total)}</p>
+          <p className="font-heading text-[16px] font-bold text-ink-heading">Total</p>
+          <p className="num font-heading text-[30px] font-extrabold tracking-[-0.02em] text-ink-heading">{formatGHS(snapshot.total)}</p>
         </div>
 
         {snapshot.type === "receipt" || status === "paid" ? (
-          <p className="mt-6 bg-teal-light px-4 py-3 text-sm text-teal-dark">
+          <p className="mt-6 rounded-control bg-teal-50 px-4 py-3 text-[14px] font-semibold text-teal-800">
             Paid. Thank you.
           </p>
         ) : status === "credited" ? (
-          <p className="mt-6 bg-teal-light px-4 py-3 text-sm text-teal-dark">
+          <p className="mt-6 rounded-control bg-teal-50 px-4 py-3 text-[14px] font-semibold text-teal-800">
             {businessName} has credited this in full. Nothing is owed.
           </p>
         ) : status === "partially_paid" ? (
-          <p className="mt-6 bg-gold-light px-4 py-3 text-sm text-gold-ink">
+          <p className="mt-6 rounded-control bg-gold-light px-4 py-3 text-[14px] font-semibold text-gold-700">
             Part of this has been paid
             {owed.outstanding > 0 ? `, and ${formatGHS(owed.outstanding)} is still owed` : ""}.
             {" "}Talk to {businessName} about the balance.
@@ -200,7 +200,7 @@ export default async function CustomerDocument({
         ) : toPay > 0 ? (
           <>
             {owed.credited > 0 && (
-              <p className="mt-6 bg-info-light px-4 py-3 text-sm text-ink">
+              <p className="mt-6 rounded-control bg-info-light px-4 py-3 text-[14px] font-semibold text-ink">
                 {businessName} has credited {formatGHS(owed.credited)} against this.
                 You owe {formatGHS(owed.outstanding)}.
               </p>
@@ -216,14 +216,14 @@ export default async function CustomerDocument({
           href={`/d/${params.token}/pdf`}
           target="_blank"
           rel="noopener noreferrer"
-          className="tap mt-6 flex items-center justify-center border border-line text-sm font-semibold text-ink hover:bg-light-grey"
+          className="tap mt-6 flex h-12 items-center justify-center rounded-control border-[1.5px] border-line-brand text-[14.5px] font-bold text-teal-800 hover:bg-teal-50"
         >
           Save a copy
         </a>
 
         <ReportProblem source="invoice" token={params.token} businessName={businessName} />
 
-        <p className="mt-8 text-center text-xs text-ink-muted">
+        <p className="mt-8 text-center text-xs text-neutral-600">
           Sent through AscendSME
         </p>
       </div>

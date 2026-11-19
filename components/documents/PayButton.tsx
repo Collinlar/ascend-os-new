@@ -43,8 +43,8 @@ export default function PayButton({
   }
 
   return (
-    <div className="mt-6 border border-teal bg-teal-light px-4 py-4">
-      <p className="text-sm font-medium text-teal-dark">
+    <div className="mt-6 rounded-card border border-teal-200 bg-teal-50 px-4 py-4">
+      <p className="text-[14px] font-semibold text-teal-800">
         Pay with Mobile Money
       </p>
       <input
@@ -52,13 +52,13 @@ export default function PayButton({
         onChange={(e) => setPhone(e.target.value)}
         inputMode="tel"
         placeholder="Your MoMo number"
-        className="mt-2 w-full border border-teal/40 bg-white px-3 py-2.5 text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
+        className="mt-2 h-12 w-full rounded-control border-[1.5px] border-line-brand bg-white px-3 text-[16px] text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
       />
-      {error && <p className="mt-2 text-sm text-gold-dark">{error}</p>}
+      {error && <p className="mt-2 text-sm font-semibold text-gold-700">{error}</p>}
       <button
         onClick={pay}
         disabled={busy}
-        className="tap mt-3 w-full bg-teal px-4 py-3 font-medium text-white disabled:opacity-60"
+        className="tap mt-3 flex h-12 w-full items-center justify-center rounded-control bg-teal px-4 text-[15px] font-bold text-white disabled:opacity-60"
       >
         {busy ? "Opening Mobile Money..." : `Pay ${formatGHS(amount)}`}
       </button>
