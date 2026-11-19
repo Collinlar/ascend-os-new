@@ -105,3 +105,5 @@ Found and fixed on the way:
 Noted, not changed: the outbox treats any 4xx as permanent, so a 404 from a deploy or CDN hiccup parks a sale or a shift close until someone taps "Try sending them again".
 
 **0121, 19 November 2026.** Approved by Collins. Till sales linked to the shift on the same till whose time covers them, and closed shifts' expected cash worked out again by close_pos_shift's rule. 10/10 locally. On live: CLASmart's shift of 23 August, 16:40, now expects GHS 870 against GHS 870 counted (was -20, showing GHS 890 over), with one audit entry saying what it was; six sales linked to shifts still open; six sales made with no shift open left alone.
+
+**0120, 19 November 2026.** On live, the same sale sent eight times at once, three times over on a throwaway business: before 0120 was applied, 14 of 24 sends failed on the receipt number; after, 3 created, 21 answered duplicate, no errors, three sales on the books.
