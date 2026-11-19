@@ -116,7 +116,7 @@ async function load(): Promise<Loaded> {
         ? db
             .from("approval_request")
             .select(
-              "id, kind, amount, currency_code, created_at, requested_by, requester:requested_by(person:person_id(full_name))"
+              "id, kind, amount, currency_code, created_at, requested_by, note, source_entity_type, source_entity_id, requester:requested_by(person:person_id(full_name))"
             )
             .eq("business_id", membership.business_id)
             .eq("status", "requested")
@@ -153,6 +153,21 @@ async function load(): Promise<Loaded> {
         ? loadSchedule(membership.business_id as string)
         : Promise.resolve([] as ScheduleEntry[]),
     ]);
+
+    // Which sale a refund is for, by its receipt number, so the owner can
+    // find it and is not deciding blind.
+    const saleIds = (approvals.data ?? [])
+      .filter((a) => a.source_entity_type === "sale" && a.source_entity_id)
+      .map((a) => a.source_entity_id as string);
+    const receipts = new Map<string, string>();
+    if (saleIds.length > 0) {
+      const { data: sales } = await db
+        .from("sale")
+        .select("id, receipt_number")
+        .eq("business_id", membership.business_id)
+        .in("id", saleIds);
+      for (const s of sales ?? []) receipts.set(s.id as string, s.receipt_number as string);
+    }
 
     return {
       businessId: membership.business_id as string,
@@ -208,6 +223,8 @@ async function load(): Promise<Loaded> {
           amount: a.amount === null ? null : Number(a.amount),
           createdAt: a.created_at,
           requesterName: requester?.person?.full_name ?? "A team member",
+          reason: (a.note as string | null) ?? null,
+          receipt: a.source_entity_id ? (receipts.get(a.source_entity_id as string) ?? null) : null,
           // Whether this person may decide it is enforced server-side; the
           // UI only avoids offering an action that would be refused.
           isOwnRequest: a.requested_by === membership.id,

@@ -138,3 +138,16 @@ Checked at 1440px and 375px on a throwaway business: a GHS 76 sale with 10% off 
 Noted, not changed: the Devices page shows a browser till's model as its whole user-agent string.
 
 **0122, 19 November 2026.** On live, on a throwaway business: a GHS 10 discount stores the owner who allowed it; an approver from another business is dropped; a GHS 150 discount on a GHS 100 sale is refused (invalid_discount).
+
+**D4e, returns, Sales and Lock, 19 November 2026.**
+- **Sales on this till** (the Counter's rail, the handheld's menu): today's and yesterday's sales from the till's own records, so it works offline, each marked Sent, Waiting to send or Refund asked. Open one to see it, print the receipt again (marked Copy), or ask for a refund.
+- **Asking for a refund** needs a reason, says plainly not to hand any money over yet, and goes through the outbox as `refund.requested`, naming the sale by the till's own reference; the sync route finds the sale (waiting its turn if the sale has not landed) and calls `request_sale_refund`, as the old route did. No migration.
+- **Work** now shows a refund's receipt number and the cashier's reason, where it showed only the amount and who asked.
+- **Lock** keeps the sale in progress, its customer and discount, for the person who locked; anyone else who signs in starts clean. Hand over still clears everything.
+- **Devices** names a browser till "Chrome on Windows" rather than its user-agent string, and counts a till's takings with the refund cancelling the sale it reverses (a GHS 12 day read -GHS 26).
+
+Checked at 1440px and 375px on a throwaway business: a cashier's two cash sales; a refund asked with every request failing (an empty reason refused), sent when the network came back; the owner saw the receipt and the reason in Work and approved; the sale became reversed with a -GHS 38 reversal; Lock kept the sale for the cashier and cleared it for the owner.
+
+For Collins to decide: an approved till refund records no payment back, and the original cash payment still counts, so the server and the till both expect the drawer to keep the money. If the cashier hands it back from the drawer, the shift reads short by that much, and the till is never told the refund was approved. Either the refund is paid from outside the drawer (and that is said on the till), or the reversal takes the cash out of the shift's expected figure and the till learns of the decision.
+
+Noted, not changed: the status line counts every queued item as a "sale" ("1 sale waiting to send" for a refund request); a page reload while locked loses the kept sale, which lives in memory.

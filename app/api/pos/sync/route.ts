@@ -50,6 +50,16 @@ interface ShiftClosePayload {
   closedAt: string;
 }
 
+// A cashier asking for a refund on a sale this till made. Queued like the
+// sale, so it can be asked with no network; the till knows the sale only by
+// its own reference, which is turned into the sale here.
+interface RefundRequestPayload {
+  clientRef: string;
+  saleClientRef: string;
+  reason: string;
+  cashierMembershipId?: string;
+}
+
 interface BarcodeAttachPayload {
   clientRef: string;
   itemId: string;
@@ -61,7 +71,8 @@ type SyncItem =
   | { kind: "sale.completed"; payload: TerminalSalePayload }
   | { kind: "shift.opened"; payload: ShiftOpenPayload }
   | { kind: "shift.closed"; payload: ShiftClosePayload }
-  | { kind: "catalogue.barcode.attached"; payload: BarcodeAttachPayload };
+  | { kind: "catalogue.barcode.attached"; payload: BarcodeAttachPayload }
+  | { kind: "refund.requested"; payload: RefundRequestPayload };
 
 interface SyncItemResult {
   clientRef: string;
@@ -160,6 +171,35 @@ async function handlePOST(request: NextRequest) {
           status: result.duplicate ? "duplicate" : "accepted",
           serverId: result.saleId,
           receiptNumber: result.receiptNumber,
+        });
+      } else if (item.kind === "refund.requested") {
+        const db = supabaseServer();
+        const { data: sale } = await db
+          .from("sale")
+          .select("id")
+          .eq("business_id", device.businessId)
+          .eq("client_ref", item.payload.saleClientRef)
+          .maybeSingle();
+        // The sale is earlier in this till's queue, so it lands first. If it
+        // has not, this waits and tries again rather than being lost.
+        if (!sale) throw new SyncRejection("sale_not_yet_synced", "temporary");
+        const { data, error } = await db.rpc("request_sale_refund", {
+          p: {
+            sale_id: sale.id,
+            reason: (item.payload.reason ?? "").slice(0, 500),
+            requested_by: item.payload.cashierMembershipId ?? "",
+          },
+        });
+        if (error) {
+          if (/sale_not_refundable/.test(error.message)) {
+            throw new SyncRejection("This sale has already been reversed.", "permanent");
+          }
+          throw new SyncRejection("refund_not_requested", "temporary");
+        }
+        results.push({
+          clientRef: item.payload.clientRef,
+          status: data?.duplicate ? "duplicate" : "accepted",
+          serverId: data?.approval_id as string | undefined,
         });
       } else if (item.kind === "catalogue.barcode.attached") {
         // Queued from the counter, so it arrives whenever the shop is back

@@ -50,7 +50,10 @@ async function load(): Promise<PageData | null> {
       .select("device_id, total")
       .eq("business_id", membership.business_id)
       .eq("business_date", today)
-      .eq("status", "completed");
+      // A refund at the till is the original sale marked reversed plus a
+      // negative sale that cancels it. Both are counted so they cancel; with
+      // only "completed" the refund came off twice (a GHS 12 day read -26).
+      .in("status", ["completed", "reversed"]);
 
     const takings = new Map<string, number>();
     for (const row of todaysSales ?? []) {

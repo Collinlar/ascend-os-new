@@ -49,6 +49,10 @@ export interface ApprovalRow {
   amount: number | null;
   createdAt: string;
   requesterName: string;
+  /** What the person asking said, in their words. */
+  reason?: string | null;
+  /** The receipt of the sale a refund is for. */
+  receipt?: string | null;
   isOwnRequest: boolean;
 }
 
@@ -373,7 +377,9 @@ export default function WorkBoard({
                     </p>
                     <p className="text-xs text-ink-muted">
                       {approval.requesterName} · {timeAgo(approval.createdAt)}
+                      {approval.receipt ? ` · receipt ${approval.receipt}` : ""}
                     </p>
+                    {approval.reason && <p className="mt-1.5 text-sm text-ink">&ldquo;{approval.reason}&rdquo;</p>}
                   </div>
                 </div>
 

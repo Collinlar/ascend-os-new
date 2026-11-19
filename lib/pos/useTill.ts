@@ -45,6 +45,8 @@ import type { ReceiptDoc } from "@/lib/pos/receipt";
 import { activeCashier, pullRoster, signOutCashier, type ActiveCashier } from "@/lib/pos/staff";
 import { discardHeld, holdSale, listHeld, resumeHeld, type HeldSale } from "@/lib/pos/held";
 import { buildSale, cartTotal, cents, type CartLine, type TillDiscount, type TillPayment } from "@/lib/pos/sale";
+import { askForRefund } from "@/lib/pos/refunds";
+import type { LocalSale } from "@/lib/pos/db";
 import { addCustomerHere, forSale, forgetCustomers, getCustomers, pullCustomers, type TillCustomer } from "@/lib/pos/customers";
 
 export type { CartLine } from "@/lib/pos/sale";
@@ -97,6 +99,9 @@ export function useTill() {
   const [customers, setCustomers] = useState<TillCustomer[]>([]);
   const [customer, setCustomer] = useState<TillCustomer | null>(null);
   const [discount, setDiscount] = useState<TillDiscount | null>(null);
+  // Who locked the till, so the sale they left is theirs to pick up again
+  // and nobody else's.
+  const [lockedFor, setLockedFor] = useState<string | null>(null);
 
   const refreshStatus = useCallback(() => {
     currentStatus().then(setStatus).catch(() => {});
@@ -369,9 +374,35 @@ export function useTill() {
     if (ok) setCatalogue(await getAll<LocalItem>(STORE.catalogue));
   }
 
+  // Locking is stepping away for a moment. The sale in progress stays, for
+  // the same person only.
+  async function lock() {
+    setLockedFor(cashier?.membershipId ?? null);
+    await signOutCashier();
+    setCashier(undefined);
+  }
+
+  // Whoever signs in next. Someone other than the person who locked does not
+  // inherit their sale, their customer or their discount.
+  function signedIn(next: ActiveCashier) {
+    if (lockedFor && lockedFor !== next.membershipId) resetSale();
+    setLockedFor(null);
+    setCashier(next);
+  }
+
+  async function askRefund(sale: LocalSale, reason: string) {
+    const result = await askForRefund(sale, reason, cashier?.membershipId);
+    if (result.ok) {
+      refreshStatus();
+      drainOutbox().then(refreshStatus).catch(() => {});
+    }
+    return result;
+  }
+
   // Handing over clears the basket too: the next person must not inherit
   // someone else's half-finished sale.
   async function handOver() {
+    setLockedFor(null);
     await signOutCashier();
     resetSale();
     setCashier(undefined);
@@ -440,6 +471,10 @@ export function useTill() {
     attachBarcode,
     retryCatalogue,
     handOver,
+    lock,
+    signedIn,
+    lockedFor,
+    askRefund,
     afterShiftClosed,
   };
 }

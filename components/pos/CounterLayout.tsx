@@ -24,6 +24,7 @@ import TillNotReady from "@/components/pos/TillNotReady";
 import TileImage from "@/components/pos/TileImage";
 import TillNotices from "@/components/pos/TillNotices";
 import CustomerSheet from "@/components/pos/CustomerSheet";
+import TillSales from "@/components/pos/TillSales";
 import DiscountSheet from "@/components/pos/DiscountSheet";
 import { CustomerRow, DiscountRow } from "@/components/pos/SaleExtras";
 import { OtherPayment, PayTabs, usePayChoice } from "@/components/pos/PayChoice";
@@ -38,7 +39,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
   const [done, setDone] = useState(false);
   const pay = usePayChoice(till);
   const { tendered, setTendered, paid } = pay;
-  const [sheet, setSheet] = useState<"customer" | "discount" | null>(null);
+  const [sheet, setSheet] = useState<"customer" | "discount" | "sales" | null>(null);
   const [showHeld, setShowHeld] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [notFound, setNotFound] = useState<string | null>(null);
@@ -141,6 +142,13 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
             Sell
           </span>
           <button
+            onClick={() => setSheet("sales")}
+            className="tap flex h-[72px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-card text-[12px] font-semibold text-neutral-600 hover:bg-neutral-50"
+          >
+            <Icon name="clipboard" size={22} />
+            Sales
+          </button>
+          <button
             onClick={onCloseShift}
             className="tap flex h-[72px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-card text-[12px] font-semibold text-neutral-600 hover:bg-neutral-50"
           >
@@ -150,9 +158,9 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
           <span className="flex-1" />
           <button
             onClick={async () => {
-              await till.handOver();
               setPaying(false);
               setDone(false);
+              await till.lock();
             }}
             className="tap flex h-[72px] w-[76px] flex-col items-center justify-center gap-1.5 rounded-card text-[12px] font-semibold text-neutral-600 hover:bg-neutral-50"
           >
@@ -613,6 +621,7 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
 
       {sheet === "customer" && <CustomerSheet till={till} onClose={() => setSheet(null)} />}
       {sheet === "discount" && <DiscountSheet till={till} onClose={() => setSheet(null)} />}
+      {sheet === "sales" && <TillSales till={till} onClose={() => setSheet(null)} />}
 
       {scanning && (
         <ScanSheet catalogue={catalogue} onAdd={till.addToCart} onAttach={till.attachBarcode} onClose={() => setScanning(false)} />

@@ -26,6 +26,7 @@ import type { Till } from "@/lib/pos/useTill";
 import { KEYPAD, cents, clock, initials, likelyNotes, pressKey } from "@/lib/pos/cash";
 import TillNotices from "@/components/pos/TillNotices";
 import CustomerSheet from "@/components/pos/CustomerSheet";
+import TillSales from "@/components/pos/TillSales";
 import DiscountSheet from "@/components/pos/DiscountSheet";
 import { CustomerRow, DiscountRow } from "@/components/pos/SaleExtras";
 import { OtherPayment, PayTabs, usePayChoice } from "@/components/pos/PayChoice";
@@ -39,7 +40,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
   const [category, setCategory] = useState("All");
   const pay = usePayChoice(till);
   const { tendered, setTendered, paid } = pay;
-  const [sheet, setSheet] = useState<"customer" | "discount" | null>(null);
+  const [sheet, setSheet] = useState<"customer" | "discount" | "sales" | null>(null);
   const [menu, setMenu] = useState(false);
   const [showHeld, setShowHeld] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -131,14 +132,32 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
 
       {menu && (
         <div className="relative z-20">
-          <div className="absolute right-3 top-1 w-60 overflow-hidden rounded-card border border-line-brand bg-white shadow-lg">
+          <div className="absolute right-3 top-1 w-64 overflow-hidden rounded-card border border-line-brand bg-white shadow-lg">
+            <button
+              onClick={() => {
+                setMenu(false);
+                setSheet("sales");
+              }}
+              className="tap flex w-full items-center px-4 text-left text-[14px] font-semibold text-ink hover:bg-neutral-50"
+            >
+              Sales on this till
+            </button>
+            <button
+              onClick={async () => {
+                setMenu(false);
+                await till.lock();
+              }}
+              className="tap flex w-full items-center border-t border-neutral-100 px-4 text-left text-[14px] font-semibold text-ink hover:bg-neutral-50"
+            >
+              Lock the till, keep this sale
+            </button>
             <button
               onClick={async () => {
                 setMenu(false);
                 await till.handOver();
                 setScreen("sell");
               }}
-              className="tap flex w-full items-center px-4 text-left text-[14px] font-semibold text-ink hover:bg-neutral-50"
+              className="tap flex w-full items-center border-t border-neutral-100 px-4 text-left text-[14px] font-semibold text-ink hover:bg-neutral-50"
             >
               Hand the till to someone else
             </button>
@@ -490,6 +509,7 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
 
       {sheet === "customer" && <CustomerSheet till={till} onClose={() => setSheet(null)} />}
       {sheet === "discount" && <DiscountSheet till={till} onClose={() => setSheet(null)} />}
+      {sheet === "sales" && <TillSales till={till} onClose={() => setSheet(null)} />}
 
       {scanning && (
         <ScanSheet catalogue={catalogue} onAdd={till.addToCart} onAttach={till.attachBarcode} onClose={() => setScanning(false)} />

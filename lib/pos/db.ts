@@ -31,7 +31,8 @@ export interface OutboxItem {
     | "sale.completed"
     | "shift.opened"
     | "shift.closed"
-    | "catalogue.barcode.attached";
+    | "catalogue.barcode.attached"
+    | "refund.requested";
   payload: unknown;
   state: OutboxState;
   retryCount: number;
@@ -67,6 +68,8 @@ export interface LocalSale {
   subtotal?: number;
   discountTotal?: number;
   customerName?: string;
+  /** Set once the cashier has asked the owner to refund this sale. */
+  refund?: { clientRef: string; reason: string; askedAt: string; askedBy?: string };
   occurredAt: string;
   businessDate: string;
   shiftId?: string;

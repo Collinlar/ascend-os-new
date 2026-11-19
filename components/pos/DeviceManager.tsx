@@ -200,7 +200,7 @@ export default function DeviceManager({
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-[14px] font-semibold text-ink">{device.label}</span>
                       <span className="truncate text-xs text-neutral-500">
-                        {[device.model, device.serial].filter(Boolean).join(" · ") || (phone ? "A phone" : "A till")}
+                        {[shortModel(device.model), device.serial].filter(Boolean).join(" · ") || (phone ? "A phone" : "A till")}
                         <span className="lg:hidden">
                           {" · "}
                           {device.lastSyncAt ? `last sent ${timeAgo(device.lastSyncAt)}` : "never sent a sale"}
@@ -283,4 +283,33 @@ function statusChip(device: DeviceRow, stopped: boolean): { text: string; cls: s
   if (device.selling) return { text: "Selling now", cls: "bg-success-tint text-success-ink" };
   if (device.status === "registered") return { text: "Waiting for first sale", cls: "bg-info-light text-info-ink" };
   return { text: "Not open", cls: "bg-neutral-100 text-neutral-700" };
+}
+
+// A till that runs in a browser reports its whole user-agent string as its
+// model ("Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."), which says nothing
+// to an owner. Name the browser and the system instead. A real model from a
+// native shell ("Sunmi V2s") is short and is shown as it is.
+function shortModel(model: string | null): string | null {
+  if (!model || !/^Mozilla\//.test(model)) return model;
+  const system = /Android/.test(model)
+    ? "Android"
+    : /iPhone|iPad/.test(model)
+      ? "iPhone or iPad"
+      : /Windows/.test(model)
+        ? "Windows"
+        : /Mac OS X/.test(model)
+          ? "Mac"
+          : /Linux/.test(model)
+            ? "Linux"
+            : null;
+  const browser = /Edg\//.test(model)
+    ? "Edge"
+    : /Chrome\//.test(model)
+      ? "Chrome"
+      : /Firefox\//.test(model)
+        ? "Firefox"
+        : /Safari\//.test(model)
+          ? "Safari"
+          : "A browser";
+  return system ? `${browser} on ${system}` : browser;
 }
