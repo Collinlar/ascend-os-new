@@ -69,3 +69,11 @@ What is not:
 - Shop orders and their statuses.
 - Bookings.
 - How a document link is shared.
+
+## Build status
+
+**Approved 19 November 2026** as recommended.
+
+**D5 step 1, Discover, 19 November 2026.** `/discover` is the design's home and search. The header carries the search, a city choice drawn from the cities that have listings ("Anywhere" otherwise) and "List your business". The home asks "What do you need near [city] today?" with the categories that have something in them, a "How Discover works" panel where the design has an editors' pick (shop directly, sponsored is said, how to report), shop cards built from the listings (first picture, what kinds, how many things), and the listings as rows. Search and a category show results as rows with the category chips. A sponsored row is marked and opens "Why am I seeing this?": who paid, that paying never makes a listing more trustworthy, and the report form. Every result opens the shop. Checked at 1440px and 375px against live Discover (21 listings, 3 businesses, Accra), read only. Not seen: the sponsored panel, because nothing on live Discover is promoted today.
+
+Left out, as the plan says: picks, the map, ratings, trust labels, saved shops, reserve for pickup, paying through Ascend; and "Book a service", because Discover's search does not say which listings are services. That wants the search to return the item's kind, a small change for later.

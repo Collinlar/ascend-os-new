@@ -1,40 +1,31 @@
 import { SkeletonBar, SkeletonCards } from "@/components/shell/Skeleton";
 
-// Discover is a customer screen on white, not a merchant screen on canvas,
-// so it holds its own shape rather than the shared one: the title, the
-// search row, the category rail and then the grid.
-//
-// The eyebrow and the heading are real text rather than placeholder bars.
-// They are the same on every load, so there is no reason to make somebody
-// wait to read them.
+// Discover is a customer screen on white, so it holds its own shape: the
+// header with the search, the question, the shelves, then the shops. The
+// question is real text; it is the same on every load.
 export default function Loading() {
   return (
     <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-5xl px-5 pb-16 pt-5 sm:px-8">
-        <p className="text-[11px] font-bold tracking-[0.04em] text-ink-muted">
-          DISCOVER
-        </p>
-        <h1 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em] text-ink sm:text-3xl">
-          Made near you
+      <header className="border-b border-neutral-100">
+        <div className="mx-auto flex max-w-[1280px] items-center gap-5 px-4 py-3.5 sm:px-8">
+          <SkeletonBar w="w-40" h="h-6" />
+          <SkeletonBar w="w-full max-w-[640px] flex-1" h="h-12" className="rounded-full" />
+        </div>
+      </header>
+      <div className="mx-auto max-w-[1280px] px-4 pb-16 pt-7 sm:px-8">
+        <h1 className="font-heading text-[clamp(32px,4vw,52px)] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink-heading">
+          What do you need near you today?
         </h1>
         <p className="sr-only" role="status">
           Finding shops near you
         </p>
-
-        <div className="mt-3.5 flex gap-2">
-          <SkeletonBar w="w-full flex-1" h="h-11" className="rounded-[14px]" />
-          <SkeletonBar w="w-24 sm:w-32" h="h-11" className="flex-none rounded-[14px]" />
-          <SkeletonBar w="w-[92px]" h="h-11" className="flex-none rounded-[14px]" />
-        </div>
-
-        <div className="mt-3.5 flex gap-2 overflow-hidden">
+        <div className="mt-4 flex gap-2 overflow-hidden">
           {["w-24", "w-28", "w-20", "w-32", "w-24"].map((w) => (
-            <SkeletonBar key={w} w={w} h="h-9" className="flex-none rounded-chip" />
+            <SkeletonBar key={w} w={w} h="h-10" className="flex-none rounded-full" />
           ))}
         </div>
-
-        <div className="mt-5">
-          <SkeletonCards count={8} />
+        <div className="mt-10">
+          <SkeletonCards count={4} />
         </div>
       </div>
     </main>
