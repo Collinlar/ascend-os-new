@@ -150,6 +150,7 @@ export async function clearRegistration(): Promise<void> {
   // The customers belong to the till this device was. Kept here as a plain
   // key rather than through lib/pos/customers, which imports this file.
   await setMeta("customers", undefined);
+  await setMeta("refundDecisions", undefined);
 }
 
 async function deviceFingerprint(): Promise<string> {

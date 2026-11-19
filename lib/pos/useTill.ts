@@ -45,7 +45,7 @@ import type { ReceiptDoc } from "@/lib/pos/receipt";
 import { activeCashier, pullRoster, signOutCashier, type ActiveCashier } from "@/lib/pos/staff";
 import { discardHeld, holdSale, listHeld, resumeHeld, type HeldSale } from "@/lib/pos/held";
 import { buildSale, cartTotal, cents, type CartLine, type TillDiscount, type TillPayment } from "@/lib/pos/sale";
-import { askForRefund } from "@/lib/pos/refunds";
+import { acknowledge, askForRefund, handedBack, openDecisions, pullDecisions, type RefundDecision } from "@/lib/pos/refunds";
 import type { LocalSale } from "@/lib/pos/db";
 import { addCustomerHere, forSale, forgetCustomers, getCustomers, pullCustomers, type TillCustomer } from "@/lib/pos/customers";
 
@@ -102,6 +102,8 @@ export function useTill() {
   // Who locked the till, so the sale they left is theirs to pick up again
   // and nobody else's.
   const [lockedFor, setLockedFor] = useState<string | null>(null);
+  // Refunds decided in Work that this counter has to act on.
+  const [decisions, setDecisions] = useState<RefundDecision[]>([]);
 
   const refreshStatus = useCallback(() => {
     currentStatus().then(setStatus).catch(() => {});
@@ -135,6 +137,11 @@ export function useTill() {
         .catch(() => {});
       // The roster is what lets the till name its cashier with no network.
       pullRoster().catch(() => {});
+      // Refunds decided while the till was away.
+      setDecisions(await openDecisions());
+      pullDecisions()
+        .then(async () => setDecisions(await openDecisions()))
+        .catch(() => {});
       // And the customer list is what lets it put a name on a sale.
       setCustomers(await getCustomers());
       pullCustomers()
@@ -190,9 +197,19 @@ export function useTill() {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
 
+    // A refund approved in Work should reach the counter while the customer
+    // is still standing there, so the till asks every two minutes.
+    const decisionTimer = setInterval(() => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      pullDecisions()
+        .then(async () => setDecisions(await openDecisions()))
+        .catch(() => {});
+    }, 120_000);
+
     return () => {
       stopSync?.();
       stopCatalogue?.();
+      clearInterval(decisionTimer);
     };
   }, [refreshStatus, boot]);
 
@@ -344,6 +361,9 @@ export function useTill() {
     setError(null);
     const outcome = await drainOutbox(true);
     refreshStatus();
+    pullDecisions()
+      .then(async () => setDecisions(await openDecisions()))
+      .catch(() => {});
     if (outcome.revoked) {
       setRevoked(true);
       // A stopped till keeps nobody's phone number.
@@ -388,6 +408,24 @@ export function useTill() {
     if (lockedFor && lockedFor !== next.membershipId) resetSale();
     setLockedFor(null);
     setCashier(next);
+  }
+
+  /** The cashier has handed an approved refund back from the drawer. */
+  async function handBack(d: RefundDecision) {
+    const ok = await handedBack(d, cashier?.membershipId);
+    if (ok) {
+      setShift(await getActiveShift());
+      refreshStatus();
+      drainOutbox().then(refreshStatus).catch(() => {});
+    } else {
+      setError("Open a shift before handing a refund back, so the drawer count knows.");
+    }
+    setDecisions(await openDecisions());
+  }
+
+  async function gotIt(d: RefundDecision) {
+    await acknowledge(d.approvalId);
+    setDecisions(await openDecisions());
   }
 
   async function askRefund(sale: LocalSale, reason: string) {
@@ -475,6 +513,9 @@ export function useTill() {
     signedIn,
     lockedFor,
     askRefund,
+    decisions,
+    handBack,
+    gotIt,
     afterShiftClosed,
   };
 }

@@ -5,11 +5,48 @@
 // by both layouts, on their light ground.
 
 import type { Till } from "@/lib/pos/useTill";
+import type { RefundDecision } from "@/lib/pos/refunds";
+import { formatGHS } from "@/lib/money";
+
+// What the counter has to do about a refund decided in Work.
+function decisionText(d: RefundDecision): string {
+  const who = d.customerName ? ` (${d.customerName})` : "";
+  if (d.status === "rejected") return `The owner turned down the refund on ${d.receipt}${who}. Tell the customer.`;
+  if (d.cash > 0) return `Refund approved on ${d.receipt}${who}. Hand ${formatGHS(d.cash)} back to the customer from the drawer.`;
+  if (d.method === "credit") return `Refund approved on ${d.receipt}${who}. It was on credit, so nothing is handed back: it comes off what they owe.`;
+  const by = d.method === "mobile_money" ? "MoMo" : d.method === "card" ? "card" : "the way they paid";
+  return `Refund approved on ${d.receipt}${who}. The owner returns ${formatGHS(d.total)} by ${by}. Nothing comes out of the drawer.`;
+}
 
 export default function TillNotices({ till }: { till: Till }) {
-  const { stuck, storage, error } = till;
+  const { stuck, storage, error, decisions } = till;
   return (
     <>
+      {/* Refunds decided in Work. One that comes out of the drawer is the
+          loudest thing on the till until the cashier says it is done. */}
+      {decisions.map((d) => {
+        const handBack = d.status === "approved" && d.cash > 0;
+        return (
+          <div
+            key={d.approvalId}
+            role="status"
+            className={`flex flex-none flex-wrap items-center gap-x-3 gap-y-2 border-b px-3.5 py-2.5 text-[13.5px] ${
+              handBack ? "border-gold-500/40 bg-gold-100 text-gold-700" : "border-neutral-200 bg-white text-ink"
+            }`}
+          >
+            <p className="min-w-0 flex-1 font-semibold">{decisionText(d)}</p>
+            <button
+              onClick={() => (handBack ? till.handBack(d) : till.gotIt(d))}
+              className={`tap flex flex-none items-center rounded-control px-3.5 text-[13px] font-bold ${
+                handBack ? "bg-gold-700 text-white" : "border-[1.5px] border-neutral-200 text-ink"
+              }`}
+            >
+              {handBack ? `I have handed back ${formatGHS(d.cash)}` : "Got it"}
+            </button>
+          </div>
+        );
+      })}
+
       {/* Sales the server refused. They are safe on this till, but nothing
           used to say they existed, so a merchant saw a number that never
           fell and had nothing to do about it. */}

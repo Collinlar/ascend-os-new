@@ -7,7 +7,9 @@
 // reference, which the server turns into the sale (app/api/pos/sync).
 
 import { newClientRef } from "@/lib/ids";
-import { get, getAll, put, STORE, type LocalSale, type OutboxItem } from "@/lib/pos/db";
+import { get, getAll, getMeta, put, setMeta, STORE, type LocalSale, type OutboxItem } from "@/lib/pos/db";
+import { getDeviceToken } from "@/lib/pos/registration";
+import { addRefundPaid, getActiveShift } from "@/lib/pos/shift";
 import type { ReceiptDoc } from "@/lib/pos/receipt";
 import { MOMO_NETWORKS } from "@/lib/pos/sale";
 
@@ -90,4 +92,94 @@ export async function askForRefund(sale: LocalSale, reason: string, cashierMembe
   await put(STORE.outbox, item);
   await put(STORE.sales, updated);
   return { ok: true, sale: updated };
+}
+
+// ----- Decisions, and handing the money back (0123) -----------------------
+//
+// Refunds come from the drawer (Collins, 19 November 2026). Once a refund is
+// decided in Work the till hears about it here: an approved refund on a cash
+// sale is handed back across this counter and recorded against the shift it
+// came out of; one on a MoMo or card sale is the owner's to return, and the
+// till only says so; a refund turned down is said too.
+
+export interface RefundDecision {
+  approvalId: string;
+  status: "approved" | "rejected";
+  decidedAt: string;
+  receipt: string;
+  total: number;
+  /** What the sale took in cash, and so what comes out of the drawer. */
+  cash: number;
+  method: string | null;
+  customerName: string | null;
+  /** Handed back already, on the server's record or this till's. */
+  paid: boolean;
+}
+
+const DECISIONS_KEY = "refundDecisions";
+const SEEN_KEY = "refundDecisionsSeen";
+
+export async function getDecisions(): Promise<RefundDecision[]> {
+  return (await getMeta<RefundDecision[]>(DECISIONS_KEY)) ?? [];
+}
+
+/** Decisions the cashier still has to act on or acknowledge. */
+export async function openDecisions(): Promise<RefundDecision[]> {
+  const seen = new Set((await getMeta<string[]>(SEEN_KEY)) ?? []);
+  return (await getDecisions()).filter((d) => {
+    if (d.status === "approved" && d.cash > 0) return !d.paid;
+    return !seen.has(d.approvalId);
+  });
+}
+
+export async function pullDecisions(): Promise<boolean> {
+  const token = await getDeviceToken();
+  if (!token) return false;
+  try {
+    const response = await fetch("/api/pos/refunds", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { refunds: RefundDecision[] };
+    // A payout this till has queued but not yet sent still counts as paid.
+    const paidHere = new Set((await getDecisions()).filter((d) => d.paid).map((d) => d.approvalId));
+    await setMeta(
+      DECISIONS_KEY,
+      (data.refunds ?? []).map((d) => ({ ...d, paid: d.paid || paidHere.has(d.approvalId) }))
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function acknowledge(approvalId: string): Promise<void> {
+  const seen = (await getMeta<string[]>(SEEN_KEY)) ?? [];
+  if (!seen.includes(approvalId)) await setMeta(SEEN_KEY, [...seen, approvalId].slice(-200));
+}
+
+/** The cashier has handed an approved refund back from the drawer. */
+export async function handedBack(d: RefundDecision, cashierMembershipId?: string): Promise<boolean> {
+  const shift = await getActiveShift();
+  if (!shift || d.status !== "approved" || d.cash <= 0 || d.paid) return false;
+  const now = new Date().toISOString();
+  const clientRef = newClientRef("payout");
+  const item: OutboxItem = {
+    clientRef,
+    kind: "refund.paid",
+    payload: { clientRef, approvalId: d.approvalId, shiftClientRef: shift.clientRef, paidAt: now, cashierMembershipId },
+    state: "pending",
+    retryCount: 0,
+    createdAt: now,
+    lastAttemptAt: null,
+    nextAttemptAt: now,
+    lastError: null,
+  };
+  // The record for the office first, then the drawer's own count, then the
+  // note that it is done, so a crash part way never pays out twice.
+  await put(STORE.outbox, item);
+  await addRefundPaid({ approvalId: d.approvalId, receipt: d.receipt, amount: d.cash, paidAt: now });
+  await setMeta(
+    DECISIONS_KEY,
+    (await getDecisions()).map((x) => (x.approvalId === d.approvalId ? { ...x, paid: true } : x))
+  );
+  return true;
 }

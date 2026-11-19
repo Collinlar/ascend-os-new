@@ -60,6 +60,16 @@ interface RefundRequestPayload {
   cashierMembershipId?: string;
 }
 
+// The cashier saying they have handed an approved refund back from the
+// drawer (0123). The amount is the server's to work out, not the till's.
+interface RefundPaidPayload {
+  clientRef: string;
+  approvalId: string;
+  shiftClientRef: string;
+  paidAt: string;
+  cashierMembershipId?: string;
+}
+
 interface BarcodeAttachPayload {
   clientRef: string;
   itemId: string;
@@ -72,7 +82,8 @@ type SyncItem =
   | { kind: "shift.opened"; payload: ShiftOpenPayload }
   | { kind: "shift.closed"; payload: ShiftClosePayload }
   | { kind: "catalogue.barcode.attached"; payload: BarcodeAttachPayload }
-  | { kind: "refund.requested"; payload: RefundRequestPayload };
+  | { kind: "refund.requested"; payload: RefundRequestPayload }
+  | { kind: "refund.paid"; payload: RefundPaidPayload };
 
 interface SyncItemResult {
   clientRef: string;
@@ -200,6 +211,29 @@ async function handlePOST(request: NextRequest) {
           clientRef: item.payload.clientRef,
           status: data?.duplicate ? "duplicate" : "accepted",
           serverId: data?.approval_id as string | undefined,
+        });
+      } else if (item.kind === "refund.paid") {
+        const { data, error } = await supabaseServer().rpc("record_till_refund_payout", {
+          p: {
+            business_id: device.businessId,
+            approval_id: item.payload.approvalId,
+            shift_client_ref: item.payload.shiftClientRef,
+            device_id: device.deviceId,
+            paid_by: item.payload.cashierMembershipId ?? "",
+            client_ref: item.payload.clientRef,
+            paid_at: item.payload.paidAt,
+          },
+        });
+        if (error) {
+          if (/refund_not_found|refund_not_approved|refund_not_from_the_drawer/.test(error.message)) {
+            throw new SyncRejection(error.message.match(/refund_not_\w+/)?.[0] ?? "refund_not_paid", "permanent");
+          }
+          throw new SyncRejection(/shift_not_yet_synced/.test(error.message) ? "shift_not_yet_synced" : "refund_not_recorded", "temporary");
+        }
+        results.push({
+          clientRef: item.payload.clientRef,
+          status: data?.duplicate ? "duplicate" : "accepted",
+          serverId: data?.payout_id as string | undefined,
         });
       } else if (item.kind === "catalogue.barcode.attached") {
         // Queued from the counter, so it arrives whenever the shop is back

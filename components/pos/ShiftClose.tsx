@@ -125,6 +125,7 @@ export default function ShiftClose({
           <Row label="Cash you started with" value={formatGHS(totals.openingCash)} />
           <Row label={`Cash sales (${totals.saleCount})`} value={formatGHS(totals.cashSales)} />
           {totals.expenses > 0 && <Row label="Money taken out" value={`− ${formatGHS(totals.expenses)}`} />}
+          {totals.refundsPaid > 0 && <Row label="Refunds handed back" value={`− ${formatGHS(totals.refundsPaid)}`} />}
           <div className="border-t border-neutral-100 pt-2">
             <Row label="Should be in the drawer" value={formatGHS(totals.expectedCash)} strong />
           </div>

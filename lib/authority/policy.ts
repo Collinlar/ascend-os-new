@@ -134,6 +134,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "pos/catalogue": { GET: { kind: "device", why: "Paired till, device token" } },
   "pos/customers": { GET: { kind: "device", why: "Paired till, device token: names and phones only" } },
   "pos/refund-request": { POST: { kind: "device", why: "Paired till, device token" } },
+  "pos/refunds": { GET: { kind: "device", why: "Paired till, device token: decisions on its own sales' refunds" } },
   "pos/staff": { GET: { kind: "device", why: "Paired till, device token" } },
   "pos/sync": { POST: { kind: "device", why: "Paired till, device token" } },
   "admin/discover": { POST: { kind: "admin", why: "Platform moderation" } },

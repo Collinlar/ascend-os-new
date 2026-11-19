@@ -32,7 +32,8 @@ export interface OutboxItem {
     | "shift.opened"
     | "shift.closed"
     | "catalogue.barcode.attached"
-    | "refund.requested";
+    | "refund.requested"
+    | "refund.paid";
   payload: unknown;
   state: OutboxState;
   retryCount: number;

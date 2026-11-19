@@ -27,7 +27,16 @@ export interface LocalShift {
   openingCash: number;
   openedAt: string;
   expenses: TillExpense[];
+  /** Approved refunds handed back from this drawer during the shift (0123). */
+  refundsPaid?: RefundPaid[];
   closed: boolean;
+}
+
+export interface RefundPaid {
+  approvalId: string;
+  receipt: string;
+  amount: number;
+  paidAt: string;
 }
 
 export async function getActiveShift(): Promise<LocalShift | undefined> {
@@ -101,10 +110,21 @@ export async function addTillExpense(
   return updated;
 }
 
+/** Records a refund handed back from the drawer on the open shift. */
+export async function addRefundPaid(entry: RefundPaid): Promise<LocalShift | undefined> {
+  const shift = await getActiveShift();
+  if (!shift) return undefined;
+  if ((shift.refundsPaid ?? []).some((r) => r.approvalId === entry.approvalId)) return shift;
+  const updated: LocalShift = { ...shift, refundsPaid: [...(shift.refundsPaid ?? []), entry] };
+  await put(STORE.shift, updated);
+  return updated;
+}
+
 export interface ShiftTotals {
   openingCash: number;
   cashSales: number;
   expenses: number;
+  refundsPaid: number;
   expectedCash: number;
   saleCount: number;
 }
@@ -124,12 +144,14 @@ export async function shiftTotals(shift: LocalShift): Promise<ShiftTotals> {
     0
   );
   const expenses = shift.expenses.reduce((n, e) => n + e.amount, 0);
+  const refundsPaid = (shift.refundsPaid ?? []).reduce((n, r) => n + r.amount, 0);
 
   return {
     openingCash: shift.openingCash,
     cashSales: round2(cashSales),
     expenses: round2(expenses),
-    expectedCash: round2(shift.openingCash + cashSales - expenses),
+    refundsPaid: round2(refundsPaid),
+    expectedCash: round2(shift.openingCash + cashSales - expenses - refundsPaid),
     // Shown as "Cash sales (N)", so only the sales that put cash in the
     // drawer. MoMo, card and credit sales are not in this count.
     saleCount: mine.filter((s) => s.payments.some((p) => p.method === "cash")).length,
