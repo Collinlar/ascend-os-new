@@ -16,6 +16,7 @@ import ShiftGate from "@/components/pos/ShiftGate";
 import ShiftClose from "@/components/pos/ShiftClose";
 import StaffPin from "@/components/pos/StaffPin";
 import SellScreen from "@/components/pos/SellScreen";
+import TerminalLayout from "@/components/pos/TerminalLayout";
 import { Eyebrow } from "@/components/brand/Mark";
 import { useTill } from "@/lib/pos/useTill";
 
@@ -44,6 +45,19 @@ export default function PosTerminal() {
   // ignoring it silently is how an owner concludes the link is broken.
   const [codeInLink, setCodeInLink] = useState<string | null>(null);
   const [switchUnsent, setSwitchUnsent] = useState<number | null>(null);
+
+  // Which layout: the handheld Terminal below 1024px, the big screen above.
+  // By width, not by how the device was set up, because a till set up as a
+  // terminal may be a handheld or a counter screen. Until the Counter layout
+  // exists (D4c) the wide screen keeps the till's earlier selling screen.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const follow = () => setWide(query.matches);
+    follow();
+    query.addEventListener("change", follow);
+    return () => query.removeEventListener("change", follow);
+  }, []);
 
   useEffect(() => {
     const linked = new URLSearchParams(window.location.search).get("code");
@@ -215,5 +229,9 @@ export default function PosTerminal() {
     );
   }
 
-  return <SellScreen till={till} onCloseShift={() => setClosing(true)} />;
+  return wide ? (
+    <SellScreen till={till} onCloseShift={() => setClosing(true)} />
+  ) : (
+    <TerminalLayout till={till} onCloseShift={() => setClosing(true)} />
+  );
 }

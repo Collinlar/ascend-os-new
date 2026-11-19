@@ -47,7 +47,15 @@ export default function StaffPin({
   useEffect(() => {
     lockRemainingMs().then(setLockedFor).catch(() => {});
     getRoster()
-      .then((r) => setHasRoster(r.length > 0))
+      .then(async (r) => {
+        if (r.length > 0) return setHasRoster(true);
+        // Nothing on the device yet, which is every till straight after it
+        // is set up: the staff list is still on its way. Fetch it now rather
+        // than telling the owner nobody can open a till they just gave
+        // themselves a PIN for.
+        const pulled = await pullRoster().catch(() => false);
+        setHasRoster(pulled ? (await getRoster()).length > 0 : false);
+      })
       .catch(() => setHasRoster(null));
   }, []);
 
