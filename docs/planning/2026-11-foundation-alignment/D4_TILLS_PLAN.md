@@ -136,3 +136,5 @@ Left for D4e: Lock empties the sale, as handing over always has; Sales and Retur
 Checked at 1440px and 375px on a throwaway business: a GHS 76 sale with 10% off for an existing customer paid by MTN MoMo; a new customer added from the credit panel and GHS 95 put on their account; a cash sale; a cashier signed in (the till fetched the new staff list when it met an unknown PIN), their own PIN refused for a discount and the owner's accepted; a card sale; the shift closed at GHS 112 (100 opening plus the one cash sale) on the till and on the server. On the server every sale had the right subtotal, discount, total, customer and payment, and the new customer was created once, via pos.
 
 Noted, not changed: the Devices page shows a browser till's model as its whole user-agent string.
+
+**0122, 19 November 2026.** On live, on a throwaway business: a GHS 10 discount stores the owner who allowed it; an approver from another business is dropped; a GHS 150 discount on a GHS 100 sale is refused (invalid_discount).
