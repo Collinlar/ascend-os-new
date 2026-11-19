@@ -135,7 +135,7 @@ export default function PosTerminal() {
       <StaffPin
         businessLabel={device?.label}
         onSignedIn={(signedIn) => {
-          setCashier(signedIn);
+          till.signedIn(signedIn);
           boot();
         }}
       />
