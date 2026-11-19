@@ -97,12 +97,22 @@ export async function drainOutbox(force = false): Promise<SyncOutcome> {
     const all = await getAll<OutboxItem>(STORE.outbox);
     const now = Date.now();
 
-    // Dependency order is creation order (POS-SYN-002). A manual sync ignores
-    // the backoff clock; the merchant asked for it now (POS-OFF-010).
-    const due = all
+    // Dependency order is creation order (POS-SYN-002), and it is kept
+    // strictly: the queue stops at the first item still waiting out its
+    // retry delay. It used to skip past it, so a newer item went first: a
+    // shift close overtook a refund paid out, or a sale, and the server
+    // closed the shift without them (a balanced drawer read GHS 38 short).
+    // Items refused for good are not pending, so they never hold it up.
+    // A manual sync ignores the backoff clock; the merchant asked for it
+    // now (POS-OFF-010).
+    const pending = all
       .filter((i) => i.state === "pending" || i.state === "syncing")
-      .filter((i) => force || new Date(i.nextAttemptAt).getTime() <= now)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const due: OutboxItem[] = [];
+    for (const item of pending) {
+      if (!force && new Date(item.nextAttemptAt).getTime() > now) break;
+      due.push(item);
+    }
 
     for (const item of due) {
       attempted += 1;
@@ -276,14 +286,19 @@ export function startAutoSync(onChange: () => void): () => void {
   const run = () => {
     drainOutbox().then(onChange).catch(() => onChange());
   };
+  // The network just came back, and the retry delays were only ever about
+  // the network being away: send everything now, in order.
+  const reconnected = () => {
+    drainOutbox(true).then(onChange).catch(() => onChange());
+  };
 
-  window.addEventListener("online", run);
+  window.addEventListener("online", reconnected);
   window.addEventListener("focus", run);
   const timer = window.setInterval(run, 60_000);
   run();
 
   return () => {
-    window.removeEventListener("online", run);
+    window.removeEventListener("online", reconnected);
     window.removeEventListener("focus", run);
     window.clearInterval(timer);
   };
