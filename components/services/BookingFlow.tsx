@@ -208,7 +208,7 @@ export default function BookingFlow({
     return (
       <div className="mx-auto max-w-md px-6 pb-16">
         <div className="flex animate-riseup flex-col items-center pt-11 text-center">
-          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-light">
+          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-50">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
               <polyline
                 points="5,12.5 10,17.5 19,7"
@@ -222,21 +222,21 @@ export default function BookingFlow({
           <h1 className="mt-4 text-[23px] font-extrabold tracking-[-0.02em] text-ink">
             You are booked
           </h1>
-          <p className="mt-1.5 text-[13.5px] font-medium leading-relaxed text-ink-muted">
+          <p className="mt-1.5 text-[13.5px] font-medium leading-relaxed text-neutral-600">
             {businessName} confirms on WhatsApp. Message them there if you need
             to move it.
           </p>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-[18px] border border-line bg-white">
-          <div className="flex items-center justify-between border-b border-dashed border-line-strong px-5 py-4">
+        <div className="mt-6 overflow-hidden rounded-[18px] border border-neutral-200 bg-white">
+          <div className="flex items-center justify-between border-b border-dashed border-neutral-200-strong px-5 py-4">
             <div>
               <p className="text-[15px] font-extrabold text-ink">{businessName}</p>
               {city && (
-                <p className="text-[11.5px] font-medium text-slate-grey">{city}</p>
+                <p className="text-[11.5px] font-medium text-neutral-600">{city}</p>
               )}
             </div>
-            <span className="mono text-[11.5px] text-ink-muted">
+            <span className="mono text-[11.5px] text-neutral-600">
               {confirmed.id.replace(/-/g, "").slice(0, 6).toUpperCase()}
             </span>
           </div>
@@ -244,7 +244,7 @@ export default function BookingFlow({
           <div className="px-5 py-4">{summary}</div>
 
           {service.price !== null && (
-            <div className="flex flex-col gap-2 border-t border-line-soft bg-surface px-5 py-3.5">
+            <div className="flex flex-col gap-2 border-t border-neutral-200-soft bg-neutral-50 px-5 py-3.5">
               {service.depositAmount ? (
                 <>
                   <Money
@@ -260,7 +260,7 @@ export default function BookingFlow({
               ) : (
                 <Money label="Due on the day" value={formatGHS(service.price)} />
               )}
-              <p className="text-[11.5px] font-medium text-slate-grey">
+              <p className="text-[11.5px] font-medium text-neutral-600">
                 Nothing is taken now. You settle with {businessName} when you
                 come in.
               </p>
@@ -278,7 +278,7 @@ export default function BookingFlow({
             setConfirmed(null);
             setStep("services");
           }}
-          className="tap mt-4 flex w-full items-center justify-center rounded-[14px] bg-ink font-bold text-white"
+          className="tap mt-4 flex w-full items-center justify-center rounded-[14px] bg-teal font-bold text-white"
         >
           Book something else
         </button>
@@ -290,34 +290,22 @@ export default function BookingFlow({
   if (step === "services") {
     return (
       <div>
-        {/* @contrast-surface navy */}
-        <div className="relative h-[186px] bg-navy">
-          <span
-            aria-hidden
-            className="absolute inset-0 bg-gradient-to-t from-navy/85 to-navy/10"
-          />
-          <div className="absolute inset-x-6 bottom-4">
-            <span className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1.5 backdrop-blur">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-teal-mint" />
-              <span className="text-[11px] font-bold text-teal-light">
-                Taking bookings
-              </span>
+        {/* The business's own header, on the v3 design's light teal: who
+            this is and that they take bookings, before anything to pick. */}
+        <div className="mx-auto max-w-md px-5 pt-5">
+          <div className="rounded-[24px] bg-teal-50 px-5 pb-5 pt-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1">
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-teal-brand" />
+              <span className="text-[11.5px] font-bold text-teal-800">Taking bookings</span>
             </span>
-            <h1 className="text-[23px] font-extrabold tracking-[-0.02em] text-white">
-              {businessName}
-            </h1>
-            {city && (
-              <p className="mt-0.5 text-[12.5px] font-medium text-on-dark-strong">
-                {city}
-              </p>
-            )}
+            <h1 className="mt-2.5 font-heading text-[26px] font-extrabold leading-tight text-ink-heading">{businessName}</h1>
+            {city && <p className="mt-0.5 text-[13.5px] text-neutral-600">{city}</p>}
           </div>
         </div>
-        {/* @contrast-surface white */}
 
         <div className="mx-auto flex max-w-md flex-col gap-3 px-5 pb-10 pt-5">
           {services.length === 0 ? (
-            <p className="py-16 text-center text-sm font-medium text-ink-muted">
+            <p className="py-16 text-center text-sm font-medium text-neutral-600">
               Nothing is bookable here just yet. Check back soon.
             </p>
           ) : (
@@ -331,7 +319,7 @@ export default function BookingFlow({
                     setService(s);
                     setStep("service");
                   }}
-                  className="tap flex items-center gap-3.5 rounded-panel border border-line bg-white p-3 text-left"
+                  className="tap flex items-center gap-3.5 rounded-panel border border-neutral-200 bg-white p-3 text-left"
                 >
                   <span
                     aria-hidden
@@ -341,10 +329,10 @@ export default function BookingFlow({
                     <span className="mono text-lg font-semibold">{initials(s.name)}</span>
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-bold text-navy-soft">
+                    <span className="block text-[15px] font-bold text-ink">
                       {s.name}
                     </span>
-                    <span className="mt-0.5 block text-xs font-medium text-ink-muted">
+                    <span className="mt-0.5 block text-xs font-medium text-neutral-600">
                       {duration(s.durationMinutes)}
                       {s.depositAmount ? " · deposit to hold" : ""}
                     </span>
@@ -409,7 +397,7 @@ export default function BookingFlow({
             {service.name}
           </h2>
           {service.description && (
-            <p className="mt-2 text-[13.5px] font-medium leading-relaxed text-ink-muted">
+            <p className="mt-2 text-[13.5px] font-medium leading-relaxed text-neutral-600">
               {service.description}
             </p>
           )}
@@ -433,10 +421,10 @@ export default function BookingFlow({
                 {providers.map((p) => (
                   <div
                     key={p.membershipId}
-                    className="flex items-center gap-3 rounded-control border border-line bg-white px-3 py-2.5"
+                    className="flex items-center gap-3 rounded-control border border-neutral-200 bg-white px-3 py-2.5"
                   >
                     <Avatar name={p.name} />
-                    <span className="text-sm font-bold text-navy-soft">{p.name}</span>
+                    <span className="text-sm font-bold text-ink">{p.name}</span>
                   </div>
                 ))}
               </div>
@@ -459,8 +447,8 @@ export default function BookingFlow({
                   aria-pressed={on}
                   className={`tap flex w-14 flex-none flex-col items-center justify-center rounded-control border py-2 ${
                     on
-                      ? "border-ink bg-ink text-white"
-                      : "border-line bg-white text-ink-muted"
+                      ? "border-teal bg-teal text-white"
+                      : "border-neutral-200 bg-white text-neutral-600"
                   }`}
                 >
                   <span className="text-[11px] font-semibold opacity-80">{d.dow}</span>
@@ -474,15 +462,15 @@ export default function BookingFlow({
 
           <p className="eyebrow mt-6">Available times</p>
           {!date ? (
-            <p className="mt-3 text-sm font-medium text-ink-muted">
+            <p className="mt-3 text-sm font-medium text-neutral-600">
               Pick a day and we will show what is free.
             </p>
           ) : loadingSlots ? (
-            <p className="mt-3 text-sm font-medium text-ink-muted">
+            <p className="mt-3 text-sm font-medium text-neutral-600">
               Checking the diary...
             </p>
           ) : slots.length === 0 ? (
-            <p className="mt-3 rounded-panel border border-line bg-surface px-4 py-4 text-sm font-medium text-ink-muted">
+            <p className="mt-3 rounded-panel border border-neutral-200 bg-neutral-50 px-4 py-4 text-sm font-medium text-neutral-600">
               Nothing free that day. Try another.
             </p>
           ) : (
@@ -497,8 +485,8 @@ export default function BookingFlow({
                     aria-pressed={on}
                     className={`tap num flex items-center justify-center rounded-control border py-3 text-sm font-bold ${
                       on
-                        ? "border-teal bg-teal-light text-teal-dark"
-                        : "border-line bg-white text-ink-soft"
+                        ? "border-teal bg-teal-50 text-teal-800"
+                        : "border-neutral-200 bg-white text-ink-soft"
                     }`}
                   >
                     {clockTime(s.start)}
@@ -509,7 +497,7 @@ export default function BookingFlow({
           )}
 
           {slot && (
-            <div className="mt-4 flex gap-3 rounded-panel border border-teal-pale bg-teal-light px-3.5 py-3.5">
+            <div className="mt-4 flex gap-3 rounded-panel border border-teal-200 bg-teal-50 px-3.5 py-3.5">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
                 <circle cx="12" cy="12" r="9.2" stroke="#006B62" strokeWidth="1.5" />
                 <path
@@ -520,7 +508,7 @@ export default function BookingFlow({
                   strokeLinejoin="round"
                 />
               </svg>
-              <p className="text-[12.5px] font-semibold leading-snug text-teal-dark">
+              <p className="text-[12.5px] font-semibold leading-snug text-teal-800">
                 {clockTime(slot.start)} to {clockTime(slot.end)}, about{" "}
                 {duration(service.durationMinutes)}.
               </p>
@@ -564,7 +552,7 @@ export default function BookingFlow({
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
             placeholder="Who should they ask for?"
-            className="mt-2 w-full rounded-[14px] border-[1.5px] border-line bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-slate-grey focus:border-teal"
+            className="mt-2 w-full rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-600 focus:border-teal"
           />
 
           <label htmlFor="bk-phone" className="eyebrow mt-5 block">
@@ -577,16 +565,16 @@ export default function BookingFlow({
             inputMode="tel"
             autoComplete="tel"
             placeholder="024 000 0000"
-            className="num mt-2 w-full rounded-[14px] border-[1.5px] border-line bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-slate-grey focus:border-teal"
+            className="num mt-2 w-full rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-600 focus:border-teal"
           />
 
-          <div className="mt-5 rounded-panel border border-line bg-white px-4 py-4">
+          <div className="mt-5 rounded-panel border border-neutral-200 bg-white px-4 py-4">
             <p className="eyebrow mb-2.5">Your booking</p>
             {summary}
           </div>
 
           {service.depositAmount !== null && (
-            <p className="mt-3 rounded-panel border border-teal-pale bg-teal-light px-4 py-3.5 text-[12.5px] font-semibold leading-snug text-teal-dark">
+            <p className="mt-3 rounded-panel border border-teal-200 bg-teal-50 px-4 py-3.5 text-[12.5px] font-semibold leading-snug text-teal-800">
               {formatGHS(service.depositAmount)} holds this slot, and you settle
               it with {businessName} when you come in. Nothing is taken now.
             </p>
@@ -611,7 +599,7 @@ export default function BookingFlow({
               else if (step === "staff") setStep("details");
               else book();
             }}
-            className="tap flex h-14 w-full items-center justify-center rounded-[16px] bg-ink text-base font-bold text-white disabled:opacity-40"
+            className="tap flex h-14 w-full items-center justify-center rounded-[16px] bg-teal font-heading text-base font-extrabold text-white disabled:opacity-40"
           >
             {step === "service"
               ? "Pick a time"
@@ -644,7 +632,7 @@ function Header({
         type="button"
         onClick={onBack}
         aria-label="Go back"
-        className="tap flex h-10 w-10 flex-none items-center justify-center rounded-full border border-line bg-white"
+        className="tap flex h-10 w-10 flex-none items-center justify-center rounded-full border border-neutral-200 bg-white"
       >
         <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
           <polyline
@@ -659,7 +647,7 @@ function Header({
       <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-ink">
         {title}
       </p>
-      <span className="num flex-none text-xs font-bold text-slate-grey">
+      <span className="num flex-none text-xs font-bold text-neutral-600">
         Step {step} of 4
       </span>
     </div>
@@ -678,19 +666,19 @@ function Stat({
   return (
     <div
       className={`flex-1 rounded-[13px] border p-3 ${
-        tone === "teal" ? "border-teal-pale bg-teal-light" : "border-line bg-white"
+        tone === "teal" ? "border-teal-200 bg-teal-50" : "border-neutral-200 bg-white"
       }`}
     >
       <p
         className={`text-[10.5px] font-bold uppercase tracking-[0.05em] ${
-          tone === "teal" ? "text-teal-dark" : "text-slate-grey"
+          tone === "teal" ? "text-teal-800" : "text-neutral-600"
         }`}
       >
         {label}
       </p>
       <p
         className={`num mt-0.5 text-[17px] font-extrabold ${
-          tone === "teal" ? "text-teal-dark" : "text-ink"
+          tone === "teal" ? "text-teal-800" : "text-ink"
         }`}
       >
         {value}
@@ -731,7 +719,7 @@ function Choice({
       onClick={onClick}
       aria-pressed={selected}
       className={`tap flex items-center gap-3 rounded-[14px] border px-3 py-2.5 text-left ${
-        selected ? "border-teal bg-teal-light" : "border-line bg-white"
+        selected ? "border-teal bg-teal-50" : "border-neutral-200 bg-white"
       }`}
     >
       {avatar ? (
@@ -739,7 +727,7 @@ function Choice({
       ) : (
         <span
           aria-hidden
-          className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-light-grey"
+          className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-neutral-50"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <circle cx="9" cy="9" r="3.2" stroke="#646E7C" strokeWidth="1.6" />
@@ -754,13 +742,13 @@ function Choice({
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-bold text-navy-soft">{title}</span>
-        <span className="block text-xs font-medium text-ink-muted">{detail}</span>
+        <span className="block text-[15px] font-bold text-ink">{title}</span>
+        <span className="block text-xs font-medium text-neutral-600">{detail}</span>
       </span>
       <span
         aria-hidden
         className={`h-5 w-5 flex-none rounded-full border-2 ${
-          selected ? "border-teal bg-teal" : "border-line-stronger"
+          selected ? "border-teal bg-teal" : "border-neutral-200-stronger"
         }`}
       />
     </button>
@@ -770,7 +758,7 @@ function Choice({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-[12.5px] font-medium text-ink-muted">{label}</dt>
+      <dt className="text-[12.5px] font-medium text-neutral-600">{label}</dt>
       <dd className="text-right text-[13px] font-bold text-ink">{value}</dd>
     </div>
   );
@@ -787,10 +775,10 @@ function Money({
 }) {
   return (
     <div className="flex justify-between">
-      <span className="text-[12.5px] font-semibold text-ink-muted">{label}</span>
+      <span className="text-[12.5px] font-semibold text-neutral-600">{label}</span>
       <span
         className={`num text-[12.5px] font-extrabold ${
-          tone === "teal" ? "text-teal-dark" : "text-ink"
+          tone === "teal" ? "text-teal-800" : "text-ink"
         }`}
       >
         {value}
