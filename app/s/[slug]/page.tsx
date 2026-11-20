@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
-import { effectiveAccess } from "@/lib/domains/entitlements";
+import { openShop } from "@/lib/shop/openShop";
 import Storefront, { StorefrontProduct } from "@/components/shop/Storefront";
 
 export const dynamic = "force-dynamic";
@@ -32,20 +32,12 @@ interface ShopData {
 
 async function loadShop(slug: string): Promise<ShopData | null> {
   try {
-    const db = supabaseServer();
-    const { data: business } = await db
-      .from("business")
-      .select("id, name, shop_slug, created_at")
-      .eq("shop_slug", slug)
-      .maybeSingle();
+    // Exists and its owner turned the shop on (shared with the layout).
+    // A shop is public because its owner turned it on: every business once
+    // had a storefront, including till-only ones that never asked for it.
+    const business = await openShop(slug);
     if (!business) return null;
-
-    // A shop is public because its owner turned it on. Every business had a
-    // storefront the moment it was created, including ones that only ever
-    // wanted a till: a page they were never told about, could not find, and
-    // had no way to take down. A stranger could order from it.
-    const access = await effectiveAccess(business.id).catch(() => null);
-    if (!access?.capabilities.has("shop.storefront")) return null;
+    const db = supabaseServer();
 
     const { data: locations } = await db
       .from("location")
