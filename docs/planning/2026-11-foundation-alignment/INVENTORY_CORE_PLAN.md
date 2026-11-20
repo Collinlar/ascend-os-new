@@ -1,10 +1,16 @@
 # Inventory Core (spec 06)
 
-18 November 2026. For Collins to approve before anything is built.
+18 November 2026, refreshed 20 November after the v3 design move (section 0). For Collins to approve before anything is built.
 
 Spec: `06_Inventory_Core_Specification_v1.0.md`. Its one rule: **a stock figure is the sum of movements, never a number someone typed over.** Ascend has kept that rule since migration 0002. This plan does not start over. It fills the gaps between the ledger Ascend already has and the one the spec describes, and leaves the advanced inventory product (batches, expiry, valuation, warehouses, forecasting, spec section 11) named for later.
 
 Live today: 31 businesses, each with one location. 37 products, 5 of them with stock tracking on. 20 stock movements (11 sales, 5 restocks, 4 shop holds). No suppliers, no purchase orders, no variants. Small enough that every change below can be checked against every real movement.
+
+## 0. What changed since 18 November
+
+- **Live:** 39 products, 5 with stock tracked, 37 movements (20 sales, 5 restocks, 8 shop holds, 4 releases), none with a cost. No suppliers. Every product is set to sell freely. **One business now has two places** (CLASmart: Main location and Adjiriganor), so transfers are no longer hypothetical.
+- **The tills were rebuilt (D4).** They keep stock on the device and sell offline; the till side of I2 and I3 now lands in `lib/pos/useTill.ts` and the counter and handheld screens, not the old 971-line page. Two things noted in D4 belong here: offline stock figures reset on a reload, and a refund (D4e) always puts the goods back.
+- **The v3 design splits stock in two.** A free **Inventory** page in the sidebar (stock by location, movements, adjust stock, a low-stock count on Home), and a paid **Advanced Inventory** at GHS 120 a month: transfers, stock counts and wastage, suppliers, purchase receipts, reorder rules, expiry and batches. This plan, written before the design, put receiving and counts in the free core. Decision 9 settles it.
 
 ---
 
@@ -66,3 +72,6 @@ Built and tested as before: local Postgres with every migration replayed, then t
 6. **Who approves a count.** *Recommended:* an owner or manager can post their own count. A cashier's count waits for an owner or manager to approve it, and any count whose write-down is worth more than GHS 500 (at average cost, or at selling price when there is no cost) needs someone other than the counter, even if the counter is a manager. That is where stock theft hides.
 7. **Stock as evidence.** *Recommended:* regular counts that agree with sales are operational evidence, weighted low, and say nothing about the business's money (spec s14). Heavy write-offs (more than 5% of stock value in 30 days) and three count gaps in a row become Risk signals in the cash discipline area.
 8. **Services using stock.** *Recommended:* build it last, simply: a service lists items and quantities; a completed booking takes them off. If no salon or workshop on Ascend asks for it by then, it waits.
+9. **What is free and what is Advanced Inventory.** *Recommended:* the parts that keep the stock figure true stay with POS, free: receiving with an optional cost and supplier name (I1), available to sell and the shortage policy (I2), returns with a condition (I3), and stock counts with approval (I4). Counts in particular: they are where theft shows, and they are the evidence the Sustainability Score reads (I5); putting them behind GHS 120 would mean the businesses that most need the score cannot earn that part of it. Advanced Inventory, a new product set, gets what the design and this plan agree is advanced: transfers between places, supplier records and purchase orders, reorder rules, expiry and batches, valuation beyond average cost. It is built after I1 to I5, starting with transfers, since CLASmart now has two places. This departs from the design's list (it puts counts and wastage in Advanced), deliberately.
+10. **An Inventory page.** *Recommended:* yes, as the design draws it: `/inventory` in the sidebar for businesses that track stock, with stock by place (on hand, held, available), the movement history with who and why, and "Adjust stock" (receive, write off, count). The Products page keeps the price and listing work and links across. Home's "Low stock" figure opens it. The Transfers and Suppliers tabs appear only with Advanced Inventory, never as locked teasers with sample data.
+11. **Order.** *Recommended:* the Inventory page first (it is where I1 to I4 live on the web), then I1, I2, I3, I4, I5, then I6 if a salon or workshop asks, then Advanced Inventory starting with transfers.
