@@ -143,3 +143,91 @@ export async function recentMovements(
     };
   });
 }
+
+// ----- Stock counts (Inventory Core I4, 0129) ------------------------------
+
+export interface CountLine {
+  item: string;
+  expected: number;
+  counted: number;
+  variance: number;
+  value: number;
+  reason: string | null;
+}
+
+export interface StockCountView {
+  id: string;
+  status: "waiting" | "posted" | "rejected";
+  place: string;
+  countedBy: string;
+  countedById: string;
+  decidedBy: string | null;
+  countedAt: string;
+  decidedAt: string | null;
+  note: string | null;
+  decisionNote: string | null;
+  lines: number;
+  differing: number;
+  writeDown: number;
+  writeUp: number;
+  needsSecondPerson: boolean;
+  /** Only the lines that differ, biggest loss first. */
+  differences: CountLine[];
+}
+
+/** Waiting counts first, then the latest decided ones. Empty when 0129 has
+ *  not been applied, so the page still works without it. */
+export async function stockCounts(businessId: string, limit = 20): Promise<StockCountView[]> {
+  const db = supabaseServer();
+  const { data, error } = await db
+    .from("stock_count")
+    .select(
+      "id, status, counted_at, decided_at, note, decision_note, lines, differing, write_down_value, write_up_value, needs_second_person, counted_by, place:location_id(name), counter:counted_by(person:person_id(full_name)), decider:decided_by(person:person_id(full_name))"
+    )
+    .eq("business_id", businessId)
+    .order("counted_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  const ids = data.map((c) => c.id as string);
+  const { data: lineRows } = ids.length
+    ? await db
+        .from("stock_count_line")
+        .select("count_id, expected, counted, variance, unit_value, reason, item:item_id(name)")
+        .in("count_id", ids)
+        .neq("variance", 0)
+    : { data: [] };
+  const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+  const byCount = new Map<string, CountLine[]>();
+  for (const l of lineRows ?? []) {
+    const list = byCount.get(l.count_id as string) ?? [];
+    const variance = Number(l.variance);
+    list.push({
+      item: one<{ name: string }>(l.item)?.name ?? "A product",
+      expected: Number(l.expected),
+      counted: Number(l.counted),
+      variance,
+      value: Math.round(variance * Number(l.unit_value ?? 0) * 100) / 100,
+      reason: (l.reason as string | null) ?? null,
+    });
+    byCount.set(l.count_id as string, list);
+  }
+  const views = data.map((c) => ({
+    id: c.id as string,
+    status: c.status as StockCountView["status"],
+    place: one<{ name: string }>(c.place)?.name ?? "",
+    countedBy: one<{ full_name: string }>(one<{ person: unknown }>(c.counter)?.person)?.full_name ?? "A team member",
+    countedById: c.counted_by as string,
+    decidedBy: one<{ full_name: string }>(one<{ person: unknown }>(c.decider)?.person)?.full_name ?? null,
+    countedAt: c.counted_at as string,
+    decidedAt: (c.decided_at as string | null) ?? null,
+    note: (c.note as string | null) ?? null,
+    decisionNote: (c.decision_note as string | null) ?? null,
+    lines: Number(c.lines),
+    differing: Number(c.differing),
+    writeDown: Number(c.write_down_value),
+    writeUp: Number(c.write_up_value),
+    needsSecondPerson: Boolean(c.needs_second_person),
+    differences: (byCount.get(c.id as string) ?? []).sort((a, b) => a.value - b.value),
+  }));
+  return [...views.filter((v) => v.status === "waiting"), ...views.filter((v) => v.status !== "waiting")];
+}

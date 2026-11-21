@@ -166,6 +166,8 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // Stock is kept by POS (inventory.basic) or read by Shop (inventory.connection).
   "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "inventory/rule": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
+  "inventory/count": { POST: member("body", { capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
+  "inventory/count/decide": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "inventory/receive": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
@@ -286,6 +288,7 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/customers": { permission: ["customers.view"], capability: ["customers.core", "customers.basic"] },
   "/products": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/products/add": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
+  "/inventory/count": { capability: ["inventory.basic", "inventory.connection"] },
   "/inventory": { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] },
   "/shop": { permission: ["catalogue.manage"], capability: ["shop.storefront"] },
   "/devices": { permission: ["staff.manage"], capability: ["pos.tills"] },

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { checkPageAccess } from "@/lib/authority/page";
-import { EmptyState, FigureRow, PageHeader, PageShell, Panel } from "@/components/shell/Page";
+import { EmptyState, FigureRow, PageHeader, PageShell, Panel, secondaryAction } from "@/components/shell/Page";
 import AdjustStock from "@/components/inventory/AdjustStock";
 import ReceiveStock from "@/components/inventory/ReceiveStock";
 import { supabaseServer } from "@/lib/supabase";
 import StockRule from "@/components/inventory/StockRule";
-import { isBelowZero, isLow, isOut, KIND_LABEL, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import CountDecision from "@/components/inventory/CountDecision";
+import { formatGHS } from "@/lib/money";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, type StockCountView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +48,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
       </PageShell>
     );
   }
-  const membership = await activeMembership<{ business_id: string; role: { key: string } | null }>(personId, "business_id, role:role_id(key)");
+  const membership = await activeMembership<{ id: string; business_id: string; role: { key: string } | null }>(personId, "id, business_id, role:role_id(key)");
   if (!membership) {
     return (
       <PageShell>
@@ -56,15 +58,18 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     );
   }
   const businessId = membership.business_id;
+  const membershipId = membership.id;
   const canAdjust = ["owner", "manager"].includes(membership.role?.key ?? "");
-  const tab = searchParams.tab === "moves" ? "moves" : "stock";
+  const tab = searchParams.tab === "moves" ? "moves" : searchParams.tab === "counts" ? "counts" : "stock";
   const show: Show = searchParams.show === "low" || searchParams.show === "out" ? searchParams.show : "all";
   const itemFilter = /^[0-9a-f-]{36}$/i.test(searchParams.item ?? "") ? searchParams.item : undefined;
 
   let data: { places: { id: string; name: string }[]; lines: StockLine[] };
   let moves: Movement[] = [];
+  let counts: StockCountView[] = [];
   try {
     data = await stockLevels(businessId);
+    counts = await stockCounts(businessId);
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
@@ -88,6 +93,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const out = tracked.filter(isOut);
   const held = tracked.reduce((n, l) => n + l.held, 0);
   const belowZero = tracked.filter(isBelowZero);
+  const waiting = counts.filter((c) => c.status === "waiting");
   // Out at one place while another still has some: worth a move, not a reorder.
   const outSomewhere = places.length > 1 ? tracked.filter((l) => !isOut(l) && l.at.some((a) => a.available <= 0)).length : 0;
   const shown = show === "low" ? low : show === "out" ? out : tracked;
@@ -117,6 +123,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
         action={
           canAdjust && lines.length > 0 ? (
             <>
+              <Link href="/inventory/count" className={secondaryAction}>
+                Count the shelf
+              </Link>
               <AdjustStock businessId={businessId} places={places} items={adjustItems} startWith={itemFilter} />
               <ReceiveStock businessId={businessId} places={places} items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))} />
             </>
@@ -145,6 +154,15 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             ]}
           />
 
+          {waiting.length > 0 && tab !== "counts" && canAdjust && (
+            <Link href="/inventory?tab=counts" className="tap mb-4 flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-gold-500/40 bg-gold-100 px-5 py-3 text-[13.5px] font-semibold text-gold-700">
+              <span>
+                {waiting.length === 1 ? "A stock count is" : `${waiting.length} stock counts are`} waiting for you to approve.
+              </span>
+              <span className="flex-none underline">See the count</span>
+            </Link>
+          )}
+
           {belowZero.length > 0 && (
             <div role="status" className="mb-4 rounded-[18px] border border-danger/30 bg-danger-tint px-5 py-3.5 text-[13.5px] text-danger-ink">
               <p className="font-bold">
@@ -160,6 +178,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             {[
               ["stock", multi ? "Stock by place" : "Stock"],
               ["moves", "Movements"],
+              ["counts", waiting.length ? `Counts (${waiting.length} waiting)` : "Counts"],
             ].map(([k, label]) => (
               <Link
                 key={k}
@@ -325,6 +344,87 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                 </Panel>
               )}
               {moves.length === 150 && <p className="mt-3 text-[12.5px] text-neutral-600">The latest 150. Pick a product to see its whole history.</p>}
+            </>
+          )}
+
+          {tab === "counts" && (
+            <>
+              {counts.length === 0 ? (
+                <EmptyState
+                  title="No stock counts yet."
+                  detail="Count the shelf on any phone. Anyone on your team can do it, and you approve what they find."
+                  action={
+                    <Link href="/inventory/count" className="tap inline-flex min-h-[44px] items-center rounded-control bg-teal px-4 text-[14px] font-bold text-white">
+                      Count the shelf
+                    </Link>
+                  }
+                />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {counts.map((c) => (
+                    <Panel key={c.id} className="px-5 py-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <p className="text-[14.5px] font-semibold text-ink">
+                          {c.lines} {c.lines === 1 ? "product" : "products"} counted by {c.countedBy}
+                          {multi ? ` at ${c.place}` : ""}
+                        </p>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
+                            c.status === "waiting" ? "bg-gold-100 text-gold-700" : c.status === "posted" ? "bg-teal-50 text-teal-800" : "bg-neutral-100 text-neutral-700"
+                          }`}
+                        >
+                          {c.status === "waiting" ? "Waiting for approval" : c.status === "posted" ? "On the shelf" : "Turned down"}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[12.5px] text-neutral-600">
+                        {when(c.countedAt)}
+                        {c.decidedBy && c.status !== "waiting" ? ` · ${c.status === "posted" ? "approved" : "turned down"} by ${c.decidedBy}` : ""}
+                        {c.note ? ` · \u201c${c.note}\u201d` : ""}
+                      </p>
+                      <p className="mt-2 text-[13.5px] text-neutral-700">
+                        {c.differing === 0
+                          ? "Every product matched the record."
+                          : `${c.differing} differed: ${formatGHS(c.writeDown)} short${c.writeUp > 0 ? `, ${formatGHS(c.writeUp)} more than recorded` : ""}.`}
+                      </p>
+                      {c.differences.length > 0 && (
+                        <div className="mt-2 overflow-hidden rounded-control border border-neutral-100">
+                          {c.differences.slice(0, 12).map((d, i) => (
+                            <div key={i} className={`flex items-baseline justify-between gap-3 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                              <span className="min-w-0 text-ink">
+                                {d.item}
+                                <span className="text-neutral-600">
+                                  {" "}
+                                  · record {qty(d.expected)}, counted {qty(d.counted)}
+                                </span>
+                              </span>
+                              <span className={`num flex-none font-semibold ${d.variance < 0 ? "text-danger-ink" : "text-teal-800"}`}>
+                                {d.variance > 0 ? "+" : "\u2212"}
+                                {qty(Math.abs(d.variance))}
+                                {d.value !== 0 ? ` (${formatGHS(Math.abs(d.value))})` : ""}
+                              </span>
+                            </div>
+                          ))}
+                          {c.differences.length > 12 && <p className="border-t border-neutral-100 px-3 py-2 text-[12.5px] text-neutral-600">And {c.differences.length - 12} more.</p>}
+                        </div>
+                      )}
+                      {c.status === "waiting" && canAdjust && (
+                        <div className="mt-3">
+                          {c.needsSecondPerson && (
+                            <p className="mb-2 text-[12.5px] font-semibold text-gold-700">
+                              This writes off more than GHS 500, so it needs someone other than {c.countedBy} to approve it.
+                            </p>
+                          )}
+                          <CountDecision
+                            businessId={businessId}
+                            countId={c.id}
+                            blocked={c.needsSecondPerson && c.countedById === membershipId ? "You counted this one, so someone else on the team must approve it." : undefined}
+                          />
+                        </div>
+                      )}
+                    </Panel>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </>
