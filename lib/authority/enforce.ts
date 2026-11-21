@@ -54,6 +54,7 @@ const PAGE_GROUP: Record<string, string> = {
   "/documents": "documents",
   "/products": "catalogue",
   "/products/add": "catalogue",
+  "/inventory": "catalogue",
   "/team": "team",
   "/devices": "team",
   "/billing": "team",

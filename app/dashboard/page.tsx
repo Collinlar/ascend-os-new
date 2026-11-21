@@ -125,7 +125,7 @@ export default async function Dashboard() {
           : figures.stock.low === 0
             ? `All ${figures.stock.tracked} counted products are stocked`
             : `of ${figures.stock.tracked} counted products`,
-      href: "/products",
+      href: figures.stock.out > 0 ? "/inventory?show=out" : "/inventory?show=low",
       tone: figures.stock.low > 0 || figures.stock.out > 0 ? "warn" : undefined,
     });
   } else if (figures && figures.customers.total > 0 && (caps.has("customers.core") || caps.has("customers.basic"))) {
@@ -143,8 +143,8 @@ export default async function Dashboard() {
     attention.push({
       id: "out-of-stock",
       title: `${figures.stock.out} product${figures.stock.out === 1 ? " is" : "s are"} out of stock`,
-      action: "Open products",
-      href: "/products",
+      action: "See what is out",
+      href: "/inventory?show=out",
       tone: "gold",
       icon: "box",
     });

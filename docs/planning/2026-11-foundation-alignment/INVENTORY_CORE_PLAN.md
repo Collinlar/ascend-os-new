@@ -75,3 +75,18 @@ Built and tested as before: local Postgres with every migration replayed, then t
 9. **What is free and what is Advanced Inventory.** *Recommended:* the parts that keep the stock figure true stay with POS, free: receiving with an optional cost and supplier name (I1), available to sell and the shortage policy (I2), returns with a condition (I3), and stock counts with approval (I4). Counts in particular: they are where theft shows, and they are the evidence the Sustainability Score reads (I5); putting them behind GHS 120 would mean the businesses that most need the score cannot earn that part of it. Advanced Inventory, a new product set, gets what the design and this plan agree is advanced: transfers between places, supplier records and purchase orders, reorder rules, expiry and batches, valuation beyond average cost. It is built after I1 to I5, starting with transfers, since CLASmart now has two places. This departs from the design's list (it puts counts and wastage in Advanced), deliberately.
 10. **An Inventory page.** *Recommended:* yes, as the design draws it: `/inventory` in the sidebar for businesses that track stock, with stock by place (on hand, held, available), the movement history with who and why, and "Adjust stock" (receive, write off, count). The Products page keeps the price and listing work and links across. Home's "Low stock" figure opens it. The Transfers and Suppliers tabs appear only with Advanced Inventory, never as locked teasers with sample data.
 11. **Order.** *Recommended:* the Inventory page first (it is where I1 to I4 live on the web), then I1, I2, I3, I4, I5, then I6 if a salon or workshop asks, then Advanced Inventory starting with transfers.
+
+## 6. Build status
+
+**Approved 21 November 2026**, decisions 1 to 11 as recommended.
+
+**Step 1, the Inventory page, 21 November 2026.** `/inventory` (`app/inventory/page.tsx`, `lib/domains/inventory.ts`, `components/inventory/AdjustStock.tsx`), in the sidebar after Products for any business with `inventory.basic` or `inventory.connection`; page policy `inventory.manage`, catalogue enforcement group. No migration: it reads the `stock_balance` and `stock_reserved` views from 0002.
+- Figures: counted products (and how many are not counted), low, out (and how many more are out at one place only), held for shop orders.
+- Stock: on hand, held and available per product; with two or more places a column per place, a place at zero marked out. All, Low and Out filters. Each row opens that product's movements.
+- Movements: the latest 150, or one product's history, each with what happened, when, where, who, which till, and the reason.
+- Adjust stock (owners and managers): goods came in, damaged or lost, or a count, through the existing `/api/catalogue/stock`; a count shows the recorded figure first.
+- Home's Low stock figure and the out-of-stock alert open Inventory; Products gains "See my stock".
+
+Checked on live with a throwaway ZZ business with two places, three counted products, one not counted and a shop hold of 3: the figures, per-place out marks, a count from 2 to 1 with its reason in the history, at 1440px and 375px. Removed by id after. The first save on a cold dev server came back "did not go through" while the route compiled; the retry and every later call worked, and the same request by curl worked first time.
+
+Left for I1: the per-product stock panel on the Products page stays for now; it moves to Inventory when receiving gains cost and supplier.

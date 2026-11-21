@@ -77,6 +77,14 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
   },
   { href: "/products", label: "Products", short: "Products", icon: "tag", requires: "catalogue.core" },
+  {
+    href: "/inventory",
+    label: "Inventory",
+    short: "Stock",
+    icon: "box",
+    // POS counts stock itself; Shop reads what a till keeps.
+    requires: ["inventory.basic", "inventory.connection"],
+  },
   { href: "/shop", label: "Shop", short: "Shop", icon: "store", requires: "shop.storefront" },
   {
     href: "/team",

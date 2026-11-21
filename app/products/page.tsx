@@ -4,7 +4,7 @@ import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import ProductManager from "@/components/catalogue/ProductManager";
-import { EmptyState, PageHeader, PageShell, primaryAction } from "@/components/shell/Page";
+import { EmptyState, PageHeader, PageShell, primaryAction, secondaryAction } from "@/components/shell/Page";
 import { Icon } from "@/components/shell/icons";
 import type { StockRow } from "@/app/api/catalogue/items/route";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -126,10 +126,18 @@ export default async function Products() {
         }
         action={
           data.kind === "ok" && data.items.length > 0 ? (
-            <Link href="/products/add" className={primaryAction}>
-              <Icon name="plus" size={16} />
-              Add a product
-            </Link>
+            <>
+              {data.items.some((i) => i.trackStock) && (
+                <Link href="/inventory" className={secondaryAction}>
+                  <Icon name="box" size={16} />
+                  See my stock
+                </Link>
+              )}
+              <Link href="/products/add" className={primaryAction}>
+                <Icon name="plus" size={16} />
+                Add a product
+              </Link>
+            </>
           ) : null
         }
       />

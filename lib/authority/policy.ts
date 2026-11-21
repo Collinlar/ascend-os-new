@@ -284,6 +284,7 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/customers": { permission: ["customers.view"], capability: ["customers.core", "customers.basic"] },
   "/products": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/products/add": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
+  "/inventory": { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] },
   "/shop": { permission: ["catalogue.manage"], capability: ["shop.storefront"] },
   "/devices": { permission: ["staff.manage"], capability: ["pos.tills"] },
   "/availability": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] },
