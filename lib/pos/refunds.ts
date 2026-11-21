@@ -7,7 +7,7 @@
 // reference, which the server turns into the sale (app/api/pos/sync).
 
 import { newClientRef } from "@/lib/ids";
-import { get, getAll, getMeta, put, setMeta, STORE, type LocalSale, type OutboxItem } from "@/lib/pos/db";
+import { get, getAll, getMeta, put, setMeta, STORE, type LocalSale, type OutboxItem, type ReturnCondition } from "@/lib/pos/db";
 import { getDeviceToken } from "@/lib/pos/registration";
 import { addRefundPaid, getActiveShift } from "@/lib/pos/shift";
 import type { ReceiptDoc } from "@/lib/pos/receipt";
@@ -69,7 +69,12 @@ export function receiptFor(sale: LocalSale, businessName: string, cashierName?: 
 
 export type RefundAsk = { ok: true; sale: LocalSale } | { ok: false; error: string };
 
-export async function askForRefund(sale: LocalSale, reason: string, cashierMembershipId?: string): Promise<RefundAsk> {
+export async function askForRefund(
+  sale: LocalSale,
+  reason: string,
+  cashierMembershipId?: string,
+  condition: ReturnCondition = "restock"
+): Promise<RefundAsk> {
   const why = reason.trim();
   if (why.length < 3) return { ok: false, error: "Say why. The owner reads this when they decide." };
   if (sale.refund) return { ok: false, error: "A refund is already asked for on this sale." };
@@ -78,7 +83,7 @@ export async function askForRefund(sale: LocalSale, reason: string, cashierMembe
   const item: OutboxItem = {
     clientRef,
     kind: "refund.requested",
-    payload: { clientRef, saleClientRef: sale.clientRef, reason: why, cashierMembershipId },
+    payload: { clientRef, saleClientRef: sale.clientRef, reason: why, cashierMembershipId, returnCondition: condition },
     state: "pending",
     retryCount: 0,
     createdAt: now,
@@ -86,7 +91,7 @@ export async function askForRefund(sale: LocalSale, reason: string, cashierMembe
     nextAttemptAt: now,
     lastError: null,
   };
-  const updated: LocalSale = { ...sale, refund: { clientRef, reason: why, askedAt: now, askedBy: cashierMembershipId } };
+  const updated: LocalSale = { ...sale, refund: { clientRef, reason: why, askedAt: now, askedBy: cashierMembershipId, condition } };
   // The request first: if the app dies between the two, the owner still
   // hears about it, and the till only forgets that it asked.
   await put(STORE.outbox, item);

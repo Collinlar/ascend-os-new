@@ -70,13 +70,16 @@ export interface LocalSale {
   discountTotal?: number;
   customerName?: string;
   /** Set once the cashier has asked the owner to refund this sale. */
-  refund?: { clientRef: string; reason: string; askedAt: string; askedBy?: string };
+  refund?: { clientRef: string; reason: string; askedAt: string; askedBy?: string; condition?: ReturnCondition };
   occurredAt: string;
   businessDate: string;
   shiftId?: string;
   synced: boolean;
   serverId?: string;
 }
+
+/** What came back with a refund (Inventory Core I3, 0128). */
+export type ReturnCondition = "restock" | "damaged" | "not_returned";
 
 export interface LocalItem {
   /** Product photo, stored once and cached by the browser thereafter. */

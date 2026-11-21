@@ -58,6 +58,8 @@ interface RefundRequestPayload {
   saleClientRef: string;
   reason: string;
   cashierMembershipId?: string;
+  /** What came back (0128). Older tills send nothing: back on the shelf. */
+  returnCondition?: "restock" | "damaged" | "not_returned";
 }
 
 // The cashier saying they have handed an approved refund back from the
@@ -199,6 +201,9 @@ async function handlePOST(request: NextRequest) {
             sale_id: sale.id,
             reason: (item.payload.reason ?? "").slice(0, 500),
             requested_by: item.payload.cashierMembershipId ?? "",
+            return_condition: ["restock", "damaged", "not_returned"].includes(item.payload.returnCondition ?? "")
+              ? item.payload.returnCondition
+              : "restock",
           },
         });
         if (error) {

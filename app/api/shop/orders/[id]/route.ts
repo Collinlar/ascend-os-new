@@ -32,7 +32,7 @@ async function handlePOST(
     );
   }
 
-  let body: { toStatus?: string; reason?: string };
+  let body: { toStatus?: string; reason?: string; returnCondition?: string };
   try {
     body = await request.json();
   } catch {
@@ -78,6 +78,8 @@ async function handlePOST(
       to_status: toStatus,
       actor_membership_id: membership.id,
       reason: body.reason ?? null,
+      // What came back with a refund (0128); absent means back on the shelf.
+      return_condition: ["restock", "damaged", "not_returned"].includes(body.returnCondition ?? "") ? body.returnCondition : null,
     },
   });
 

@@ -169,6 +169,17 @@ async function load(): Promise<Loaded> {
       for (const s of sales ?? []) receipts.set(s.id as string, s.receipt_number as string);
     }
 
+    // What came back with each refund (0128), read on its own so Work keeps
+    // working on a database that does not have the column yet.
+    const returned = new Map<string, string>();
+    const refundIds = (approvals.data ?? []).filter((a) => a.kind === "refund").map((a) => a.id as string);
+    if (refundIds.length > 0) {
+      const { data: conds } = await db.from("approval_request").select("id, return_condition").in("id", refundIds);
+      for (const c of (conds ?? []) as { id: string; return_condition: string | null }[]) {
+        if (c.return_condition) returned.set(c.id, c.return_condition);
+      }
+    }
+
     return {
       businessId: membership.business_id as string,
       membershipId: membership.id as string,
@@ -225,6 +236,7 @@ async function load(): Promise<Loaded> {
           requesterName: requester?.person?.full_name ?? "A team member",
           reason: (a.note as string | null) ?? null,
           receipt: a.source_entity_id ? (receipts.get(a.source_entity_id as string) ?? null) : null,
+          returned: (returned.get(a.id as string) as "restock" | "damaged" | "not_returned" | undefined) ?? null,
           // Whether this person may decide it is enforced server-side; the
           // UI only avoids offering an action that would be refused.
           isOwnRequest: a.requested_by === membership.id,

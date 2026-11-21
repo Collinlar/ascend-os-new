@@ -4,6 +4,7 @@
 // works with no network. Each says whether it has reached the office. Open
 // one to see it, print its receipt again, or ask the owner to refund it.
 
+import type { ReturnCondition } from "@/lib/pos/db";
 import { useEffect, useState } from "react";
 import { formatGHS } from "@/lib/money";
 import { clock } from "@/lib/pos/cash";
@@ -12,6 +13,15 @@ import type { LocalSale } from "@/lib/pos/db";
 import TillSheet from "@/components/pos/TillSheet";
 import type { Till } from "@/lib/pos/useTill";
 
+// What came back decides the shelf (Inventory Core I3): sound goods go back,
+// damaged ones are written off, and a refund with nothing returned moves no
+// stock at all.
+const RETURNS: [ReturnCondition, string][] = [
+  ["restock", "Back on the shelf"],
+  ["damaged", "Damaged"],
+  ["not_returned", "Nothing came back"],
+];
+
 type Row = { sale: LocalSale; sent: boolean };
 
 export default function TillSales({ till, onClose }: { till: Till; onClose: () => void }) {
@@ -19,6 +29,7 @@ export default function TillSales({ till, onClose }: { till: Till; onClose: () =
   const [open, setOpen] = useState<LocalSale | null>(null);
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
+  const [condition, setCondition] = useState<ReturnCondition | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -33,13 +44,15 @@ export default function TillSales({ till, onClose }: { till: Till; onClose: () =
 
   async function ask() {
     if (!open) return;
+    if (!condition) return setNote("Say what came back with it, so the shelf stays right.");
     setBusy(true);
-    const result = await till.askRefund(open, reason);
+    const result = await till.askRefund(open, reason, condition);
     setBusy(false);
     if (!result.ok) return setNote(result.error);
     setOpen(result.sale);
     setAsking(false);
     setReason("");
+    setCondition(null);
     setNote("Asked. The owner decides in Work, and the customer gets their money once it is approved.");
     load().catch(() => {});
   }
@@ -90,6 +103,9 @@ export default function TillSales({ till, onClose }: { till: Till; onClose: () =
           {open.refund && (
             <p className="mt-3 rounded-control bg-gold-100 px-3 py-2.5 text-[13.5px] text-gold-700">
               <strong>Refund asked</strong> at {clock(open.refund.askedAt)}: {open.refund.reason}
+              {open.refund.condition && open.refund.condition !== "restock" && (
+                <> ({open.refund.condition === "damaged" ? "came back damaged" : "nothing came back"})</>
+              )}
             </p>
           )}
           {note && <p className="mt-3 text-[13.5px] font-semibold text-ink">{note}</p>}
@@ -108,6 +124,27 @@ export default function TillSales({ till, onClose }: { till: Till; onClose: () =
                 placeholder="The milk was past its date. They brought it back unopened."
                 className="rounded-control border-[1.5px] border-line-brand px-3 py-2.5 text-[16px] text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none"
               />
+              <fieldset className="mt-1">
+                <legend className="text-[13.5px] font-semibold text-ink">What came back with it?</legend>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {RETURNS.map(([c, label]) => (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={condition === c}
+                      onClick={() => {
+                        setCondition(c);
+                        setNote(null);
+                      }}
+                      className={`tap min-h-[44px] rounded-chip px-3.5 text-[13.5px] font-semibold ${
+                        condition === c ? "bg-teal text-white" : "border-[1.5px] border-line-brand bg-white text-ink"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <p className="text-[12.5px] text-neutral-600">
                 Do not hand over any money yet. The owner or a manager decides in Work, then the refund is made.
               </p>

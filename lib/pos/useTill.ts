@@ -8,6 +8,7 @@
 // queued before the cashier is told it worked; nothing here depends on the
 // network being up (CHN-003, POS-002, POS PRD §17).
 
+import type { ReturnCondition } from "./db";
 import { stockCheck } from "./stock";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -445,8 +446,8 @@ export function useTill() {
     setDecisions(await openDecisions());
   }
 
-  async function askRefund(sale: LocalSale, reason: string) {
-    const result = await askForRefund(sale, reason, cashier?.membershipId);
+  async function askRefund(sale: LocalSale, reason: string, condition?: ReturnCondition) {
+    const result = await askForRefund(sale, reason, cashier?.membershipId, condition);
     if (result.ok) {
       refreshStatus();
       drainOutbox().then(refreshStatus).catch(() => {});

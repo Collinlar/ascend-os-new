@@ -53,6 +53,8 @@ export interface ApprovalRow {
   reason?: string | null;
   /** The receipt of the sale a refund is for. */
   receipt?: string | null;
+  /** What came back with a refund, as the cashier said (0128). */
+  returned?: "restock" | "damaged" | "not_returned" | null;
   isOwnRequest: boolean;
 }
 
@@ -380,6 +382,15 @@ export default function WorkBoard({
                       {approval.receipt ? ` · receipt ${approval.receipt}` : ""}
                     </p>
                     {approval.reason && <p className="mt-1.5 text-sm text-ink">&ldquo;{approval.reason}&rdquo;</p>}
+                    {approval.returned && (
+                      <p className={`mt-1 text-xs font-semibold ${approval.returned === "restock" ? "text-ink-muted" : "text-gold-700"}`}>
+                        {approval.returned === "restock"
+                          ? "The goods came back and go back on the shelf."
+                          : approval.returned === "damaged"
+                            ? "The goods came back damaged. Approving writes them off."
+                            : "Nothing came back. Approving refunds the money without touching stock."}
+                      </p>
+                    )}
                   </div>
                 </div>
 
