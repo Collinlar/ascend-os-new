@@ -19,9 +19,23 @@ function decisionText(d: RefundDecision): string {
 }
 
 export default function TillNotices({ till }: { till: Till }) {
-  const { stuck, storage, error, decisions } = till;
+  const { stuck, storage, error, decisions, stockNote } = till;
   return (
     <>
+      {/* What the stock rule said about the last thing added (I2). */}
+      {stockNote && (
+        <div
+          role={stockNote.refused ? "alert" : "status"}
+          className={`flex flex-none items-center gap-3 border-b px-3.5 py-2.5 text-[13.5px] ${
+            stockNote.refused ? "border-danger/30 bg-danger-tint text-danger-ink" : "border-gold-500/40 bg-gold-100 text-gold-700"
+          }`}
+        >
+          <p className="min-w-0 flex-1 font-semibold">{stockNote.text}</p>
+          <button onClick={till.clearStockNote} className="tap flex flex-none items-center rounded-control border-[1.5px] border-current px-3 text-[13px] font-bold">
+            Got it
+          </button>
+        </div>
+      )}
       {/* Refunds decided in Work. One that comes out of the drawer is the
           loudest thing on the till until the cashier says it is done. */}
       {decisions.map((d) => {

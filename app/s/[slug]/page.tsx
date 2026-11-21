@@ -51,12 +51,35 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     const { data: items } = await db
       .from("catalogue_item")
       .select(
-        "id, name, description, category, base_price, currency_code, channel_listing!inner(price_override, media, visible, channel)"
+        "id, name, description, category, base_price, currency_code, track_stock, channel_listing!inner(price_override, media, visible, channel)"
       )
       .eq("business_id", business.id)
       .eq("active", true)
       .eq("channel_listing.channel", "shop")
       .eq("channel_listing.visible", true);
+
+    // What can still be ordered: every movement at the shop's place summed,
+    // holds included, the same figure place_shop_order checks (0127). The
+    // shop takes orders at the business's first place.
+    const left = new Map<string, number>();
+    if ((items ?? []).some((i) => i.track_stock)) {
+      const { data: firstPlace } = await db
+        .from("location")
+        .select("id")
+        .eq("business_id", business.id)
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstPlace) {
+        const [bal, held] = await Promise.all([
+          db.from("stock_balance").select("item_id, quantity_on_hand").eq("location_id", firstPlace.id).is("variant_id", null),
+          db.from("stock_reserved").select("item_id, quantity_reserved").eq("location_id", firstPlace.id).is("variant_id", null),
+        ]);
+        for (const b of bal.data ?? []) left.set(b.item_id as string, Number(b.quantity_on_hand));
+        for (const r of held.data ?? []) left.set(r.item_id as string, (left.get(r.item_id as string) ?? 0) + Number(r.quantity_reserved));
+      }
+    }
 
     const products: StorefrontProduct[] = (items ?? []).flatMap((item) => {
       const listing = (item.channel_listing as unknown as Array<{
@@ -73,6 +96,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
           category: item.category,
           price: Number(price),
           image: listing?.media?.[0] ?? null,
+          ...(item.track_stock ? { left: Math.max(0, Math.floor(left.get(item.id) ?? 0)) } : {}),
         },
       ];
     });

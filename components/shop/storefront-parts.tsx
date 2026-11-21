@@ -16,6 +16,9 @@ export interface StorefrontProduct {
   category: string | null;
   price: number;
   image: string | null;
+  /** How many can still be ordered, for a product the shop counts. Absent
+   *  when it does not count it: then there is no limit to show. */
+  left?: number;
 }
 
 // Deterministic tint for a product with no photo, so the same item is the

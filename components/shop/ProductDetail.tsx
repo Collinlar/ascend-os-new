@@ -22,6 +22,8 @@ export default function ProductDetail({
   onAdd: (quantity: number) => void;
 }) {
   const [quantity, setQuantity] = useState(1);
+  // For a counted product: how many more can go in the basket.
+  const room = product.left === undefined ? Infinity : Math.max(0, product.left - inBasket);
 
   return (
     <div className="pb-28">
@@ -101,6 +103,11 @@ export default function ProductDetail({
               {inBasket} already in your basket.
             </p>
           )}
+          {product.left !== undefined && (
+            <p className={`mt-2 text-sm font-semibold ${product.left === 0 ? "text-danger-ink" : product.left <= 5 ? "text-gold-700" : "text-ink-muted"}`}>
+              {product.left === 0 ? "Sold out for now." : product.left <= 5 ? `Only ${product.left} left.` : `${product.left} in stock.`}
+            </p>
+          )}
         </div>
       </div>
 
@@ -108,20 +115,27 @@ export default function ProductDetail({
           and a customer should never scroll back up to act on it. */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white px-5 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <Stepper
-            quantity={quantity}
-            onChange={(n) => setQuantity(Math.max(1, n))}
-            label={product.name}
-          />
+          {room > 0 && (
+            <Stepper
+              quantity={Math.min(quantity, room)}
+              onChange={(n) => setQuantity(Math.max(1, Math.min(n, room)))}
+              label={product.name}
+            />
+          )}
           <button
             type="button"
-            onClick={() => onAdd(quantity)}
-            className="tap flex flex-1 items-center justify-center rounded-panel bg-teal font-bold text-white shadow-action"
+            onClick={() => onAdd(Math.min(quantity, room))}
+            disabled={room === 0}
+            className="tap flex flex-1 items-center justify-center rounded-panel bg-teal font-bold text-white shadow-action disabled:bg-neutral-200 disabled:text-neutral-700 disabled:shadow-none"
           >
-            Add {quantity > 1 ? `${quantity} ` : ""}
-            <span className="num ml-1">
-              {formatShelfGHS(product.price * quantity)}
-            </span>
+            {room === 0 ? (
+              product.left === 0 ? "Sold out for now" : "All of them are in your basket"
+            ) : (
+              <>
+                Add {Math.min(quantity, room) > 1 ? `${Math.min(quantity, room)} ` : ""}
+                <span className="num ml-1">{formatShelfGHS(product.price * Math.min(quantity, room))}</span>
+              </>
+            )}
           </button>
         </div>
       </div>

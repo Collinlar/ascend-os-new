@@ -74,7 +74,10 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
     window.scrollTo({ top: 0 });
   }, [view, openId]);
 
-  function setQuantity(productId: string, quantity: number) {
+  function setQuantity(productId: string, wanted: number) {
+    // Never more in the basket than the shop has left of a counted product.
+    const left = byId.get(productId)?.left;
+    const quantity = left === undefined ? wanted : Math.min(wanted, left);
     setBasket((prev) => {
       const next = { ...prev };
       if (quantity <= 0) delete next[productId];

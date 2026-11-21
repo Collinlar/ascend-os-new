@@ -232,19 +232,26 @@ function Tile({
   onOpen: () => void;
   onAdd: () => void;
 }) {
+  const soldOut = product.left === 0;
+  const full = product.left !== undefined && inBasket >= product.left;
   return (
     <div className="relative">
       <div className="relative aspect-square w-full overflow-hidden rounded-[18px]">
         <Photo product={product} sizeHint="(min-width: 1024px) 240px, (min-width: 768px) 30vw, 45vw" />
+        {soldOut && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[12px] font-bold text-danger-ink">Sold out</span>
+        )}
 
         {/* Adding is one tap from the grid. Opening the product is for
             somebody who wants to read before they commit, which is a
             different customer to the one restocking a weekly shop. It sits
             above the stretched open target so the two never fight. */}
+        {!soldOut && (
         <button
           type="button"
           onClick={onAdd}
-          aria-label={`Add ${product.name} to your basket`}
+          disabled={full}
+          aria-label={full ? `All the ${product.name} left are in your basket` : `Add ${product.name} to your basket`}
           className={`tap absolute bottom-2 right-2 z-10 flex h-11 w-11 items-center justify-center rounded-control shadow-card ${
             inBasket > 0 ? "bg-teal text-white" : "bg-white/95 text-teal-dark"
           }`}
@@ -262,6 +269,7 @@ function Tile({
             </svg>
           )}
         </button>
+        )}
       </div>
 
       <button
@@ -278,6 +286,9 @@ function Tile({
         <span className="num mt-0.5 block font-heading text-[16px] font-extrabold text-ink-heading">
           {formatShelfGHS(product.price)}
         </span>
+        {product.left !== undefined && product.left > 0 && product.left <= 5 && (
+          <span className="mt-0.5 block text-[12.5px] font-semibold text-gold-700">Only {product.left} left</span>
+        )}
       </button>
     </div>
   );

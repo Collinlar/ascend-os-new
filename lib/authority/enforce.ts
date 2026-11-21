@@ -32,6 +32,7 @@ const ROUTE_GROUP: Record<string, string> = {
   "catalogue/photo": "catalogue",
   "catalogue/stock": "catalogue",
   "inventory/receive": "catalogue",
+  "inventory/rule": "catalogue",
   "staff/team": "team",
   "staff/pin": "team",
   "devices/pairing-code": "team",

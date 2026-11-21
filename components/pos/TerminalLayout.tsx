@@ -255,9 +255,8 @@ export default function TerminalLayout({ till, onCloseShift }: { till: Till; onC
                   return (
                     <button
                       key={item.id}
-                      onClick={() => !soldOut && till.addToCart(item)}
-                      disabled={soldOut}
-                      className={`tap relative flex flex-col gap-1.5 rounded-[14px] border-[1.5px] bg-white p-1.5 pb-2 text-left transition-transform active:scale-[0.98] disabled:opacity-50 ${
+                      onClick={() => till.addToCart(item)}
+                      className={`tap relative flex flex-col gap-1.5 rounded-[14px] border-[1.5px] bg-white p-1.5 pb-2 text-left transition-transform active:scale-[0.98] ${
                         qty ? "border-teal" : "border-line-brand"
                       }`}
                     >

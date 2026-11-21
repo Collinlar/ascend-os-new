@@ -16,6 +16,8 @@ export interface StockLine {
   category: string | null;
   tracked: boolean;
   lowAt: number | null;
+  /** What the till does when it runs out: none, soft or hard (0127). */
+  rule: "none" | "soft" | "hard";
   /** One entry per place, in the order of `places`. */
   at: { onHand: number; held: number; available: number }[];
   onHand: number;
@@ -53,7 +55,7 @@ export async function stockLevels(businessId: string): Promise<{ places: Place[]
   const db = supabaseServer();
   const [locs, items, bal, res] = await Promise.all([
     db.from("location").select("id, name").eq("business_id", businessId).eq("active", true).order("created_at"),
-    db.from("catalogue_item").select("id, name, category, track_stock, low_stock_threshold").eq("business_id", businessId).eq("active", true).order("name"),
+    db.from("catalogue_item").select("id, name, category, track_stock, low_stock_threshold, stock_enforcement").eq("business_id", businessId).eq("active", true).order("name"),
     db.from("stock_balance").select("location_id, item_id, quantity_on_hand, last_movement_at").eq("business_id", businessId).is("variant_id", null),
     db.from("stock_reserved").select("location_id, item_id, quantity_reserved").eq("business_id", businessId).is("variant_id", null),
   ]);
@@ -85,6 +87,7 @@ export async function stockLevels(businessId: string): Promise<{ places: Place[]
       category: (it.category as string | null) ?? null,
       tracked: Boolean(it.track_stock),
       lowAt: it.low_stock_threshold === null ? null : Number(it.low_stock_threshold),
+      rule: (it.stock_enforcement === "soft" || it.stock_enforcement === "hard" ? it.stock_enforcement : "none") as StockLine["rule"],
       at,
       onHand: sum((x) => x.onHand),
       held: sum((x) => x.held),
@@ -100,6 +103,12 @@ export function isLow(l: StockLine) {
 }
 export function isOut(l: StockLine) {
   return l.tracked && l.available <= 0;
+}
+/** Sold more than was on record at any place: an offline till, or goods
+ *  that came in and were never received. Judged per place, because stock at
+ *  one shop does not make a negative shelf at another true. */
+export function isBelowZero(l: StockLine) {
+  return l.tracked && l.at.some((a) => a.onHand < 0);
 }
 
 export async function recentMovements(

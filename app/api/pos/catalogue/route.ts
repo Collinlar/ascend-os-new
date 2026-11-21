@@ -33,6 +33,7 @@ async function handleGET(request: NextRequest) {
     name: string;
     base_price: string | number;
     track_stock: boolean;
+    stock_enforcement?: string | null;
     barcode: string | null;
     category: string | null;
     photo_url?: string | null;
@@ -49,8 +50,8 @@ async function handleGET(request: NextRequest) {
       .not("base_price", "is", null);
   }
 
-  let result = await fetchItems(`${BASE_COLUMNS}, photo_url`);
-  if (result.error && /photo_url/.test(result.error.message)) {
+  let result = await fetchItems(`${BASE_COLUMNS}, photo_url, stock_enforcement`);
+  if (result.error && /photo_url|stock_enforcement/.test(result.error.message)) {
     result = await fetchItems(BASE_COLUMNS);
   }
 
@@ -91,6 +92,17 @@ async function handleGET(request: NextRequest) {
   const stockByItem = new Map(
     (balances ?? []).map((b) => [b.item_id as string, Number(b.quantity_on_hand)])
   );
+  // Available to sell, not just on the shelf: what open shop orders have set
+  // aside here is spoken for (Inventory Core I2). Holds are written negative.
+  const { data: holds } = await db
+    .from("stock_reserved")
+    .select("item_id, quantity_reserved")
+    .eq("business_id", device.businessId)
+    .eq("location_id", device.locationId);
+  for (const h of holds ?? []) {
+    const id = h.item_id as string;
+    stockByItem.set(id, (stockByItem.get(id) ?? 0) + Number(h.quantity_reserved));
+  }
 
   return NextResponse.json({
     businessId: device.businessId,
@@ -110,6 +122,7 @@ async function handleGET(request: NextRequest) {
       price: Number(item.base_price),
       trackStock: item.track_stock,
       localStock: item.track_stock ? (stockByItem.get(item.id) ?? 0) : undefined,
+      stockRule: item.stock_enforcement === "soft" || item.stock_enforcement === "hard" ? item.stock_enforcement : "none",
       barcode: item.barcode,
       category: item.category,
       photoUrl: item.photo_url ?? null,

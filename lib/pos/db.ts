@@ -89,6 +89,8 @@ export interface LocalItem {
   barcode?: string | null;
   category?: string | null;
   lowStockThreshold?: number;
+  /** What to do when it runs out (lib/pos/stock.ts). Absent means keep selling. */
+  stockRule?: "none" | "soft" | "hard";
 }
 
 function isBrowser(): boolean {

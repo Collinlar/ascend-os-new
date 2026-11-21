@@ -86,11 +86,11 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
     const exact = catalogue.find((i) => (i.barcode ?? "") === q);
     const only = visibleItems.length === 1 ? visibleItems[0] : undefined;
     const item = exact ?? only;
-    if (item && stockTone(item.localStock, item.lowStockThreshold) !== "out") {
-      till.addToCart(item);
-      setQuery("");
+    if (item) {
+      // A product at zero still sells unless its rule says stop (I2).
+      if (till.addToCart(item)) setQuery("");
       setNotFound(null);
-    } else if (!item) {
+    } else {
       setNotFound(q);
     }
   }
@@ -257,9 +257,8 @@ export default function CounterLayout({ till, onCloseShift }: { till: Till; onCl
                     return (
                       <button
                         key={item.id}
-                        onClick={() => !soldOut && till.addToCart(item)}
-                        disabled={soldOut}
-                        className={`tap relative flex flex-col gap-2 rounded-[18px] border-[1.5px] bg-white p-2 pb-3 text-left hover:border-teal disabled:opacity-50 ${
+                        onClick={() => till.addToCart(item)}
+                        className={`tap relative flex flex-col gap-2 rounded-[18px] border-[1.5px] bg-white p-2 pb-3 text-left hover:border-teal ${
                           qty ? "border-teal" : "border-line-brand"
                         }`}
                       >

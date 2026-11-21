@@ -109,6 +109,22 @@ async function handlePOST(request: NextRequest) {
   });
 
   if (error) {
+    // 0127: 'not_enough_stock|<left>|<name>'.
+    const short = /not_enough_stock\|([\d.]+)\|(.+)$/.exec(error.message);
+    if (short) {
+      const left = Number(short[1]);
+      const name = short[2];
+      return NextResponse.json(
+        {
+          error:
+            left <= 0
+              ? `${name} just sold out. Remove it from your basket and order again.`
+              : `Only ${left} ${name} left. Change the number in your basket and order again.`,
+          shortOf: { name, left },
+        },
+        { status: 409 }
+      );
+    }
     const unavailable = /item unavailable|no price/.test(error.message);
     return NextResponse.json(
       {

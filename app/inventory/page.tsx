@@ -6,7 +6,8 @@ import { EmptyState, FigureRow, PageHeader, PageShell, Panel } from "@/component
 import AdjustStock from "@/components/inventory/AdjustStock";
 import ReceiveStock from "@/components/inventory/ReceiveStock";
 import { supabaseServer } from "@/lib/supabase";
-import { isLow, isOut, KIND_LABEL, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import StockRule from "@/components/inventory/StockRule";
+import { isBelowZero, isLow, isOut, KIND_LABEL, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ function qty(n: number) {
 }
 
 function Status({ line }: { line: StockLine }) {
+  if (isBelowZero(line)) return <span className="rounded-full bg-danger-tint px-2.5 py-0.5 text-[12px] font-bold text-danger-ink">Below zero</span>;
   if (isOut(line)) return <span className="rounded-full bg-danger-tint px-2.5 py-0.5 text-[12px] font-bold text-danger-ink">Out</span>;
   if (isLow(line)) return <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-[12px] font-bold text-gold-700">Low</span>;
   return null;
@@ -85,6 +87,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const low = tracked.filter(isLow);
   const out = tracked.filter(isOut);
   const held = tracked.reduce((n, l) => n + l.held, 0);
+  const belowZero = tracked.filter(isBelowZero);
   // Out at one place while another still has some: worth a move, not a reorder.
   const outSomewhere = places.length > 1 ? tracked.filter((l) => !isOut(l) && l.at.some((a) => a.available <= 0)).length : 0;
   const shown = show === "low" ? low : show === "out" ? out : tracked;
@@ -141,6 +144,17 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               { label: "Held for shop orders", value: qty(held), sub: "Set aside, not yet collected" },
             ]}
           />
+
+          {belowZero.length > 0 && (
+            <div role="status" className="mb-4 rounded-[18px] border border-danger/30 bg-danger-tint px-5 py-3.5 text-[13.5px] text-danger-ink">
+              <p className="font-bold">
+                {belowZero.length === 1 ? `${belowZero[0].name} has` : `${belowZero.length} products have`} sold more than Ascend had on record.
+              </p>
+              <p className="mt-0.5">
+                A till sold them offline, or goods came in that were never received here. Count the shelf with Adjust stock so the figure is true again.
+              </p>
+            </div>
+          )}
 
           <div role="tablist" aria-label="Inventory views" className="mb-4 flex gap-1 border-b border-line-brand">
             {[
@@ -266,6 +280,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
 
           {tab === "moves" && (
             <>
+              {filteredItem && canAdjust && filteredItem.tracked && (
+                <StockRule key={filteredItem.itemId} businessId={businessId} itemId={filteredItem.itemId} rule={filteredItem.rule} />
+              )}
               {filteredItem && (
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-[13.5px] text-neutral-700">
                   <span>

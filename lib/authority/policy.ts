@@ -165,6 +165,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "catalogue/photo": { POST: member("body", { permission: ["catalogue.manage"], capability: ["catalogue.core"] }) },
   // Stock is kept by POS (inventory.basic) or read by Shop (inventory.connection).
   "catalogue/stock": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
+  "inventory/rule": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "inventory/receive": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),

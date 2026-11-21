@@ -8,6 +8,7 @@
 // queued before the cashier is told it worked; nothing here depends on the
 // network being up (CHN-003, POS-002, POS PRD §17).
 
+import { stockCheck } from "./stock";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   commitSaleLocally,
@@ -99,6 +100,8 @@ export function useTill() {
   const [customers, setCustomers] = useState<TillCustomer[]>([]);
   const [customer, setCustomer] = useState<TillCustomer | null>(null);
   const [discount, setDiscount] = useState<TillDiscount | null>(null);
+  // The last thing the stock rule had to say (lib/pos/stock.ts).
+  const [stockNote, setStockNote] = useState<{ text: string; refused: boolean } | null>(null);
   // Who locked the till, so the sale they left is theirs to pick up again
   // and nobody else's.
   const [lockedFor, setLockedFor] = useState<string | null>(null);
@@ -228,9 +231,20 @@ export function useTill() {
     setCart([]);
     setCustomer(null);
     setDiscount(null);
+    setStockNote(null);
   }
 
-  function addToCart(item: LocalItem) {
+  /** Asks the item's stock rule before more of it goes in the sale. */
+  function allowMore(item: LocalItem, inSale: number, wanted: number): boolean {
+    const online = typeof navigator === "undefined" || navigator.onLine;
+    const check = stockCheck(item, inSale, wanted, online && status.kind !== "offline");
+    setStockNote(check.note ? { text: check.note, refused: !check.ok } : null);
+    return check.ok;
+  }
+
+  function addToCart(item: LocalItem): boolean {
+    const inSale = cart.find((l) => l.item.id === item.id)?.quantity ?? 0;
+    if (!allowMore(item, inSale, 1)) return false;
     setCart((prev) => {
       const existing = prev.find((l) => l.item.id === item.id);
       if (existing) {
@@ -239,9 +253,12 @@ export function useTill() {
       }
       return [...prev, { item, quantity: 1 }];
     });
+    return true;
   }
 
   function setQuantity(itemId: string, quantity: number) {
+    const line = cart.find((l) => l.item.id === itemId);
+    if (line && quantity > line.quantity && !allowMore(line.item, line.quantity, quantity - line.quantity)) return;
     setCart((prev) =>
       quantity <= 0
         ? prev.filter((l) => l.item.id !== itemId)
@@ -517,6 +534,8 @@ export function useTill() {
     handBack,
     gotIt,
     afterShiftClosed,
+    stockNote,
+    clearStockNote: () => setStockNote(null),
   };
 }
 
