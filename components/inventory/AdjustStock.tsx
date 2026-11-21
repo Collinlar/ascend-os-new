@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { primaryAction } from "@/components/shell/Page";
+import { secondaryAction } from "@/components/shell/Page";
 import { Icon } from "@/components/shell/icons";
 
-// Adjust stock (v3 Inventory, "Adjust stock"): goods came in, damaged or
-// lost, or a count of the shelf. Each one is a movement through
+// Adjust stock (v3 Inventory, "Adjust stock"): damaged or lost, or a count
+// of the shelf. Goods coming in go through Receive stock, which keeps the
+// supplier and the cost. Each one is a movement through
 // /api/catalogue/stock, never an overwrite, so the figure stays explainable.
 
-type Kind = "restock" | "damage_loss" | "count_correction";
+type Kind = "damage_loss" | "count_correction";
 
 const KINDS: [Kind, string][] = [
-  ["restock", "Goods came in"],
   ["damage_loss", "Damaged or lost"],
   ["count_correction", "I counted the shelf"],
 ];
@@ -39,7 +39,7 @@ export default function AdjustStock({
   const [open, setOpen] = useState(false);
   const [itemId, setItemId] = useState(startWith ?? "");
   const [placeId, setPlaceId] = useState(places[0]?.id ?? "");
-  const [kind, setKind] = useState<Kind>("restock");
+  const [kind, setKind] = useState<Kind>("count_correction");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -59,10 +59,10 @@ export default function AdjustStock({
     setError(null);
     if (!item) return setError("Pick the product first.");
     const n = Number(amount);
-    if (amount === "" || !Number.isFinite(n) || (kind !== "count_correction" && n <= 0) || n < 0) {
+    if (amount === "" || !Number.isFinite(n) || (kind === "damage_loss" && n <= 0) || n < 0) {
       return setError(kind === "count_correction" ? "Enter what you counted. Zero is fine if the shelf is empty." : "Enter how many.");
     }
-    if (kind !== "restock" && reason.trim() === "") {
+    if (reason.trim() === "") {
       return setError("Say what happened. This note explains the change later.");
     }
     setBusy(true);
@@ -90,9 +90,7 @@ export default function AdjustStock({
       setDone(
         body.no_change
           ? `${item.name}: your count matches the record, nothing to change.`
-          : kind === "restock"
-            ? `${item.name}: ${n} added.`
-            : kind === "damage_loss"
+          : kind === "damage_loss"
               ? `${item.name}: ${n} written off.`
               : `${item.name}: now ${n} on the shelf.`
       );
@@ -116,9 +114,8 @@ export default function AdjustStock({
           setOpen(true);
           setDone(null);
         }}
-        className={primaryAction}
+        className={secondaryAction}
       >
-        <Icon name="plus" size={16} />
         Adjust stock
       </button>
     );
@@ -185,7 +182,7 @@ export default function AdjustStock({
           </fieldset>
 
           <label className="text-[13px] font-semibold text-neutral-700">
-            {kind === "count_correction" ? "How many are on the shelf?" : kind === "restock" ? "How many came in?" : "How many?"}
+            {kind === "count_correction" ? "How many are on the shelf?" : "How many?"}
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
@@ -200,12 +197,10 @@ export default function AdjustStock({
             )}
           </label>
 
-          {kind !== "restock" && (
-            <label className="text-[13px] font-semibold text-neutral-700">
-              Why?
-              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Broken in transit, expired, miscounted" className={field} />
-            </label>
-          )}
+          <label className="text-[13px] font-semibold text-neutral-700">
+            Why?
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Broken in transit, expired, miscounted" className={field} />
+          </label>
 
           {error && (
             <p role="alert" className="rounded-control bg-danger-tint px-3 py-2.5 text-[13.5px] text-danger-ink">

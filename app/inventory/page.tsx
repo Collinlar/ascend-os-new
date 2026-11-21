@@ -4,6 +4,8 @@ import { activeMembership } from "@/lib/auth/active-business";
 import { checkPageAccess } from "@/lib/authority/page";
 import { EmptyState, FigureRow, PageHeader, PageShell, Panel } from "@/components/shell/Page";
 import AdjustStock from "@/components/inventory/AdjustStock";
+import ReceiveStock from "@/components/inventory/ReceiveStock";
+import { supabaseServer } from "@/lib/supabase";
 import { isLow, isOut, KIND_LABEL, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +74,12 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   }
 
   const { places, lines } = data;
+  // Average cost arrives with 0125; until then the page simply has none.
+  const costs = new Map<string, number>();
+  if (canAdjust) {
+    const { data: rows } = await supabaseServer().from("catalogue_item").select("id, average_cost").eq("business_id", businessId).not("average_cost", "is", null);
+    for (const r of (rows ?? []) as { id: string; average_cost: number | string }[]) costs.set(r.id, Number(r.average_cost));
+  }
   const tracked = lines.filter((l) => l.tracked);
   const untracked = lines.length - tracked.length;
   const low = tracked.filter(isLow);
@@ -103,7 +111,14 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
       <PageHeader
         title="Inventory"
         intro={multi ? `Stock across your ${places.length} places, and every change that made it.` : "What is on your shelf, and every change that made it."}
-        action={canAdjust && lines.length > 0 ? <AdjustStock businessId={businessId} places={places} items={adjustItems} startWith={itemFilter} /> : null}
+        action={
+          canAdjust && lines.length > 0 ? (
+            <>
+              <AdjustStock businessId={businessId} places={places} items={adjustItems} startWith={itemFilter} />
+              <ReceiveStock businessId={businessId} places={places} items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))} />
+            </>
+          ) : null
+        }
       />
 
       {lines.length === 0 ? (
@@ -172,7 +187,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               {tracked.length === 0 ? (
                 <EmptyState
                   title="You are not counting any products yet."
-                  detail="Tap Adjust stock and say goods came in. From then on every sale takes from the count."
+                  detail="Tap Receive stock when goods come in. From then on every sale takes from the count."
                 />
               ) : shown.length === 0 ? (
                 <EmptyState title={show === "out" ? "Nothing is out of stock." : "Nothing is running low."} detail="Good. This list fills as stock runs down." />
@@ -243,7 +258,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               )}
               {untracked > 0 && tracked.length > 0 && (
                 <p className="mt-3 text-[12.5px] text-neutral-600">
-                  {untracked} {untracked === 1 ? "product is" : "products are"} not counted. Say goods came in for one and it is counted from then on.
+                  {untracked} {untracked === 1 ? "product is" : "products are"} not counted. Receive stock for one and it is counted from then on.
                 </p>
               )}
             </>

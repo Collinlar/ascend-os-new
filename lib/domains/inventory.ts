@@ -40,7 +40,7 @@ export const KIND_LABEL: Record<string, string> = {
   opening_balance: "Opening count",
   restock: "Goods came in",
   sale: "Sold",
-  return: "Returned",
+  customer_return: "Returned",
   damage_loss: "Damaged or lost",
   count_correction: "Counted",
   transfer_in: "Moved in",
