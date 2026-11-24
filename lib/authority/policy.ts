@@ -169,6 +169,11 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "inventory/count": { POST: member("body", { capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "inventory/count/decide": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "inventory/receive": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
+  // Advanced Inventory (0131). Sending and calling back need stock rights;
+  // anyone at the receiving place may say what arrived.
+  "inventory/transfer": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.transfers"], location: "body" }) },
+  "inventory/transfer/arrived": { POST: member("body", { capability: ["inventory.transfers"], location: "body" }) },
+  "inventory/transfer/cancel": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.transfers"] }) },
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
   },
@@ -289,6 +294,7 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/products": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/products/add": { permission: ["catalogue.manage"], capability: ["catalogue.core"] },
   "/inventory/count": { capability: ["inventory.basic", "inventory.connection"] },
+  "/inventory/arrivals": { capability: ["inventory.transfers"] },
   "/inventory": { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] },
   "/shop": { permission: ["catalogue.manage"], capability: ["shop.storefront"] },
   "/devices": { permission: ["staff.manage"], capability: ["pos.tills"] },

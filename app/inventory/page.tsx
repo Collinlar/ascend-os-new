@@ -9,15 +9,18 @@ import { supabaseServer } from "@/lib/supabase";
 import StockRule from "@/components/inventory/StockRule";
 import CountDecision from "@/components/inventory/CountDecision";
 import { formatGHS } from "@/lib/money";
-import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, type StockCountView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import SendTransfer from "@/components/inventory/SendTransfer";
+import TransferCancel from "@/components/inventory/TransferCancel";
+import { effectiveAccess } from "@/lib/domains/entitlements";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockTransfers, type StockCountView, type StockTransferView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
 // Inventory (Inventory Core plan, decision 10; v3 Business Web "Inventory").
 // Stock by place, on hand, held for shop orders and available, and the
-// movement history that explains every figure. Adjust stock is the one
-// action. Transfers and suppliers come with Advanced Inventory and are not
-// shown here until it exists.
+// movement history that explains every figure. Moving stock between places
+// comes with Advanced Inventory (0131): a business without it sees no
+// Transfers tab and no locked teaser (decision 10).
 
 type Show = "all" | "low" | "out";
 
@@ -60,16 +63,23 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const businessId = membership.business_id;
   const membershipId = membership.id;
   const canAdjust = ["owner", "manager"].includes(membership.role?.key ?? "");
-  const tab = searchParams.tab === "moves" ? "moves" : searchParams.tab === "counts" ? "counts" : "stock";
+  const asked = searchParams.tab;
+  let tab = asked === "moves" || asked === "counts" || asked === "transfers" ? asked : "stock";
   const show: Show = searchParams.show === "low" || searchParams.show === "out" ? searchParams.show : "all";
   const itemFilter = /^[0-9a-f-]{36}$/i.test(searchParams.item ?? "") ? searchParams.item : undefined;
 
   let data: { places: { id: string; name: string }[]; lines: StockLine[] };
   let moves: Movement[] = [];
   let counts: StockCountView[] = [];
+  let transfers: StockTransferView[] = [];
+  const canMove = await effectiveAccess(businessId)
+    .then((a) => a.capabilities.has("inventory.transfers"))
+    .catch(() => false);
+  if (tab === "transfers" && !canMove) tab = "stock";
   try {
     data = await stockLevels(businessId);
     counts = await stockCounts(businessId);
+    if (canMove) transfers = await stockTransfers(businessId);
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
@@ -94,6 +104,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const held = tracked.reduce((n, l) => n + l.held, 0);
   const belowZero = tracked.filter(isBelowZero);
   const waiting = counts.filter((c) => c.status === "waiting");
+  const onTheWay = transfers.filter((t) => t.status === "sent");
   // Out at one place while another still has some: worth a move, not a reorder.
   const outSomewhere = places.length > 1 ? tracked.filter((l) => !isOut(l) && l.at.some((a) => a.available <= 0)).length : 0;
   const shown = show === "low" ? low : show === "out" ? out : tracked;
@@ -126,6 +137,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               <Link href="/inventory/count" className={secondaryAction}>
                 Count the shelf
               </Link>
+              {canMove && places.length > 1 && <SendTransfer businessId={businessId} places={places} items={adjustItems} />}
               <AdjustStock businessId={businessId} places={places} items={adjustItems} startWith={itemFilter} />
               <ReceiveStock businessId={businessId} places={places} items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))} />
             </>
@@ -163,6 +175,15 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             </Link>
           )}
 
+          {onTheWay.length > 0 && tab !== "transfers" && (
+            <Link href="/inventory?tab=transfers" className="tap mb-4 flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-line-brand bg-teal-50 px-5 py-3 text-[13.5px] font-semibold text-teal-800">
+              <span>
+                {onTheWay.length === 1 ? `Stock is on the way to ${onTheWay[0].to}.` : `${onTheWay.length} lots of stock are on the way between your places.`}
+              </span>
+              <span className="flex-none underline">See transfers</span>
+            </Link>
+          )}
+
           {belowZero.length > 0 && (
             <div role="status" className="mb-4 rounded-[18px] border border-danger/30 bg-danger-tint px-5 py-3.5 text-[13.5px] text-danger-ink">
               <p className="font-bold">
@@ -179,6 +200,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               ["stock", multi ? "Stock by place" : "Stock"],
               ["moves", "Movements"],
               ["counts", waiting.length ? `Counts (${waiting.length} waiting)` : "Counts"],
+              ...(canMove ? [["transfers", onTheWay.length ? `Transfers (${onTheWay.length} on the way)` : "Transfers"]] : []),
             ].map(([k, label]) => (
               <Link
                 key={k}
@@ -344,6 +366,80 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                 </Panel>
               )}
               {moves.length === 150 && <p className="mt-3 text-[12.5px] text-neutral-600">The latest 150. Pick a product to see its whole history.</p>}
+            </>
+          )}
+
+          {tab === "transfers" && (
+            <>
+              {places.length < 2 ? (
+                <EmptyState title="Moving stock needs a second place." detail="Once your business has two places, send stock between them here. Talk to us to add one." />
+              ) : transfers.length === 0 ? (
+                <EmptyState title="No stock has moved between your places yet." detail="Tap Move stock to send goods from one place to another. Someone at the other place counts them in." />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {onTheWay.length > 0 && (
+                    <Link href="/inventory/arrivals" className="tap flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-line-brand bg-white px-5 py-3 text-[13.5px] font-semibold text-teal-800">
+                      <span>Whoever is at the other place counts the goods in on their phone.</span>
+                      <span className="flex-none underline">Open goods on the way</span>
+                    </Link>
+                  )}
+                  {transfers.map((t) => (
+                    <Panel key={t.id} className="px-5 py-4">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                        <p className="text-[14.5px] font-semibold text-ink">
+                          {t.from} to {t.to}
+                        </p>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
+                            t.status === "sent"
+                              ? "bg-gold-100 text-gold-700"
+                              : t.status === "received" && t.missingLines > 0
+                                ? "bg-danger-tint text-danger-ink"
+                                : t.status === "received"
+                                  ? "bg-teal-50 text-teal-800"
+                                  : "bg-neutral-100 text-neutral-700"
+                          }`}
+                        >
+                          {t.status === "sent" ? "On the way" : t.status === "received" ? (t.missingLines > 0 ? "Arrived short" : "Arrived") : "Called back"}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[12.5px] text-neutral-600">
+                        Sent by {t.sentBy}, {when(t.sentAt)}
+                        {t.status === "received" && t.receivedAt ? ` · counted in by ${t.receivedBy ?? "a team member"}, ${when(t.receivedAt)}` : ""}
+                        {t.status === "cancelled" && t.cancelledAt ? ` · called back by ${t.cancelledBy ?? "a team member"}, ${when(t.cancelledAt)}` : ""}
+                      </p>
+                      {(t.note || t.receiveNote) && (
+                        <p className="mt-1 text-[12.5px] text-neutral-700">
+                          {[t.note, t.receiveNote].filter(Boolean).map((n) => `\u201c${n}\u201d`).join(" · ")}
+                        </p>
+                      )}
+                      <div className="mt-2 overflow-hidden rounded-control border border-neutral-100">
+                        {t.lines.map((l, i) => {
+                          const short = l.received !== null && l.received < l.sent;
+                          return (
+                            <div key={l.itemId} className={`flex items-baseline justify-between gap-3 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                              <span className="min-w-0 text-ink">{l.item}</span>
+                              <span className={`num flex-none ${short ? "font-semibold text-danger-ink" : "text-neutral-700"}`}>
+                                {l.received === null ? `${qty(l.sent)} sent` : short ? `${qty(l.received)} of ${qty(l.sent)} arrived` : `${qty(l.sent)} arrived`}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {t.status === "received" && t.missingLines > 0 && (
+                        <p className="mt-2 text-[13px] text-danger-ink">
+                          {t.missingValue > 0 ? `${formatGHS(t.missingValue)} written off` : "Written off"} at {t.to} as lost on the way.
+                        </p>
+                      )}
+                      {t.status === "sent" && canAdjust && (
+                        <div className="mt-2">
+                          <TransferCancel businessId={businessId} transferId={t.id} from={t.from} />
+                        </div>
+                      )}
+                    </Panel>
+                  ))}
+                </div>
+              )}
             </>
           )}
 

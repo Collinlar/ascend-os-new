@@ -231,3 +231,89 @@ export async function stockCounts(businessId: string, limit = 20): Promise<Stock
   }));
   return [...views.filter((v) => v.status === "waiting"), ...views.filter((v) => v.status !== "waiting")];
 }
+
+// ---------------------------------------------------------------------------
+// Transfers between places (Advanced Inventory A1, 0131)
+// ---------------------------------------------------------------------------
+
+export interface TransferLine {
+  itemId: string;
+  item: string;
+  sent: number;
+  /** Null until it arrives. Never shown to the person receiving. */
+  received: number | null;
+}
+
+export interface StockTransferView {
+  id: string;
+  status: "sent" | "received" | "cancelled";
+  from: string;
+  fromId: string;
+  to: string;
+  toId: string;
+  sentBy: string;
+  receivedBy: string | null;
+  cancelledBy: string | null;
+  sentAt: string;
+  receivedAt: string | null;
+  cancelledAt: string | null;
+  note: string | null;
+  receiveNote: string | null;
+  missingLines: number;
+  missingValue: number;
+  lines: TransferLine[];
+}
+
+/** On the way first, then the latest that arrived or were called back.
+ *  Empty when 0131 has not been applied, so the page still works without it. */
+export async function stockTransfers(businessId: string, opts: { onTheWayOnly?: boolean; limit?: number } = {}): Promise<StockTransferView[]> {
+  const db = supabaseServer();
+  let query = db
+    .from("stock_transfer")
+    .select(
+      "id, status, sent_at, received_at, cancelled_at, note, receive_note, missing_lines, missing_value, from_location_id, to_location_id, from:from_location_id(name), to:to_location_id(name), sender:sent_by(person:person_id(full_name)), receiver:received_by(person:person_id(full_name)), canceller:cancelled_by(person:person_id(full_name))"
+    )
+    .eq("business_id", businessId)
+    .order("sent_at", { ascending: false })
+    .limit(opts.limit ?? 30);
+  if (opts.onTheWayOnly) query = query.eq("status", "sent");
+  const { data, error } = await query;
+  if (error || !data) return [];
+  const ids = data.map((t) => t.id as string);
+  const { data: lineRows } = ids.length
+    ? await db.from("stock_transfer_line").select("transfer_id, item_id, sent, received, item:item_id(name)").in("transfer_id", ids)
+    : { data: [] };
+  const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+  const who = (v: unknown) => one<{ full_name: string }>(one<{ person: unknown }>(v)?.person)?.full_name ?? null;
+  const byTransfer = new Map<string, TransferLine[]>();
+  for (const l of lineRows ?? []) {
+    const list = byTransfer.get(l.transfer_id as string) ?? [];
+    list.push({
+      itemId: l.item_id as string,
+      item: one<{ name: string }>(l.item)?.name ?? "A product",
+      sent: Number(l.sent),
+      received: l.received === null ? null : Number(l.received),
+    });
+    byTransfer.set(l.transfer_id as string, list);
+  }
+  const views: StockTransferView[] = data.map((t) => ({
+    id: t.id as string,
+    status: t.status as StockTransferView["status"],
+    from: one<{ name: string }>(t.from)?.name ?? "",
+    fromId: t.from_location_id as string,
+    to: one<{ name: string }>(t.to)?.name ?? "",
+    toId: t.to_location_id as string,
+    sentBy: who(t.sender) ?? "A team member",
+    receivedBy: who(t.receiver),
+    cancelledBy: who(t.canceller),
+    sentAt: t.sent_at as string,
+    receivedAt: (t.received_at as string | null) ?? null,
+    cancelledAt: (t.cancelled_at as string | null) ?? null,
+    note: (t.note as string | null) ?? null,
+    receiveNote: (t.receive_note as string | null) ?? null,
+    missingLines: Number(t.missing_lines),
+    missingValue: Number(t.missing_value),
+    lines: (byTransfer.get(t.id as string) ?? []).sort((a, b) => a.item.localeCompare(b.item)),
+  }));
+  return [...views.filter((v) => v.status === "sent"), ...views.filter((v) => v.status !== "sent")];
+}

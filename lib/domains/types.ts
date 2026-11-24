@@ -23,7 +23,8 @@ export type ProductSetKey =
   | "documents"
   | "office"
   | "discover"
-  | "readiness";
+  | "readiness"
+  | "advanced_inventory";
 
 export type RoleKey = "owner" | "manager" | "cashier" | "accountant" | "staff";
 
