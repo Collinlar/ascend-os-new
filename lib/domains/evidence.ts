@@ -14,7 +14,11 @@ import type { BusinessEventType } from "./events";
 // sales, fulfilled orders, completed bookings, paid documents and confirmed
 // payments are gone from here. Their old records are retired from counting
 // in the database; writing new ones would only add records that never count.
-export const EVIDENCE_RULE_VERSION = "2026.11-2";
+//
+// 2026.11-3 (Inventory Core I5): a posted stock count is operational
+// evidence, weighted low, and says nothing about the business's money. A
+// count that found nothing missing earns more than one that found a gap.
+export const EVIDENCE_RULE_VERSION = "2026.11-3";
 
 type Dimension =
   | "identity_stability"
@@ -101,7 +105,21 @@ const RULES: Partial<Record<BusinessEventType, EvidenceRule>> = {
     evidenceType: "recorded_spending",
     weights: { merchant_declared: 0.5, customer_confirmed: 1 },
   },
+  // Counting the shelf is a habit of control, not a financial result
+  // (Inventory Core decision 7). The weight is set from what the count found,
+  // below: 0.5 when nothing was missing, 0.2 when stock was short.
+  "inventory.count.posted": {
+    dimension: "operational_structure",
+    evidenceType: "stock_count",
+    weights: { merchant_declared: 0.5 },
+  },
 };
+
+/** A count that found stock missing still shows the habit, but earns less. */
+function countWeight(payload: Record<string, unknown> | null | undefined, base: number): number {
+  const short = Number(payload?.write_down_value ?? 0);
+  return short > 0 ? 0.2 : base;
+}
 
 interface OutboxEvent {
   event_id: string;
@@ -141,8 +159,9 @@ export async function processEventForEvidence(event: OutboxEvent): Promise<void>
   if (!rule) return; // event is auditable activity but not scoring evidence
 
   const verification = event.verification ?? "merchant_declared";
-  const weight =
+  const listed =
     rule.weights[verification as keyof EvidenceRule["weights"]] ?? rule.weights.merchant_declared;
+  const weight = event.event_type === "inventory.count.posted" ? countWeight(event.payload, listed) : listed;
 
   const { error } = await db.from("evidence_record").insert({
     business_id: event.business_id,
@@ -153,7 +172,10 @@ export async function processEventForEvidence(event: OutboxEvent): Promise<void>
       verification === "provider_confirmed" ? "payment_verified" : verification,
     weight,
     rule_version: EVIDENCE_RULE_VERSION,
-    detail: {},
+    detail:
+      event.event_type === "inventory.count.posted"
+        ? { lines: event.payload?.lines ?? null, differing: event.payload?.differing ?? null, short: event.payload?.write_down_value ?? null }
+        : {},
   });
 
   // Unique (source_event_id, evidence_type) makes retries safe (EVT-006).

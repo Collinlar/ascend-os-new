@@ -37,6 +37,7 @@ export type BusinessEventType =
   | "finance.payment.confirmed"
   | "finance.payment.refunded"
   | "inventory.movement.recorded"
+  | "inventory.count.posted"
   | "office.task.completed"
   | "office.expense.submitted"
   | "office.approval.decided"

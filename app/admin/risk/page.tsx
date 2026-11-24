@@ -28,6 +28,8 @@ const SIGNAL_LABEL: Record<string, string> = {
   new_and_heavy: "New business, heavy volume",
   likely_duplicate: "Likely duplicate business",
   customer_reports: "Customer reports",
+  stock_write_offs: "Heavy stock write-offs",
+  count_gaps: "Stock counts keep coming up short",
 };
 
 const SEVERITY_STYLE: Record<string, string> = {
