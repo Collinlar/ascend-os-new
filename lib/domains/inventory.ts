@@ -317,3 +317,173 @@ export async function stockTransfers(businessId: string, opts: { onTheWayOnly?: 
   }));
   return [...views.filter((v) => v.status === "sent"), ...views.filter((v) => v.status !== "sent")];
 }
+
+// ---------------------------------------------------------------------------
+// Suppliers and stock orders (Advanced Inventory A2, 0132)
+// ---------------------------------------------------------------------------
+
+export interface UnpaidDelivery {
+  receiptId: string;
+  receivedAt: string;
+  total: number;
+  reference: string | null;
+  place: string;
+}
+
+export interface SupplierView {
+  id: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  paymentTerms: string | null;
+  notes: string | null;
+  openOrders: number;
+  onOrderValue: number;
+  owed: number;
+  delivered90d: number;
+  lastDeliveryAt: string | null;
+  unpaid: UnpaidDelivery[];
+}
+
+export interface StockOrderLineView {
+  itemId: string;
+  item: string;
+  ordered: number;
+  received: number;
+  unitCost: number | null;
+}
+
+export interface StockOrderView {
+  id: string;
+  number: string | null;
+  supplierId: string;
+  supplier: string;
+  supplierPhone: string | null;
+  placeId: string;
+  place: string;
+  status: "open" | "received" | "closed" | "cancelled";
+  expectedOn: string | null;
+  note: string | null;
+  orderedBy: string | null;
+  orderedAt: string;
+  receivedAt: string | null;
+  closedAt: string | null;
+  closeNote: string | null;
+  total: number;
+  lines: StockOrderLineView[];
+}
+
+/** Every active supplier with what is on order, owed and delivered, most
+ *  owed first. Empty when 0132 has not been applied. */
+export async function suppliers(businessId: string): Promise<SupplierView[]> {
+  const db = supabaseServer();
+  const [rows, ledger, unpaidRows] = await Promise.all([
+    db.from("supplier").select("id, name, contact_name, phone_e164, payment_terms, notes").eq("business_id", businessId).eq("active", true).order("name"),
+    db.rpc("supplier_ledger", { p_business: businessId }),
+    db
+      .from("stock_receipt")
+      .select("id, supplier_id, received_at, total_cost, reference, place:location_id(name)")
+      .eq("business_id", businessId)
+      .not("supplier_id", "is", null)
+      .gt("total_cost", 0)
+      .order("received_at", { ascending: false })
+      .limit(300),
+  ]);
+  if (rows.error || ledger.error || !rows.data) return [];
+  const ids = (unpaidRows.data ?? []).map((r) => r.id as string);
+  const { data: paidRows } = ids.length
+    ? await db.from("financial_event").select("source_id").eq("source_type", "stock_receipt").eq("kind", "expense").in("source_id", ids)
+    : { data: [] };
+  const paid = new Set((paidRows ?? []).map((r) => r.source_id as string));
+  const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+  const unpaidBy = new Map<string, UnpaidDelivery[]>();
+  for (const r of unpaidRows.data ?? []) {
+    if (paid.has(r.id as string)) continue;
+    const list = unpaidBy.get(r.supplier_id as string) ?? [];
+    list.push({
+      receiptId: r.id as string,
+      receivedAt: r.received_at as string,
+      total: Number(r.total_cost),
+      reference: (r.reference as string | null) ?? null,
+      place: one<{ name: string }>(r.place)?.name ?? "",
+    });
+    unpaidBy.set(r.supplier_id as string, list);
+  }
+  const figures = new Map(
+    ((ledger.data ?? []) as Record<string, unknown>[]).map((l) => [l.supplier_id as string, l])
+  );
+  return rows.data
+    .map((s) => {
+      const f = figures.get(s.id as string) ?? {};
+      return {
+        id: s.id as string,
+        name: s.name as string,
+        contactName: (s.contact_name as string | null) ?? null,
+        phone: (s.phone_e164 as string | null) ?? null,
+        paymentTerms: (s.payment_terms as string | null) ?? null,
+        notes: (s.notes as string | null) ?? null,
+        openOrders: Number(f.open_orders ?? 0),
+        onOrderValue: Number(f.on_order_value ?? 0),
+        owed: Number(f.owed ?? 0),
+        delivered90d: Number(f.delivered_90d ?? 0),
+        lastDeliveryAt: (f.last_delivery_at as string | null) ?? null,
+        unpaid: (unpaidBy.get(s.id as string) ?? []).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt)),
+      };
+    })
+    .sort((a, b) => b.owed - a.owed || b.onOrderValue - a.onOrderValue || a.name.localeCompare(b.name));
+}
+
+/** Open orders first, then the latest finished ones. */
+export async function stockOrders(businessId: string, limit = 30): Promise<StockOrderView[]> {
+  const db = supabaseServer();
+  const { data, error } = await db
+    .from("stock_order")
+    .select(
+      "document_id, supplier_id, location_id, status, expected_on, note, ordered_at, received_at, closed_at, close_note, doc:document!stock_order_document_id_fkey(number, total), supplier:supplier_id(name, phone_e164), place:location_id(name), orderer:ordered_by(person:person_id(full_name))"
+    )
+    .eq("business_id", businessId)
+    .order("ordered_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  const ids = data.map((o) => o.document_id as string);
+  const { data: lineRows } = ids.length
+    ? await db.from("stock_order_line").select("document_id, item_id, ordered, received, unit_cost, item:item_id(name)").in("document_id", ids)
+    : { data: [] };
+  const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+  const byOrder = new Map<string, StockOrderLineView[]>();
+  for (const l of lineRows ?? []) {
+    const list = byOrder.get(l.document_id as string) ?? [];
+    list.push({
+      itemId: l.item_id as string,
+      item: one<{ name: string }>(l.item)?.name ?? "A product",
+      ordered: Number(l.ordered),
+      received: Number(l.received),
+      unitCost: l.unit_cost === null ? null : Number(l.unit_cost),
+    });
+    byOrder.set(l.document_id as string, list);
+  }
+  const views: StockOrderView[] = data.map((o) => {
+    const doc = one<{ number: string | null; total: number | string | null }>(o.doc);
+    const sup = one<{ name: string; phone_e164: string | null }>(o.supplier);
+    return {
+      id: o.document_id as string,
+      number: doc?.number ?? null,
+      supplierId: o.supplier_id as string,
+      supplier: sup?.name ?? "A supplier",
+      supplierPhone: sup?.phone_e164 ?? null,
+      placeId: o.location_id as string,
+      place: one<{ name: string }>(o.place)?.name ?? "",
+      status: o.status as StockOrderView["status"],
+      expectedOn: (o.expected_on as string | null) ?? null,
+      note: (o.note as string | null) ?? null,
+      orderedBy: one<{ full_name: string }>(one<{ person: unknown }>(o.orderer)?.person)?.full_name ?? null,
+      orderedAt: o.ordered_at as string,
+      receivedAt: (o.received_at as string | null) ?? null,
+      closedAt: (o.closed_at as string | null) ?? null,
+      closeNote: (o.close_note as string | null) ?? null,
+      total: Number(doc?.total ?? 0),
+      lines: (byOrder.get(o.document_id as string) ?? []).sort((a, b) => a.item.localeCompare(b.item)),
+    };
+  });
+  return [...views.filter((v) => v.status === "open"), ...views.filter((v) => v.status !== "open")];
+}

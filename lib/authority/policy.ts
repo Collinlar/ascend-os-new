@@ -169,6 +169,11 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "inventory/count": { POST: member("body", { capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
   "inventory/count/decide": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "inventory/receive": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"], location: "body" }) },
+  // Advanced Inventory purchasing (0132): owners and managers only.
+  "inventory/supplier": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
+  "inventory/order": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"], location: "body" }) },
+  "inventory/order/close": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
+  "inventory/receipt/pay": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
   // Advanced Inventory (0131). Sending and calling back need stock rights;
   // anyone at the receiving place may say what arrived.
   "inventory/transfer": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.transfers"], location: "body" }) },

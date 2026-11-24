@@ -52,7 +52,7 @@ const FALLBACK_ESSENTIALS: Record<ProductSetKey, string[]> = {
   office: ["office.work", "work.core", "work.approvals", "people.core"],
   discover: ["discover.listing"],
   readiness: ["readiness.score"],
-  advanced_inventory: ["inventory.transfers"],
+  advanced_inventory: ["inventory.transfers", "inventory.purchasing"],
 };
 
 export interface EffectiveAccess {

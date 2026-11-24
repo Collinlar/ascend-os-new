@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { primaryAction } from "@/components/shell/Page";
+import { primaryAction, secondaryAction } from "@/components/shell/Page";
 import { Icon } from "@/components/shell/icons";
 import { formatGHS } from "@/lib/money";
 
@@ -10,6 +10,10 @@ import { formatGHS } from "@/lib/money";
 // and whether it is paid. Paid deliveries record the money out under "Stock
 // and goods for resale" at the same moment, so the shelf and the cash agree
 // without typing it twice (decision 2).
+//
+// Against an order (Advanced Inventory A2, 0132): the supplier and place
+// come from the order and the lines start as what is still to come, at the
+// price ordered. Change any line to what actually arrived.
 
 type Method = "cash" | "mobile_money" | "bank_transfer" | "card";
 const METHODS: [Method, string][] = [
@@ -27,23 +31,41 @@ interface Line {
 }
 
 const blank = (): Line => ({ key: crypto.randomUUID(), itemId: "", quantity: "", unitCost: "" });
+
+export interface ReceivableOrder {
+  id: string;
+  number: string | null;
+  supplier: string;
+  placeId: string;
+  place: string;
+  lines: { itemId: string; remaining: number; unitCost: number | null }[];
+}
+
+const fromOrder = (order: ReceivableOrder): Line[] =>
+  order.lines
+    .filter((l) => l.remaining > 0)
+    .map((l) => ({ key: crypto.randomUUID(), itemId: l.itemId, quantity: String(l.remaining), unitCost: l.unitCost === null ? "" : String(l.unitCost) }));
 const numeric = (v: string) => v.replace(/[^\d.]/g, "");
 
 export default function ReceiveStock({
   businessId,
   places,
   items,
+  order,
+  supplierNames,
 }: {
   businessId: string;
   places: { id: string; name: string }[];
   items: { id: string; name: string; averageCost: number | null }[];
+  order?: ReceivableOrder;
+  supplierNames?: string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [placeId, setPlaceId] = useState(places[0]?.id ?? "");
+  const [placeId, setPlaceId] = useState(order?.placeId ?? places[0]?.id ?? "");
   const [supplier, setSupplier] = useState("");
   const [reference, setReference] = useState("");
-  const [lines, setLines] = useState<Line[]>([blank()]);
+  const [lines, setLines] = useState<Line[]>(() => (order ? fromOrder(order) : [blank()]));
   const [paid, setPaid] = useState<boolean | null>(null);
   const [method, setMethod] = useState<Method | null>(null);
   const [busy, setBusy] = useState(false);
@@ -99,7 +121,8 @@ export default function ReceiveStock({
         body: JSON.stringify({
           businessId,
           locationId: placeId,
-          supplierName: supplier.trim(),
+          supplierName: order ? "" : supplier.trim(),
+          purchaseOrderId: order?.id,
           reference: reference.trim(),
           paid,
           paymentMethod: paid ? method : undefined,
@@ -114,8 +137,10 @@ export default function ReceiveStock({
         return;
       }
       const count = filled.length;
+      const from = order ? order.supplier : supplier.trim();
       setDone(
-        `${count} ${count === 1 ? "product" : "products"} received${supplier.trim() ? ` from ${supplier.trim()}` : ""}.` +
+        `${count} ${count === 1 ? "product" : "products"} received${from ? ` from ${from}` : ""}.` +
+          (order ? (body.order_status === "received" ? " The order has all arrived." : " The rest of the order is still expected.") : "") +
           (paid ? ` ${formatGHS(Number(body.total_cost ?? total))} recorded as money out.` : body.total_cost ? " Not paid yet, so no money out recorded." : "")
       );
       startOver();
@@ -133,7 +158,11 @@ export default function ReceiveStock({
     `tap min-h-[44px] rounded-chip px-3.5 text-[13.5px] font-semibold ${on ? "bg-teal text-white" : "border-[1.5px] border-line-brand bg-white text-ink"}`;
 
   if (!open) {
-    return (
+    return order ? (
+      <button type="button" onClick={() => { setOpen(true); setDone(null); setLines(fromOrder(order)); setError(null); }} className={secondaryAction}>
+        Receive this order
+      </button>
+    ) : (
       <button type="button" onClick={() => { setOpen(true); setDone(null); }} className={primaryAction}>
         <Icon name="plus" size={16} />
         Receive stock
@@ -146,8 +175,10 @@ export default function ReceiveStock({
       <div className="max-h-[94vh] w-full overflow-y-auto rounded-t-[20px] bg-white px-5 pb-6 pt-5 sm:max-w-lg sm:rounded-[20px]">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-heading text-lg font-bold text-ink-heading">Receive stock</h2>
-            <p className="text-[13px] text-neutral-600">What came in, and what you paid for it.</p>
+            <h2 className="font-heading text-lg font-bold text-ink-heading">{order ? `Receive ${order.number ?? "this order"}` : "Receive stock"}</h2>
+            <p className="text-[13px] text-neutral-600">
+              {order ? `From ${order.supplier}, at ${order.place}. Change any line to what actually came.` : "What came in, and what you paid for it."}
+            </p>
           </div>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="tap -mr-2 flex h-11 w-11 items-center justify-center rounded-control text-neutral-600 hover:bg-neutral-100">
             <Icon name="close" size={18} />
@@ -158,17 +189,26 @@ export default function ReceiveStock({
 
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-[13px] font-semibold text-neutral-700">
-              Who supplied it?
-              <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Melcom, Makola wholesaler" className={field} />
-            </label>
+            {!order && (
+              <label className="text-[13px] font-semibold text-neutral-700">
+                Who supplied it?
+                <input value={supplier} onChange={(e) => setSupplier(e.target.value)} list={supplierNames?.length ? "receive-suppliers" : undefined} placeholder="Melcom, Makola wholesaler" className={field} />
+                {supplierNames?.length ? (
+                  <datalist id="receive-suppliers">
+                    {supplierNames.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
+                ) : null}
+              </label>
+            )}
             <label className="text-[13px] font-semibold text-neutral-700">
               Their invoice or waybill number
               <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="If there is one" className={field} />
             </label>
           </div>
 
-          {places.length > 1 && (
+          {places.length > 1 && !order && (
             <label className="text-[13px] font-semibold text-neutral-700">
               Where did it arrive?
               <select value={placeId} onChange={(e) => setPlaceId(e.target.value)} className={field}>

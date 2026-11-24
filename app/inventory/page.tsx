@@ -12,7 +12,12 @@ import { formatGHS } from "@/lib/money";
 import SendTransfer from "@/components/inventory/SendTransfer";
 import TransferCancel from "@/components/inventory/TransferCancel";
 import { effectiveAccess } from "@/lib/domains/entitlements";
-import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockTransfers, type StockCountView, type StockTransferView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import PlaceOrder from "@/components/inventory/PlaceOrder";
+import SupplierForm from "@/components/inventory/SupplierForm";
+import OrderClose from "@/components/inventory/OrderClose";
+import PayDelivery from "@/components/inventory/PayDelivery";
+import { orderMessage, whatsappLink } from "@/lib/inventory/order-message";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +69,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const membershipId = membership.id;
   const canAdjust = ["owner", "manager"].includes(membership.role?.key ?? "");
   const asked = searchParams.tab;
-  let tab = asked === "moves" || asked === "counts" || asked === "transfers" ? asked : "stock";
+  let tab = asked === "moves" || asked === "counts" || asked === "transfers" || asked === "orders" || asked === "suppliers" ? asked : "stock";
   const show: Show = searchParams.show === "low" || searchParams.show === "out" ? searchParams.show : "all";
   const itemFilter = /^[0-9a-f-]{36}$/i.test(searchParams.item ?? "") ? searchParams.item : undefined;
 
@@ -72,14 +77,20 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   let moves: Movement[] = [];
   let counts: StockCountView[] = [];
   let transfers: StockTransferView[] = [];
-  const canMove = await effectiveAccess(businessId)
-    .then((a) => a.capabilities.has("inventory.transfers"))
-    .catch(() => false);
+  let orders: StockOrderView[] = [];
+  let supplierList: SupplierView[] = [];
+  const caps = await effectiveAccess(businessId)
+    .then((a) => a.capabilities)
+    .catch(() => new Set<string>());
+  const canMove = caps.has("inventory.transfers");
+  const canBuy = caps.has("inventory.purchasing");
   if (tab === "transfers" && !canMove) tab = "stock";
+  if ((tab === "orders" || tab === "suppliers") && !canBuy) tab = "stock";
   try {
     data = await stockLevels(businessId);
     counts = await stockCounts(businessId);
     if (canMove) transfers = await stockTransfers(businessId);
+    if (canBuy) [orders, supplierList] = await Promise.all([stockOrders(businessId), loadSuppliers(businessId)]);
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
@@ -92,6 +103,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
 
   const { places, lines } = data;
   // Average cost arrives with 0125; until then the page simply has none.
+  const businessName = canBuy
+    ? (((await supabaseServer().from("business").select("name").eq("id", businessId).maybeSingle()).data?.name as string | undefined) ?? "")
+    : "";
   const costs = new Map<string, number>();
   if (canAdjust) {
     const { data: rows } = await supabaseServer().from("catalogue_item").select("id, average_cost").eq("business_id", businessId).not("average_cost", "is", null);
@@ -105,6 +119,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const belowZero = tracked.filter(isBelowZero);
   const waiting = counts.filter((c) => c.status === "waiting");
   const onTheWay = transfers.filter((t) => t.status === "sent");
+  const openOrders = orders.filter((o) => o.status === "open");
+  const owedTotal = supplierList.reduce((n, s) => n + s.owed, 0);
+  const day = (d: string) => new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   // Out at one place while another still has some: worth a move, not a reorder.
   const outSomewhere = places.length > 1 ? tracked.filter((l) => !isOut(l) && l.at.some((a) => a.available <= 0)).length : 0;
   const shown = show === "low" ? low : show === "out" ? out : tracked;
@@ -139,7 +156,21 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               </Link>
               {canMove && places.length > 1 && <SendTransfer businessId={businessId} places={places} items={adjustItems} />}
               <AdjustStock businessId={businessId} places={places} items={adjustItems} startWith={itemFilter} />
-              <ReceiveStock businessId={businessId} places={places} items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))} />
+              {canBuy && (
+                <PlaceOrder
+                  businessId={businessId}
+                  businessName={businessName}
+                  places={places}
+                  items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                  suppliers={supplierList.map((s) => ({ id: s.id, name: s.name, phone: s.phone }))}
+                />
+              )}
+              <ReceiveStock
+                businessId={businessId}
+                places={places}
+                items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                supplierNames={canBuy ? supplierList.map((s) => s.name) : undefined}
+              />
             </>
           ) : null
         }
@@ -195,19 +226,20 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             </div>
           )}
 
-          <div role="tablist" aria-label="Inventory views" className="mb-4 flex gap-1 border-b border-line-brand">
+          <div role="tablist" aria-label="Inventory views" className="mb-4 flex gap-1 overflow-x-auto border-b border-line-brand [scrollbar-width:none]">
             {[
               ["stock", multi ? "Stock by place" : "Stock"],
               ["moves", "Movements"],
               ["counts", waiting.length ? `Counts (${waiting.length} waiting)` : "Counts"],
               ...(canMove ? [["transfers", onTheWay.length ? `Transfers (${onTheWay.length} on the way)` : "Transfers"]] : []),
+              ...(canBuy ? [["orders", openOrders.length ? `Orders (${openOrders.length} open)` : "Orders"], ["suppliers", "Suppliers"]] : []),
             ].map(([k, label]) => (
               <Link
                 key={k}
                 role="tab"
                 aria-selected={tab === k}
                 href={link({ tab: k })}
-                className={`tap -mb-px flex min-h-[44px] items-center border-b-2 px-3 text-[14px] font-semibold ${
+                className={`tap flex min-h-[44px] flex-none items-center whitespace-nowrap border-b-2 px-3 text-[14px] font-semibold ${
                   tab === k ? "border-teal text-teal-800" : "border-transparent text-neutral-600 hover:text-ink"
                 }`}
               >
@@ -366,6 +398,191 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                 </Panel>
               )}
               {moves.length === 150 && <p className="mt-3 text-[12.5px] text-neutral-600">The latest 150. Pick a product to see its whole history.</p>}
+            </>
+          )}
+
+          {tab === "orders" && (
+            <>
+              {orders.length === 0 ? (
+                <EmptyState
+                  title="No stock orders yet."
+                  detail="Tap Order stock to write up what you want from a supplier and send it to them on WhatsApp. When it comes, receive it against the order."
+                />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {orders.map((o) => {
+                    const anyReceived = o.lines.some((l) => l.received > 0);
+                    const late = o.status === "open" && o.expectedOn !== null && o.expectedOn < new Date().toISOString().slice(0, 10);
+                    return (
+                      <Panel key={o.id} className="px-5 py-4">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <p className="text-[14.5px] font-semibold text-ink">
+                            {o.number ?? "Order"} · {o.supplier}
+                          </p>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
+                              o.status === "open"
+                                ? late
+                                  ? "bg-danger-tint text-danger-ink"
+                                  : anyReceived
+                                    ? "bg-gold-100 text-gold-700"
+                                    : "bg-info-light text-info-ink"
+                                : o.status === "received"
+                                  ? "bg-teal-50 text-teal-800"
+                                  : "bg-neutral-100 text-neutral-700"
+                            }`}
+                          >
+                            {o.status === "open"
+                              ? late
+                                ? "Late"
+                                : anyReceived
+                                  ? "Part arrived"
+                                  : "Waiting"
+                              : o.status === "received"
+                                ? "All arrived"
+                                : o.status === "closed"
+                                  ? "Closed short"
+                                  : "Cancelled"}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[12.5px] text-neutral-600">
+                          {[
+                            `Ordered ${day(o.orderedAt)}${o.orderedBy ? ` by ${o.orderedBy}` : ""}`,
+                            o.expectedOn && o.status === "open" ? `expected ${day(o.expectedOn)}` : null,
+                            multi ? `to ${o.place}` : null,
+                            o.total > 0 ? formatGHS(o.total) : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                        {(o.note || o.closeNote) && (
+                          <p className="mt-1 text-[12.5px] text-neutral-700">{[o.note, o.closeNote].filter(Boolean).map((n) => `\u201c${n}\u201d`).join(" · ")}</p>
+                        )}
+                        <div className="mt-2 overflow-hidden rounded-control border border-neutral-100">
+                          {o.lines.map((l, i) => (
+                            <div key={l.itemId} className={`flex items-baseline justify-between gap-3 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                              <span className="min-w-0 text-ink">{l.item}</span>
+                              <span className={`num flex-none ${l.received >= l.ordered ? "text-teal-800" : o.status === "open" ? "text-neutral-700" : "font-semibold text-danger-ink"}`}>
+                                {qty(l.received)} of {qty(l.ordered)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {o.status === "open" && canAdjust && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <ReceiveStock
+                              businessId={businessId}
+                              places={places}
+                              items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                              order={{
+                                id: o.id,
+                                number: o.number,
+                                supplier: o.supplier,
+                                placeId: o.placeId,
+                                place: o.place,
+                                lines: o.lines.map((l) => ({ itemId: l.itemId, remaining: Math.max(l.ordered - l.received, 0), unitCost: l.unitCost })),
+                              }}
+                            />
+                            {o.supplierPhone && o.number && (
+                              <a
+                                href={whatsappLink(
+                                  o.supplierPhone,
+                                  orderMessage({
+                                    businessName,
+                                    number: o.number,
+                                    place: o.place,
+                                    expectedOn: o.expectedOn,
+                                    lines: o.lines.filter((l) => l.received < l.ordered).map((l) => ({ item: l.item, quantity: l.ordered - l.received })),
+                                  })
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="tap flex min-h-[44px] items-center rounded-control px-3 text-[13.5px] font-semibold text-teal-800 hover:bg-teal-50"
+                              >
+                                Send on WhatsApp
+                              </a>
+                            )}
+                            <a href={`/api/documents/${o.id}/pdf`} target="_blank" rel="noreferrer" className="tap flex min-h-[44px] items-center rounded-control px-3 text-[13.5px] font-semibold text-teal-800 hover:bg-teal-50">
+                              Download
+                            </a>
+                            <OrderClose businessId={businessId} documentId={o.id} anyReceived={anyReceived} />
+                          </div>
+                        )}
+                      </Panel>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === "suppliers" && (
+            <>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[13.5px] text-neutral-700">
+                  {owedTotal > 0 ? (
+                    <>
+                      You owe suppliers <strong className="num text-ink">{formatGHS(owedTotal)}</strong> for deliveries not paid yet.
+                    </>
+                  ) : supplierList.length ? (
+                    "Every delivery with a cost is paid for."
+                  ) : null}
+                </p>
+                {canAdjust && <SupplierForm businessId={businessId} />}
+              </div>
+              {supplierList.length === 0 ? (
+                <EmptyState
+                  title="No suppliers yet."
+                  detail="Add the people you buy from, with their WhatsApp number and when you pay them. Orders and deliveries then sit under each one."
+                />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {supplierList.map((s) => (
+                    <Panel key={s.id} className="px-5 py-4">
+                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-semibold text-ink">{s.name}</p>
+                          <p className="text-[12.5px] text-neutral-600">
+                            {[s.contactName, s.phone, s.paymentTerms ? `Terms: ${s.paymentTerms}` : null].filter(Boolean).join(" · ") || "No contact details yet"}
+                          </p>
+                        </div>
+                        {canAdjust && <SupplierForm businessId={businessId} supplier={s} />}
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-3 text-[12.5px] text-neutral-600">
+                        <span>
+                          <span className={`num block font-heading text-[17px] font-extrabold ${s.owed > 0 ? "text-danger-ink" : "text-ink-heading"}`}>{formatGHS(s.owed)}</span>
+                          Owed
+                        </span>
+                        <span>
+                          <span className="num block font-heading text-[17px] font-extrabold text-ink-heading">{formatGHS(s.onOrderValue)}</span>
+                          {s.openOrders ? `On ${s.openOrders} open ${s.openOrders === 1 ? "order" : "orders"}` : "On order"}
+                        </span>
+                        <span>
+                          <span className="num block font-heading text-[17px] font-extrabold text-ink-heading">{formatGHS(s.delivered90d)}</span>
+                          Delivered, 90 days
+                        </span>
+                      </div>
+                      {s.unpaid.length > 0 && (
+                        <div className="mt-3 overflow-hidden rounded-control border border-neutral-100">
+                          {s.unpaid.map((u, i) => (
+                            <div key={u.receiptId} className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                              <span className="min-w-0 text-ink">
+                                Delivered {day(u.receivedAt)}
+                                <span className="text-neutral-600">
+                                  {u.reference ? ` · ${u.reference}` : ""}
+                                  {multi ? ` · ${u.place}` : ""}
+                                </span>
+                              </span>
+                              <span className="num font-semibold text-ink">{formatGHS(u.total)}</span>
+                              {canAdjust && <PayDelivery businessId={businessId} receiptId={u.receiptId} amount={u.total} />}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Panel>
+                  ))}
+                </div>
+              )}
             </>
           )}
 

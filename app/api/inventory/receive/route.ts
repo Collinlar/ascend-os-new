@@ -18,6 +18,9 @@ const SAY: [RegExp, string, number][] = [
   [/cost_invalid/, "A cost cannot be below zero.", 422],
   [/lines_required/, "Add at least one product that came in.", 422],
   [/too_many_lines/, "That is more than 200 lines. Split it into two deliveries.", 422],
+  [/order_not_found/, "We could not find that order. Refresh and try again.", 404],
+  [/order_not_open/, "That order is already received or closed. Receive this delivery without it.", 409],
+  [/order_other_place/, "That order is for another place. Pick the place it was going to.", 422],
 ];
 
 async function handlePOST(request: NextRequest) {
@@ -33,6 +36,7 @@ async function handlePOST(request: NextRequest) {
     paid?: boolean;
     paymentMethod?: string;
     clientRef?: string;
+    purchaseOrderId?: string;
     lines?: { itemId?: string; quantity?: number | string; unitCost?: number | string | null }[];
   };
   try {
@@ -70,6 +74,7 @@ async function handlePOST(request: NextRequest) {
       reference: body.reference ?? "",
       paid: Boolean(body.paid),
       payment_method: body.paid ? body.paymentMethod : "",
+      purchase_order_id: body.purchaseOrderId ?? "",
       lines: (body.lines ?? []).map((l) => ({
         item_id: l.itemId,
         quantity: l.quantity === undefined ? null : String(l.quantity),
