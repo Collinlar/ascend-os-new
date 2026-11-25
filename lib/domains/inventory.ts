@@ -487,3 +487,69 @@ export async function stockOrders(businessId: string, limit = 30): Promise<Stock
   });
   return [...views.filter((v) => v.status === "open"), ...views.filter((v) => v.status !== "open")];
 }
+
+// ---------------------------------------------------------------------------
+// Reorder rules (Advanced Inventory A3, 0133)
+// ---------------------------------------------------------------------------
+
+export interface ReorderLine {
+  itemId: string;
+  item: string;
+  available: number;
+  lowAt: number;
+  onOrder: number;
+  /** The rule's quantity, or null when the owner decides each time. */
+  quantity: number | null;
+  unitCost: number | null;
+}
+
+export interface ReorderGroup {
+  supplierId: string | null;
+  supplier: string | null;
+  placeId: string;
+  place: string;
+  lines: ReorderLine[];
+}
+
+/** What is at or under its low mark and not already on order, grouped by
+ *  usual supplier and place: one draft order per group. */
+export async function reorderGroups(businessId: string): Promise<ReorderGroup[]> {
+  const db = supabaseServer();
+  const { data, error } = await db.rpc("reorder_suggestions", { p_business: businessId });
+  if (error || !data || data.length === 0) return [];
+  const rows = data as { location_id: string; item_id: string; available: number; low_at: number; on_order: number; reorder_quantity: number | null; supplier_id: string | null; unit_cost: number | null }[];
+  const itemIds = Array.from(new Set(rows.map((r) => r.item_id)));
+  const supIds = Array.from(new Set(rows.map((r) => r.supplier_id).filter(Boolean))) as string[];
+  const placeIds = Array.from(new Set(rows.map((r) => r.location_id)));
+  const [items, sups, places] = await Promise.all([
+    db.from("catalogue_item").select("id, name").in("id", itemIds),
+    supIds.length ? db.from("supplier").select("id, name").in("id", supIds) : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    db.from("location").select("id, name").in("id", placeIds),
+  ]);
+  const name = (list: { id: unknown; name: unknown }[] | null | undefined) => new Map((list ?? []).map((x) => [x.id as string, x.name as string]));
+  const itemName = name(items.data), supName = name(sups.data), placeName = name(places.data);
+  const groups = new Map<string, ReorderGroup>();
+  for (const r of rows) {
+    const key = `${r.supplier_id ?? "none"}|${r.location_id}`;
+    const g = groups.get(key) ?? {
+      supplierId: r.supplier_id,
+      supplier: r.supplier_id ? supName.get(r.supplier_id) ?? null : null,
+      placeId: r.location_id,
+      place: placeName.get(r.location_id) ?? "",
+      lines: [],
+    };
+    g.lines.push({
+      itemId: r.item_id,
+      item: itemName.get(r.item_id) ?? "A product",
+      available: Number(r.available),
+      lowAt: Number(r.low_at),
+      onOrder: Number(r.on_order),
+      quantity: r.reorder_quantity === null ? null : Number(r.reorder_quantity),
+      unitCost: r.unit_cost === null ? null : Number(r.unit_cost),
+    });
+    groups.set(key, g);
+  }
+  return Array.from(groups.values())
+    .map((g) => ({ ...g, lines: g.lines.sort((a, b) => a.item.localeCompare(b.item)) }))
+    .sort((a, b) => (a.supplier === null ? 1 : b.supplier === null ? -1 : a.supplier.localeCompare(b.supplier)) || a.place.localeCompare(b.place));
+}

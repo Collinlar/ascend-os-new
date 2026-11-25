@@ -16,8 +16,9 @@ import PlaceOrder from "@/components/inventory/PlaceOrder";
 import SupplierForm from "@/components/inventory/SupplierForm";
 import OrderClose from "@/components/inventory/OrderClose";
 import PayDelivery from "@/components/inventory/PayDelivery";
+import ReorderRule from "@/components/inventory/ReorderRule";
 import { orderMessage, whatsappLink } from "@/lib/inventory/order-message";
-import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   let transfers: StockTransferView[] = [];
   let orders: StockOrderView[] = [];
   let supplierList: SupplierView[] = [];
+  let reorder: ReorderGroup[] = [];
   const caps = await effectiveAccess(businessId)
     .then((a) => a.capabilities)
     .catch(() => new Set<string>());
@@ -90,7 +92,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     data = await stockLevels(businessId);
     counts = await stockCounts(businessId);
     if (canMove) transfers = await stockTransfers(businessId);
-    if (canBuy) [orders, supplierList] = await Promise.all([stockOrders(businessId), loadSuppliers(businessId)]);
+    if (canBuy) [orders, supplierList, reorder] = await Promise.all([stockOrders(businessId), loadSuppliers(businessId), reorderGroups(businessId)]);
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
@@ -120,6 +122,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const waiting = counts.filter((c) => c.status === "waiting");
   const onTheWay = transfers.filter((t) => t.status === "sent");
   const openOrders = orders.filter((o) => o.status === "open");
+  const dueCount = reorder.reduce((n, g) => n + g.lines.length, 0);
   const owedTotal = supplierList.reduce((n, s) => n + s.owed, 0);
   const day = (d: string) => new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   // Out at one place while another still has some: worth a move, not a reorder.
@@ -127,6 +130,14 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const shown = show === "low" ? low : show === "out" ? out : tracked;
   const multi = places.length > 1;
   const filteredItem = itemFilter ? lines.find((l) => l.itemId === itemFilter) : undefined;
+  // A product's reorder rule (0133), only where it can be set.
+  const rule =
+    filteredItem && canBuy && canAdjust && tab === "moves"
+      ? ((await supabaseServer().from("catalogue_item").select("reorder_quantity, preferred_supplier_id").eq("id", filteredItem.itemId).maybeSingle()).data as {
+          reorder_quantity: number | string | null;
+          preferred_supplier_id: string | null;
+        } | null)
+      : null;
 
   const link = (p: { tab?: string; show?: Show; item?: string }) => {
     const q = new URLSearchParams();
@@ -206,6 +217,13 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             </Link>
           )}
 
+          {dueCount > 0 && tab !== "orders" && canAdjust && (
+            <Link href="/inventory?tab=orders" className="tap mb-4 flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-gold-500/40 bg-gold-100 px-5 py-3 text-[13.5px] font-semibold text-gold-700">
+              <span>{dueCount === 1 ? `${reorder[0].lines[0].item} is` : `${dueCount} products are`} at the point you reorder.</span>
+              <span className="flex-none underline">See what to order</span>
+            </Link>
+          )}
+
           {onTheWay.length > 0 && tab !== "transfers" && (
             <Link href="/inventory?tab=transfers" className="tap mb-4 flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-line-brand bg-teal-50 px-5 py-3 text-[13.5px] font-semibold text-teal-800">
               <span>
@@ -232,7 +250,12 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               ["moves", "Movements"],
               ["counts", waiting.length ? `Counts (${waiting.length} waiting)` : "Counts"],
               ...(canMove ? [["transfers", onTheWay.length ? `Transfers (${onTheWay.length} on the way)` : "Transfers"]] : []),
-              ...(canBuy ? [["orders", openOrders.length ? `Orders (${openOrders.length} open)` : "Orders"], ["suppliers", "Suppliers"]] : []),
+              ...(canBuy
+                ? [
+                    ["orders", dueCount ? `Orders (${dueCount} to reorder)` : openOrders.length ? `Orders (${openOrders.length} open)` : "Orders"],
+                    ["suppliers", "Suppliers"],
+                  ]
+                : []),
             ].map(([k, label]) => (
               <Link
                 key={k}
@@ -356,6 +379,18 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               {filteredItem && canAdjust && filteredItem.tracked && (
                 <StockRule key={filteredItem.itemId} businessId={businessId} itemId={filteredItem.itemId} rule={filteredItem.rule} />
               )}
+              {filteredItem && rule && (
+                <ReorderRule
+                  key={`reorder-${filteredItem.itemId}`}
+                  businessId={businessId}
+                  itemId={filteredItem.itemId}
+                  itemName={filteredItem.name}
+                  lowAt={filteredItem.lowAt}
+                  reorderQuantity={rule.reorder_quantity === null ? null : Number(rule.reorder_quantity)}
+                  supplierId={rule.preferred_supplier_id}
+                  suppliers={supplierList.map((x) => ({ id: x.id, name: x.name }))}
+                />
+              )}
               {filteredItem && (
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-[13.5px] text-neutral-700">
                   <span>
@@ -403,6 +438,45 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
 
           {tab === "orders" && (
             <>
+              {reorder.length > 0 && canAdjust && (
+                <section aria-label="Running low" className="mb-5">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">Running low</p>
+                  <div className="flex flex-col gap-3">
+                    {reorder.map((g) => (
+                      <Panel key={`${g.supplierId ?? "none"}-${g.placeId}`} className="border-gold-500/40 px-5 py-4">
+                        <p className="text-[14.5px] font-semibold text-ink">
+                          {g.supplier ? `From ${g.supplier}` : "No usual supplier yet"}
+                          {multi ? <span className="font-normal text-neutral-600"> · for {g.place}</span> : null}
+                        </p>
+                        <div className="mt-2 overflow-hidden rounded-control border border-neutral-100">
+                          {g.lines.map((l, i) => (
+                            <div key={l.itemId} className={`flex flex-wrap items-baseline justify-between gap-x-3 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                              <Link href={link({ tab: "moves", item: l.itemId })} className="min-w-0 font-semibold text-ink underline-offset-2 hover:underline">
+                                {l.item}
+                              </Link>
+                              <span className="num text-neutral-700">
+                                {qty(l.available)} left, reorder at {qty(l.lowAt)}
+                                {l.onOrder > 0 ? `, ${qty(l.onOrder)} on order` : ""}
+                                {l.quantity !== null ? ` · order ${qty(l.quantity)}` : ""}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3">
+                          <PlaceOrder
+                            businessId={businessId}
+                            businessName={businessName}
+                            places={places}
+                            items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                            suppliers={supplierList.map((s) => ({ id: s.id, name: s.name, phone: s.phone }))}
+                            draft={{ supplierId: g.supplierId, placeId: g.placeId, lines: g.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitCost: l.unitCost })) }}
+                          />
+                        </div>
+                      </Panel>
+                    ))}
+                  </div>
+                </section>
+              )}
               {orders.length === 0 ? (
                 <EmptyState
                   title="No stock orders yet."

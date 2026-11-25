@@ -174,6 +174,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "inventory/order": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"], location: "body" }) },
   "inventory/order/close": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
   "inventory/receipt/pay": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
+  "inventory/reorder-rule": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
   // Advanced Inventory (0131). Sending and calling back need stock rights;
   // anyone at the receiving place may say what arrived.
   "inventory/transfer": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.transfers"], location: "body" }) },

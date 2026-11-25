@@ -22,27 +22,41 @@ const blank = (): Line => ({ key: crypto.randomUUID(), itemId: "", quantity: "",
 const numeric = (v: string) => v.replace(/[^\d.]/g, "");
 const NEW = "__new__";
 
+export interface OrderDraft {
+  supplierId: string | null;
+  placeId: string;
+  lines: { itemId: string; quantity: number | null; unitCost: number | null }[];
+}
+
+const draftLines = (d: OrderDraft): Line[] =>
+  d.lines.map((l) => ({ key: crypto.randomUUID(), itemId: l.itemId, quantity: l.quantity === null ? "" : String(l.quantity), unitCost: l.unitCost === null ? "" : String(l.unitCost) }));
+
 export default function PlaceOrder({
   businessId,
   businessName,
   places,
   items,
   suppliers,
+  draft,
 }: {
   businessId: string;
   businessName: string;
   places: { id: string; name: string }[];
   items: { id: string; name: string; averageCost: number | null }[];
   suppliers: { id: string; name: string; phone: string | null }[];
+  draft?: OrderDraft;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? NEW);
+  // A draft for products with no usual supplier starts with nobody picked,
+  // so the order cannot go to the first name on the list by accident.
+  const startSupplier = (d?: OrderDraft) => (d ? d.supplierId ?? "" : suppliers[0]?.id ?? NEW);
+  const [supplierId, setSupplierId] = useState(startSupplier(draft));
   const [newName, setNewName] = useState("");
-  const [placeId, setPlaceId] = useState(places[0]?.id ?? "");
+  const [placeId, setPlaceId] = useState(draft?.placeId ?? places[0]?.id ?? "");
   const [expectedOn, setExpectedOn] = useState("");
   const [note, setNote] = useState("");
-  const [lines, setLines] = useState<Line[]>([blank()]);
+  const [lines, setLines] = useState<Line[]>(() => (draft ? draftLines(draft) : [blank()]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ number: string; documentId: string; text: string; phone: string | null; supplier: string } | null>(null);
@@ -63,6 +77,7 @@ export default function PlaceOrder({
 
   async function place() {
     setError(null);
+    if (supplierId === "") return setError("Pick who you are ordering from.");
     const isNew = supplierId === NEW;
     if (isNew && !newName.trim()) return setError("Say who you are ordering from.");
     const filled = lines.filter((l) => l.itemId || l.quantity || l.unitCost);
@@ -129,8 +144,20 @@ export default function PlaceOrder({
 
   if (!open) {
     return (
-      <button type="button" onClick={() => { setOpen(true); setDone(null); }} className={secondaryAction}>
-        Order stock
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setDone(null);
+          if (draft) {
+            setLines(draftLines(draft));
+            setSupplierId(startSupplier(draft));
+            setPlaceId(draft.placeId);
+          }
+        }}
+        className={secondaryAction}
+      >
+        {draft ? "Draft this order" : "Order stock"}
       </button>
     );
   }
@@ -172,6 +199,7 @@ export default function PlaceOrder({
             <label className="text-[13px] font-semibold text-neutral-700">
               Who are you ordering from?
               <select value={supplierId} onChange={(e) => { setSupplierId(e.target.value); setError(null); }} className={field}>
+                {supplierId === "" && <option value="">Pick who</option>}
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
