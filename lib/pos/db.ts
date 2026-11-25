@@ -33,7 +33,8 @@ export interface OutboxItem {
     | "shift.closed"
     | "catalogue.barcode.attached"
     | "refund.requested"
-    | "refund.paid";
+    | "refund.paid"
+    | "transfer.received";
   payload: unknown;
   state: OutboxState;
   retryCount: number;

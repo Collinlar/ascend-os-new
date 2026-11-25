@@ -104,7 +104,42 @@ async function handleGET(request: NextRequest) {
     stockByItem.set(id, (stockByItem.get(id) ?? 0) + Number(h.quantity_reserved));
   }
 
+  // Goods on the way to this till's place (Advanced Inventory A1, 0131), so
+  // whoever is at the counter when they arrive can count them in here. The
+  // names only: how many were sent stays off the till, so the count is of
+  // what is in the box (blind, as on /inventory/arrivals). Empty, never an
+  // error, on a database without transfers.
+  let incoming: { id: string; from: string; sentAt: string; note: string | null; lines: { itemId: string; item: string }[] }[] = [];
+  try {
+    const { data: transfers } = await db
+      .from("stock_transfer")
+      .select("id, sent_at, note, from:from_location_id(name)")
+      .eq("business_id", device.businessId)
+      .eq("to_location_id", device.locationId)
+      .eq("status", "sent")
+      .order("sent_at")
+      .limit(20);
+    const ids = (transfers ?? []).map((t) => t.id as string);
+    if (ids.length) {
+      const { data: tl } = await db.from("stock_transfer_line").select("transfer_id, item_id, item:item_id(name)").in("transfer_id", ids);
+      const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+      incoming = (transfers ?? []).map((t) => ({
+        id: t.id as string,
+        from: one<{ name: string }>(t.from)?.name ?? "another place",
+        sentAt: t.sent_at as string,
+        note: (t.note as string | null) ?? null,
+        lines: (tl ?? [])
+          .filter((l) => l.transfer_id === t.id)
+          .map((l) => ({ itemId: l.item_id as string, item: one<{ name: string }>(l.item)?.name ?? "A product" }))
+          .sort((a, b) => a.item.localeCompare(b.item)),
+      }));
+    }
+  } catch {
+    incoming = [];
+  }
+
   return NextResponse.json({
+    incoming,
     businessId: device.businessId,
     locationId: device.locationId,
     label: device.label,

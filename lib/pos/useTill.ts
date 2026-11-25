@@ -41,6 +41,7 @@ import {
 } from "@/lib/pos/registration";
 import { getActiveShift, type LocalShift } from "@/lib/pos/shift";
 import { syncCatalogueImages } from "@/lib/pos/images";
+import { countIn, openIncoming, type IncomingTransfer } from "@/lib/pos/incoming";
 import { attachBarcodeLocally } from "@/lib/pos/barcode";
 import { getPrinter } from "@/lib/pos/printer";
 import type { ReceiptDoc } from "@/lib/pos/receipt";
@@ -108,6 +109,8 @@ export function useTill() {
   const [lockedFor, setLockedFor] = useState<string | null>(null);
   // Refunds decided in Work that this counter has to act on.
   const [decisions, setDecisions] = useState<RefundDecision[]>([]);
+  // Goods from another place waiting to be counted in here (0131).
+  const [incoming, setIncoming] = useState<IncomingTransfer[]>([]);
 
   const refreshStatus = useCallback(() => {
     currentStatus().then(setStatus).catch(() => {});
@@ -133,6 +136,7 @@ export function useTill() {
           if (!ok) return;
           const items = await getAll<LocalItem>(STORE.catalogue);
           setCatalogue(items);
+          setIncoming(await openIncoming());
           // Photos come after the catalogue, in the background. A cashier
           // can already sell by this point; pictures are what makes the
           // shelf recognisable, not what makes it work.
@@ -143,6 +147,7 @@ export function useTill() {
       pullRoster().catch(() => {});
       // Refunds decided while the till was away.
       setDecisions(await openDecisions());
+      setIncoming(await openIncoming());
       pullDecisions()
         .then(async () => setDecisions(await openDecisions()))
         .catch(() => {});
@@ -186,6 +191,7 @@ export function useTill() {
         stopCatalogue = startCatalogueRefresh(async () => {
           const items = await getAll<LocalItem>(STORE.catalogue);
           setCatalogue(items);
+          setIncoming(await openIncoming());
           syncCatalogueImages(items).catch(() => {});
         });
       } catch (err) {
@@ -446,6 +452,16 @@ export function useTill() {
     setDecisions(await openDecisions());
   }
 
+  /** Goods from another place, counted in here. Null when it is saved. */
+  async function countInTransfer(t: IncomingTransfer, received: Record<string, string>, note: string): Promise<string | null> {
+    const result = await countIn(t, received, note, cashier?.membershipId);
+    if (!result.ok) return result.error;
+    setIncoming(await openIncoming());
+    refreshStatus();
+    drainOutbox().then(refreshStatus).catch(() => {});
+    return null;
+  }
+
   async function askRefund(sale: LocalSale, reason: string, condition?: ReturnCondition) {
     const result = await askForRefund(sale, reason, cashier?.membershipId, condition);
     if (result.ok) {
@@ -532,6 +548,8 @@ export function useTill() {
     lockedFor,
     askRefund,
     decisions,
+    incoming,
+    countInTransfer,
     handBack,
     gotIt,
     afterShiftClosed,

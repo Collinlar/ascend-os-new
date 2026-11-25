@@ -79,13 +79,24 @@ interface BarcodeAttachPayload {
   cashierMembershipId?: string;
 }
 
+// Goods from another place, counted in at this counter (0131). Blind: the
+// till only ever knew the products, not how many were sent.
+interface TransferReceivedPayload {
+  clientRef: string;
+  transferId: string;
+  lines: { itemId: string; received: number }[];
+  note?: string;
+  cashierMembershipId?: string;
+}
+
 type SyncItem =
   | { kind: "sale.completed"; payload: TerminalSalePayload }
   | { kind: "shift.opened"; payload: ShiftOpenPayload }
   | { kind: "shift.closed"; payload: ShiftClosePayload }
   | { kind: "catalogue.barcode.attached"; payload: BarcodeAttachPayload }
   | { kind: "refund.requested"; payload: RefundRequestPayload }
-  | { kind: "refund.paid"; payload: RefundPaidPayload };
+  | { kind: "refund.paid"; payload: RefundPaidPayload }
+  | { kind: "transfer.received"; payload: TransferReceivedPayload };
 
 interface SyncItemResult {
   clientRef: string;
@@ -239,6 +250,37 @@ async function handlePOST(request: NextRequest) {
           clientRef: item.payload.clientRef,
           status: data?.duplicate ? "duplicate" : "accepted",
           serverId: data?.payout_id as string | undefined,
+        });
+      } else if (item.kind === "transfer.received") {
+        // Only goods going to this till's own place.
+        const db = supabaseServer();
+        const { data: t } = await db
+          .from("stock_transfer")
+          .select("id, to_location_id")
+          .eq("id", item.payload.transferId)
+          .eq("business_id", device.businessId)
+          .maybeSingle();
+        if (!t) throw new SyncRejection("transfer_not_found", "permanent");
+        if (t.to_location_id !== device.locationId) throw new SyncRejection("transfer_for_another_place", "permanent");
+        const { data, error } = await db.rpc("receive_stock_transfer", {
+          p: {
+            business_id: device.businessId,
+            transfer_id: item.payload.transferId,
+            received_by: item.payload.cashierMembershipId ?? "",
+            note: (item.payload.note ?? "").slice(0, 300),
+            lines: (item.payload.lines ?? []).map((l) => ({ item_id: l.itemId, received: String(l.received) })),
+          },
+        });
+        if (error) {
+          if (/received_more_than_sent|received_required|receiver_not_member|transfer_not_found/.test(error.message)) {
+            throw new SyncRejection(error.message.match(/received_more_than_sent|received_required|receiver_not_member|transfer_not_found/)![0], "permanent");
+          }
+          throw new SyncRejection("transfer_not_received", "temporary");
+        }
+        results.push({
+          clientRef: item.payload.clientRef,
+          status: data?.unchanged ? "duplicate" : "accepted",
+          serverId: item.payload.transferId,
         });
       } else if (item.kind === "catalogue.barcode.attached") {
         // Queued from the counter, so it arrives whenever the shop is back

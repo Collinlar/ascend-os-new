@@ -7,6 +7,9 @@
 import type { Till } from "@/lib/pos/useTill";
 import type { RefundDecision } from "@/lib/pos/refunds";
 import { formatGHS } from "@/lib/money";
+import { useState } from "react";
+import type { IncomingTransfer } from "@/lib/pos/incoming";
+import IncomingCount from "@/components/pos/IncomingCount";
 
 // What the counter has to do about a refund decided in Work.
 function decisionText(d: RefundDecision): string {
@@ -19,9 +22,32 @@ function decisionText(d: RefundDecision): string {
 }
 
 export default function TillNotices({ till }: { till: Till }) {
-  const { stuck, storage, error, decisions, stockNote } = till;
+  const { stuck, storage, error, decisions, stockNote, incoming } = till;
+  const [counting, setCounting] = useState<IncomingTransfer | null>(null);
   return (
     <>
+      {/* Goods from another place, waiting to be counted in here (0131). */}
+      {incoming.map((t) => (
+        <div key={t.id} role="status" className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 border-b border-line-brand bg-teal-50 px-3.5 py-2.5 text-[13.5px] text-teal-800">
+          <p className="min-w-0 flex-1 font-semibold">
+            Goods from {t.from} are on the way here: {t.lines.length} {t.lines.length === 1 ? "product" : "products"}.
+          </p>
+          <button onClick={() => setCounting(t)} className="tap flex flex-none items-center rounded-control bg-teal px-3.5 text-[13px] font-bold text-white">
+            Count it in
+          </button>
+        </div>
+      ))}
+      {counting && (
+        <IncomingCount
+          transfer={counting}
+          onClose={() => setCounting(null)}
+          onSave={async (received, note) => {
+            const err = await till.countInTransfer(counting, received, note);
+            if (!err) setCounting(null);
+            return err;
+          }}
+        />
+      )}
       {/* What the stock rule said about the last thing added (I2). */}
       {stockNote && (
         <div

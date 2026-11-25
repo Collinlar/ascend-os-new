@@ -107,6 +107,7 @@ export async function pullCatalogue(): Promise<{ ok: boolean; count: number }> {
 
     const data = (await response.json()) as {
       items: LocalItem[];
+      incoming?: unknown[];
       leaseExpiresAt: string;
       label: string | null;
       businessName?: string | null;
@@ -120,6 +121,9 @@ export async function pullCatalogue(): Promise<{ ok: boolean; count: number }> {
     // pulls a few minutes later, and the till stops recognising the product
     // again until the queue happens to drain.
     await replaceCatalogue(applyPendingBarcodes(data.items, await pendingBarcodes()));
+    // Goods on the way here (0131). Older servers send nothing; keep what
+    // the till already knew rather than forgetting it.
+    if (Array.isArray(data.incoming)) await setMeta("incoming", data.incoming);
 
     // Never go backwards: a till mid-day knows better than the server, which
     // has only seen what reached it. Only a counter that fell behind is
