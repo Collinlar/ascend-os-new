@@ -3,7 +3,8 @@ import "server-only";
 // The Money page (v3 design, D3), read from the Financial Foundation:
 // cash_position (0102) for the five figures kept apart, the money movements
 // themselves (financial_event, cash basis), and what customers owe
-// (receivables_aging). Reads only. No profit figure, and no grand total
+// (receivables_aging), and what the business owes its suppliers for stock
+// (0134). Reads only. No profit figure, and no grand total
 // (FINANCIAL_FOUNDATION_PLAN.md decision 6).
 
 import { supabaseServer } from "@/lib/supabase";
@@ -15,8 +16,17 @@ export interface CashPosition {
   verified: { received: number; refunded: number; reversed: number; fees: number; net: number };
   pending: { amount: number; payments: number };
   receivables: { outstanding: number; overdue: number; count: number };
+  /** Null on a database without 0134, where payables are not tracked. */
+  payables: { owed: number; deliveries: number; suppliers: number; olderThan30: number } | null;
   expenses: { total: number; byCategory: Record<string, number> };
   notes: string[];
+}
+
+export interface SupplierDebt {
+  /** The supplier as recorded, or null when no supplier was named. */
+  supplier: string | null;
+  owed: number;
+  deliveries: { receiptId: string; receivedAt: string; total: number; reference: string | null; place: string }[];
 }
 
 export interface MoneyMovement {
@@ -53,6 +63,7 @@ export async function loadCashPosition(businessId: string, from: string, to: str
     verified: Record<string, number>;
     pending_settlement: { amount: number; payments: number };
     receivables: { outstanding: number; overdue: number; count: number };
+    payables: { tracked: boolean; owed?: number; deliveries?: number; suppliers?: number; older_than_30?: number };
     expenses: { total: number; by_category: Record<string, number> };
     notes: Array<{ say: string }>;
   };
@@ -75,6 +86,9 @@ export async function loadCashPosition(businessId: string, from: string, to: str
     },
     pending: { amount: n(c.pending_settlement.amount), payments: n(c.pending_settlement.payments) },
     receivables: { outstanding: n(c.receivables.outstanding), overdue: n(c.receivables.overdue), count: n(c.receivables.count) },
+    payables: c.payables?.tracked
+      ? { owed: n(c.payables.owed), deliveries: n(c.payables.deliveries), suppliers: n(c.payables.suppliers), olderThan30: n(c.payables.older_than_30) }
+      : null,
     expenses: { total: n(c.expenses.total), byCategory: c.expenses.by_category ?? {} },
     notes: (c.notes ?? []).map((x) => x.say).filter(Boolean),
   };
@@ -139,6 +153,44 @@ export async function loadOwed(businessId: string): Promise<OwedRow[] | null> {
       bucket: r.bucket,
     }))
     .sort((a, b) => (b.daysOverdue ?? -1) - (a.daysOverdue ?? -1) || b.outstanding - a.outstanding);
+}
+
+/** Stock deliveries with a cost and no money out yet, by supplier, most
+ *  owed first; oldest delivery first within each (0134). */
+export async function loadSupplierDebts(businessId: string): Promise<SupplierDebt[] | null> {
+  const db = supabaseServer();
+  const { data, error } = await db
+    .from("stock_receipt")
+    .select("id, received_at, total_cost, reference, supplier_name, supplier:supplier_id(name), place:location_id(name)")
+    .eq("business_id", businessId)
+    .gt("total_cost", 0)
+    .order("received_at", { ascending: true })
+    .limit(500);
+  if (error) return null;
+  const rows = data ?? [];
+  const ids = rows.map((r) => r.id as string);
+  const { data: paid } = ids.length
+    ? await db.from("financial_event").select("source_id").eq("source_type", "stock_receipt").eq("kind", "expense").in("source_id", ids)
+    : { data: [] };
+  const paidIds = new Set((paid ?? []).map((p) => p.source_id as string));
+  const one = <T,>(v: unknown) => (Array.isArray(v) ? v[0] : v) as T | null;
+  const groups = new Map<string, SupplierDebt>();
+  for (const r of rows) {
+    if (paidIds.has(r.id as string)) continue;
+    const name = one<{ name: string }>(r.supplier)?.name ?? ((r.supplier_name as string | null)?.trim() || null);
+    const key = name ? name.toLowerCase() : "";
+    const g = groups.get(key) ?? { supplier: name, owed: 0, deliveries: [] };
+    g.owed += n(r.total_cost);
+    g.deliveries.push({
+      receiptId: r.id as string,
+      receivedAt: r.received_at as string,
+      total: n(r.total_cost),
+      reference: (r.reference as string | null) ?? null,
+      place: one<{ name: string }>(r.place)?.name ?? "",
+    });
+    groups.set(key, g);
+  }
+  return Array.from(groups.values()).sort((a, b) => b.owed - a.owed);
 }
 
 /** Category keys to the words the business reads (standard list and its own). */

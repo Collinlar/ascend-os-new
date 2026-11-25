@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
+import { activeMembership } from "@/lib/auth/active-business";
+import PayDelivery from "@/components/inventory/PayDelivery";
 import { checkPageAccess } from "@/lib/authority/page";
 import { formatGHS } from "@/lib/money";
 import { METHOD_LABEL } from "@/lib/reporting/home";
@@ -10,10 +12,12 @@ import {
   loadCategoryLabels,
   loadMovements,
   loadOwed,
+  loadSupplierDebts,
   MOVEMENTS_LIMIT,
   type CashPosition,
   type MoneyMovement,
   type OwedRow,
+  type SupplierDebt,
 } from "@/lib/reporting/money";
 import { EmptyState, FigureRow, PageHeader, PageShell, Panel } from "@/components/shell/Page";
 
@@ -23,9 +27,10 @@ export const dynamic = "force-dynamic";
 //
 // The figures are kept apart as the Financial Foundation keeps them: money
 // the business recorded itself, money a provider confirmed, money waiting
-// to be paid out, and money customers owe. They are never added together
-// and there is no profit figure (FINANCIAL_FOUNDATION_PLAN.md decision 6).
-// Below them, every movement of money in the month, and who owes what.
+// to be paid out, money customers owe, and money the business owes its
+// suppliers for stock (0134). They are never added together and there is
+// no profit figure (FINANCIAL_FOUNDATION_PLAN.md decision 6). Below them,
+// every movement of money in the month, who owes what, and what is owed.
 
 const ACCRA = "Africa/Accra";
 
@@ -37,19 +42,23 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
   const today = new Date().toLocaleDateString("en-CA", { timeZone: ACCRA });
   const months = [0, 1, 2].map((back) => monthOf(today, back));
   const month = months.find((m) => m.key === searchParams.month) ?? months[0];
-  const tab = searchParams.tab === "owed" ? "owed" : "moves";
+  const tab = searchParams.tab === "owed" ? "owed" : searchParams.tab === "you-owe" ? "you-owe" : "moves";
 
-  const [position, movements, owed, categories] = await Promise.all([
+  const [position, movements, owed, debts, categories, member] = await Promise.all([
     loadCashPosition(workspace.businessId, month.from, month.to).catch(() => null),
     tab === "moves" ? loadMovements(workspace.businessId, month.from, month.to).catch(() => null) : Promise.resolve(null),
     tab === "owed" ? loadOwed(workspace.businessId).catch(() => null) : Promise.resolve(null),
+    tab === "you-owe" ? loadSupplierDebts(workspace.businessId).catch(() => null) : Promise.resolve(null),
     loadCategoryLabels(workspace.businessId).catch(() => new Map<string, string>()),
+    activeMembership<{ role: { key: string } | null }>(workspace.personId, "role:role_id(key)").catch(() => null),
   ]);
+  // Paying a supplier needs stock rights (0134): owners and managers.
+  const canPay = ["owner", "manager"].includes(member?.role?.key ?? "");
 
   const q = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
     const m = patch.month !== undefined ? patch.month : month.key === months[0].key ? null : month.key;
-    const t = patch.tab !== undefined ? patch.tab : tab === "owed" ? "owed" : null;
+    const t = patch.tab !== undefined ? patch.tab : tab === "moves" ? null : tab;
     if (m) p.set("month", m);
     if (t) p.set("tab", t);
     const s = p.toString();
@@ -58,7 +67,7 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
 
   return (
     <PageShell>
-      <PageHeader title="Money" intro="Money you recorded, money a provider confirmed, and money owed to you, kept apart" />
+      <PageHeader title="Money" intro="Money you recorded, money a provider confirmed, money owed to you and money you owe, kept apart" />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {months.map((m) => {
@@ -86,17 +95,18 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
         <Figures position={position} monthLabel={month.label} categories={categories} />
       )}
 
-      <div className="mb-4 flex gap-1 border-b border-neutral-200" role="tablist" aria-label="Money in and out, or owed to you">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-neutral-200 [scrollbar-width:none]" role="tablist" aria-label="Money in and out, owed to you, or owed by you">
         {[
           { key: "moves", label: "Money in and out", href: q({ tab: null }) },
           { key: "owed", label: "Owed to you", href: q({ tab: "owed" }) },
+          ...(position?.payables ? [{ key: "you-owe", label: "You owe", href: q({ tab: "you-owe" }) }] : []),
         ].map((t) => (
           <Link
             key={t.key}
             href={t.href}
             role="tab"
             aria-selected={tab === t.key}
-            className={`tap -mb-px flex min-h-[44px] items-center border-b-[2.5px] px-3.5 text-sm font-semibold ${
+            className={`tap flex min-h-[44px] flex-none items-center whitespace-nowrap border-b-[2.5px] px-3.5 text-sm font-semibold ${
               tab === t.key ? "border-teal text-teal-800" : "border-transparent text-neutral-600 hover:text-ink"
             }`}
           >
@@ -105,7 +115,13 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
         ))}
       </div>
 
-      {tab === "moves" ? <Movements rows={movements} categories={categories} monthLabel={month.label} /> : <Owed rows={owed} />}
+      {tab === "moves" ? (
+        <Movements rows={movements} categories={categories} monthLabel={month.label} />
+      ) : tab === "owed" ? (
+        <Owed rows={owed} />
+      ) : (
+        <YouOwe debts={debts} businessId={workspace.businessId} canPay={canPay} />
+      )}
     </PageShell>
   );
 }
@@ -166,6 +182,19 @@ function Figures({
           : `${p.receivables.count} still to be paid, as of now`,
     tone: p.receivables.overdue > 0 ? "warn" : undefined,
   });
+  if (p.payables) {
+    figures.push({
+      label: "Owed to suppliers",
+      value: formatGHS(p.payables.owed),
+      sub:
+        p.payables.owed === 0
+          ? "Every delivery paid for, as of now"
+          : p.payables.olderThan30 > 0
+            ? `${formatGHS(p.payables.olderThan30)} from deliveries over 30 days old`
+            : `${p.payables.deliveries} ${p.payables.deliveries === 1 ? "delivery" : "deliveries"} not paid yet, as of now`,
+      tone: p.payables.olderThan30 > 0 ? "warn" : undefined,
+    });
+  }
 
   return (
     <>
@@ -180,7 +209,7 @@ function Figures({
             <h2 className="font-heading text-base font-bold text-ink-heading">Business expenses</h2>
             <span className="num font-heading text-lg font-extrabold text-ink-heading">{formatGHS(p.expenses.total)}</span>
           </div>
-          <p className="mt-0.5 text-[12.5px] text-neutral-500">Approved in Office. How each was paid is not recorded, so they are shown on their own.</p>
+          <p className="mt-0.5 text-[12.5px] text-neutral-500">Stock you paid for and spending approved in Office, shown on their own rather than taken from the figures above.</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-neutral-700">
             {Object.entries(p.expenses.byCategory).map(([k, v]) => (
               <span key={k}>
@@ -328,6 +357,42 @@ function Owed({ rows }: { rows: OwedRow[] | null }) {
         );
       })}
     </Panel>
+  );
+}
+
+// --------------------------------------------------------------- you owe --
+
+function YouOwe({ debts, businessId, canPay }: { debts: SupplierDebt[] | null; businessId: string; canPay: boolean }) {
+  if (debts === null) return <EmptyState title="We could not load what you owe just now." detail="Nothing is lost. Refresh in a moment." />;
+  if (debts.length === 0)
+    return <EmptyState title="You owe no supplier for stock." detail="Deliveries you receive and have not paid for yet show here, by supplier." />;
+  return (
+    <div className="flex flex-col gap-3">
+      {debts.map((d) => (
+        <Panel key={d.supplier ?? "none"} className="px-5 py-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="min-w-0 truncate font-heading text-base font-bold text-ink-heading">{d.supplier ?? "No supplier named"}</h2>
+            <span className="num flex-none font-heading text-lg font-extrabold text-ink-heading">{formatGHS(d.owed)}</span>
+          </div>
+          <div className="mt-2 overflow-hidden rounded-control border border-neutral-100">
+            {d.deliveries.map((x, i) => (
+              <div key={x.receiptId} className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 text-[13px] ${i ? "border-t border-neutral-100" : ""}`}>
+                <span className="min-w-0 text-ink">
+                  Delivered {shortDate(new Date(x.receivedAt).toLocaleDateString("en-CA", { timeZone: ACCRA }))}
+                  <span className="text-neutral-600">
+                    {x.reference ? ` · ${x.reference}` : ""}
+                    {x.place ? ` · ${x.place}` : ""}
+                  </span>
+                </span>
+                <span className="num font-semibold text-ink">{formatGHS(x.total)}</span>
+                {canPay && <PayDelivery businessId={businessId} receiptId={x.receiptId} amount={x.total} />}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      ))}
+      {!canPay && <p className="text-[12.5px] text-neutral-500">The owner or a manager records paying a supplier.</p>}
+    </div>
   );
 }
 
