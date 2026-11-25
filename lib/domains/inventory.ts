@@ -553,3 +553,66 @@ export async function reorderGroups(businessId: string): Promise<ReorderGroup[]>
     .map((g) => ({ ...g, lines: g.lines.sort((a, b) => a.item.localeCompare(b.item)) }))
     .sort((a, b) => (a.supplier === null ? 1 : b.supplier === null ? -1 : a.supplier.localeCompare(b.supplier)) || a.place.localeCompare(b.place));
 }
+
+// ---------------------------------------------------------------------------
+// Expiry dates and batches (Advanced Inventory A5, 0137)
+// ---------------------------------------------------------------------------
+
+export interface ExpiryRow {
+  batchId: string;
+  item: string;
+  itemId: string;
+  place: string;
+  batchCode: string | null;
+  expiresOn: string;
+  daysLeft: number;
+  quantity: number;
+  value: number;
+}
+
+export interface ExpirySummary {
+  expiredBatches: number;
+  expiredValue: number;
+  soonBatches: number;
+  soonValue: number;
+  unknownQuantity: number;
+}
+
+/** Batches expired or expiring within the window, oldest first. Empty
+ *  without 0137. */
+export async function expiryRows(businessId: string, days = 30): Promise<ExpiryRow[]> {
+  const db = supabaseServer();
+  const { data, error } = await db.rpc("expiry_report", { p_business: businessId, p_days: days });
+  if (error || !data || data.length === 0) return [];
+  const rows = data as { batch_id: string; location_id: string; item_id: string; batch_code: string | null; expires_on: string; days_left: number; quantity: number; unit_value: number }[];
+  const [items, places] = await Promise.all([
+    db.from("catalogue_item").select("id, name").in("id", Array.from(new Set(rows.map((r) => r.item_id)))),
+    db.from("location").select("id, name").in("id", Array.from(new Set(rows.map((r) => r.location_id)))),
+  ]);
+  const itemName = new Map((items.data ?? []).map((x) => [x.id as string, x.name as string]));
+  const placeName = new Map((places.data ?? []).map((x) => [x.id as string, x.name as string]));
+  return rows.map((r) => ({
+    batchId: r.batch_id,
+    item: itemName.get(r.item_id) ?? "A product",
+    itemId: r.item_id,
+    place: placeName.get(r.location_id) ?? "",
+    batchCode: r.batch_code,
+    expiresOn: r.expires_on,
+    daysLeft: Number(r.days_left),
+    quantity: Number(r.quantity),
+    value: Math.round(Number(r.quantity) * Number(r.unit_value) * 100) / 100,
+  }));
+}
+
+export async function expirySummary(businessId: string): Promise<ExpirySummary | null> {
+  const { data, error } = await supabaseServer().rpc("expiry_summary", { p_business: businessId });
+  if (error || !data) return null;
+  const s = data as Record<string, number>;
+  return {
+    expiredBatches: Number(s.expired_batches ?? 0),
+    expiredValue: Number(s.expired_value ?? 0),
+    soonBatches: Number(s.soon_batches ?? 0),
+    soonValue: Number(s.soon_value ?? 0),
+    unknownQuantity: Number(s.unknown_quantity ?? 0),
+  };
+}

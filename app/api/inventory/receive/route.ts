@@ -21,6 +21,7 @@ const SAY: [RegExp, string, number][] = [
   [/order_not_found/, "We could not find that order. Refresh and try again.", 404],
   [/order_not_open/, "That order is already received or closed. Receive this delivery without it.", 409],
   [/order_other_place/, "That order is for another place. Pick the place it was going to.", 422],
+  [/expiry_invalid/, "One of the expiry dates is not a date. Pick it from the calendar.", 422],
 ];
 
 async function handlePOST(request: NextRequest) {
@@ -37,7 +38,7 @@ async function handlePOST(request: NextRequest) {
     paymentMethod?: string;
     clientRef?: string;
     purchaseOrderId?: string;
-    lines?: { itemId?: string; quantity?: number | string; unitCost?: number | string | null }[];
+    lines?: { itemId?: string; quantity?: number | string; unitCost?: number | string | null; expiresOn?: string; batchCode?: string }[];
   };
   try {
     body = await request.json();
@@ -79,6 +80,8 @@ async function handlePOST(request: NextRequest) {
         item_id: l.itemId,
         quantity: l.quantity === undefined ? null : String(l.quantity),
         unit_cost: l.unitCost === undefined || l.unitCost === null || l.unitCost === "" ? "" : String(l.unitCost),
+        expires_on: l.expiresOn ?? "",
+        batch_code: l.batchCode ?? "",
       })),
     },
   });

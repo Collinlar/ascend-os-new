@@ -16,6 +16,7 @@ import AttentionList, { type AttentionRow } from "@/components/shell/AttentionLi
 import { Icon, type IconName } from "@/components/shell/icons";
 import RiskBanner from "@/components/risk/RiskBanner";
 import { riskNotice } from "@/lib/risk/notice";
+import { expirySummary } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -68,13 +69,15 @@ export default async function Dashboard() {
   const hasTill = caps.has("pos.sell");
   const day = accraDate();
 
-  const [notice, path, figures, devices] = await Promise.all([
+  const [notice, path, figures, devices, expiry] = await Promise.all([
     // Ascend limiting the business is the first thing its owner should read
     // (Risk and Trust R5). Nothing shows below "restricted".
     riskNotice(workspace.businessId).catch(() => null),
     setupPath(workspace.businessId, workspace.locationId, caps).catch(() => null),
     loadHomeFigures(workspace.businessId, day).catch(() => null),
     caps.has("pos.tills") ? loadHomeDevices(workspace.businessId).catch(() => null) : Promise.resolve(null),
+    // Expired stock still on the shelf (Advanced Inventory A5, 0137).
+    caps.has("inventory.expiry") ? expirySummary(workspace.businessId).catch(() => null) : Promise.resolve(null),
   ]);
 
   const firstName = workspace.personName.split(/\s+/)[0] || workspace.personName;
@@ -146,6 +149,16 @@ export default async function Dashboard() {
       action: "See what is out",
       href: "/inventory?show=out",
       tone: "gold",
+      icon: "box",
+    });
+  }
+  if (expiry && expiry.expiredBatches > 0) {
+    attention.push({
+      id: "expired-stock",
+      title: `Expired stock on the shelf: ${formatGHS(expiry.expiredValue)}`,
+      action: "See what expired",
+      href: "/inventory?tab=expiry",
+      tone: "red",
       icon: "box",
     });
   }

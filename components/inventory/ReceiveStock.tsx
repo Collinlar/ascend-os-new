@@ -28,6 +28,8 @@ interface Line {
   itemId: string;
   quantity: string;
   unitCost: string;
+  expiresOn?: string;
+  batchCode?: string;
 }
 
 const blank = (): Line => ({ key: crypto.randomUUID(), itemId: "", quantity: "", unitCost: "" });
@@ -56,7 +58,7 @@ export default function ReceiveStock({
 }: {
   businessId: string;
   places: { id: string; name: string }[];
-  items: { id: string; name: string; averageCost: number | null }[];
+  items: { id: string; name: string; averageCost: number | null; tracksExpiry?: boolean }[];
   order?: ReceivableOrder;
   supplierNames?: string[];
 }) {
@@ -127,7 +129,13 @@ export default function ReceiveStock({
           paid,
           paymentMethod: paid ? method : undefined,
           clientRef,
-          lines: filled.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitCost: l.unitCost === "" ? null : Number(l.unitCost) })),
+          lines: filled.map((l) => ({
+            itemId: l.itemId,
+            quantity: Number(l.quantity),
+            unitCost: l.unitCost === "" ? null : Number(l.unitCost),
+            expiresOn: l.expiresOn || undefined,
+            batchCode: l.batchCode?.trim() || undefined,
+          })),
         }),
         signal: AbortSignal.timeout(20000),
       });
@@ -258,6 +266,21 @@ export default function ReceiveStock({
                     </label>
                   </div>
                   {avg !== null && <p className="mt-1.5 text-[12px] text-neutral-600">Last average cost {formatGHS(avg)}</p>}
+                  {items.find((it) => it.id === l.itemId)?.tracksExpiry && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <label className="text-[12.5px] font-semibold text-neutral-700">
+                        Expires on
+                        <input type="date" value={l.expiresOn ?? ""} onChange={(e) => setLine(l.key, { expiresOn: e.target.value })} className={field} />
+                      </label>
+                      <label className="text-[12.5px] font-semibold text-neutral-700">
+                        Batch number
+                        <input value={l.batchCode ?? ""} onChange={(e) => setLine(l.key, { batchCode: e.target.value })} placeholder="If on the box" className={field} />
+                      </label>
+                    </div>
+                  )}
+                  {items.find((it) => it.id === l.itemId)?.tracksExpiry && !l.expiresOn && (
+                    <p className="mt-1.5 text-[12px] text-gold-700">The date is on the box. Without one, Ascend cannot warn you before it expires.</p>
+                  )}
                 </div>
               );
             })}

@@ -42,6 +42,7 @@ const ROUTE_GROUP: Record<string, string> = {
   "inventory/receipt/pay": "catalogue",
   "inventory/reorder-rule": "catalogue",
   "inventory/place-marks": "catalogue",
+  "inventory/expiry": "catalogue",
   "inventory/transfer/arrived": "catalogue",
   "inventory/transfer/cancel": "catalogue",
   "staff/team": "team",

@@ -18,8 +18,10 @@ import OrderClose from "@/components/inventory/OrderClose";
 import PayDelivery from "@/components/inventory/PayDelivery";
 import ReorderRule from "@/components/inventory/ReorderRule";
 import PlaceLowMarks from "@/components/inventory/PlaceLowMarks";
+import ExpirySwitch from "@/components/inventory/ExpirySwitch";
+import WriteOffExpired from "@/components/inventory/WriteOffExpired";
 import { orderMessage, whatsappLink } from "@/lib/inventory/order-message";
-import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, expiryRows, expirySummary, type ExpiryRow, type ExpirySummary, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +73,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const membershipId = membership.id;
   const canAdjust = ["owner", "manager"].includes(membership.role?.key ?? "");
   const asked = searchParams.tab;
-  let tab = asked === "moves" || asked === "counts" || asked === "transfers" || asked === "orders" || asked === "suppliers" ? asked : "stock";
+  let tab = asked === "moves" || asked === "counts" || asked === "transfers" || asked === "orders" || asked === "suppliers" || asked === "expiry" ? asked : "stock";
   const show: Show = searchParams.show === "low" || searchParams.show === "out" ? searchParams.show : "all";
   const itemFilter = /^[0-9a-f-]{36}$/i.test(searchParams.item ?? "") ? searchParams.item : undefined;
 
@@ -89,8 +91,14 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     .catch(() => new Set<string>());
   const canMove = caps.has("inventory.transfers");
   const canBuy = caps.has("inventory.purchasing");
+  const canExpiry = caps.has("inventory.expiry");
+  let expiry: ExpiryRow[] = [];
+  let expirySum: ExpirySummary | null = null;
+  // Products that keep expiry dates (0137), so Receive stock asks for them.
+  const expiring = new Set<string>();
   if (tab === "transfers" && !canMove) tab = "stock";
   if ((tab === "orders" || tab === "suppliers") && !canBuy) tab = "stock";
+  if (tab === "expiry" && !canExpiry) tab = "stock";
   try {
     data = await stockLevels(businessId);
     counts = await stockCounts(businessId);
@@ -99,6 +107,11 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     if (canBuy) {
       const { data: pm } = await supabaseServer().from("place_low_mark").select("location_id, item_id, low_at").eq("business_id", businessId);
       for (const m of pm ?? []) placeMarks.set(`${m.location_id}|${m.item_id}`, Number(m.low_at));
+    }
+    if (canExpiry) {
+      [expiry, expirySum] = await Promise.all([expiryRows(businessId, 30), expirySummary(businessId)]);
+      const { data: ex } = await supabaseServer().from("catalogue_item").select("id").eq("business_id", businessId).eq("tracks_expiry", true);
+      for (const r of ex ?? []) expiring.add(r.id as string);
     }
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
@@ -188,14 +201,14 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                   businessId={businessId}
                   businessName={businessName}
                   places={places}
-                  items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                  items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null, tracksExpiry: expiring.has(l.itemId) }))}
                   suppliers={supplierList.map((s) => ({ id: s.id, name: s.name, phone: s.phone }))}
                 />
               )}
               <ReceiveStock
                 businessId={businessId}
                 places={places}
-                items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null, tracksExpiry: expiring.has(l.itemId) }))}
                 supplierNames={canBuy ? supplierList.map((s) => s.name) : undefined}
               />
             </>
@@ -230,6 +243,15 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                 {waiting.length === 1 ? "A stock count is" : `${waiting.length} stock counts are`} waiting for you to approve.
               </span>
               <span className="flex-none underline">See the count</span>
+            </Link>
+          )}
+
+          {expirySum && expirySum.expiredBatches > 0 && tab !== "expiry" && (
+            <Link href="/inventory?tab=expiry" className="tap mb-4 flex min-h-[44px] items-center justify-between gap-3 rounded-[18px] border border-danger/30 bg-danger-tint px-5 py-3 text-[13.5px] font-semibold text-danger-ink">
+              <span>
+                Expired stock is still on your shelf: {formatGHS(expirySum.expiredValue)} in {expirySum.expiredBatches} {expirySum.expiredBatches === 1 ? "batch" : "batches"}.
+              </span>
+              <span className="flex-none underline">See what expired</span>
             </Link>
           )}
 
@@ -271,6 +293,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                     ["orders", dueCount ? `Orders (${dueCount} to reorder)` : openOrders.length ? `Orders (${openOrders.length} open)` : "Orders"],
                     ["suppliers", "Suppliers"],
                   ]
+                : []),
+              ...(canExpiry
+                ? [["expiry", expirySum && expirySum.expiredBatches > 0 ? `Expiry (${expirySum.expiredBatches} expired)` : "Expiry"]]
                 : []),
             ].map(([k, label]) => (
               <Link
@@ -419,6 +444,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                   suppliers={supplierList.map((x) => ({ id: x.id, name: x.name }))}
                 />
               )}
+              {filteredItem && canExpiry && canAdjust && (
+                <ExpirySwitch key={`expiry-${filteredItem.itemId}`} businessId={businessId} itemId={filteredItem.itemId} itemName={filteredItem.name} on={expiring.has(filteredItem.itemId)} />
+              )}
               {filteredItem && rule && multi && (
                 <PlaceLowMarks
                   key={`marks-${filteredItem.itemId}`}
@@ -474,6 +502,67 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
             </>
           )}
 
+          {tab === "expiry" && (
+            <>
+              {expiry.length === 0 ? (
+                <EmptyState
+                  title={expiring.size === 0 ? "No product keeps expiry dates yet." : "Nothing expires in the next 30 days."}
+                  detail={
+                    expiring.size === 0
+                      ? "Open a product from Stock and switch on Has expiry dates. From then on Receive stock asks for the date on the box."
+                      : "Batches that expire within 30 days show here, oldest first, so you can sell them or move them in time."
+                  }
+                />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {[
+                    ["Expired", expiry.filter((r) => r.daysLeft < 0)],
+                    ["Expiring in the next 30 days", expiry.filter((r) => r.daysLeft >= 0)],
+                  ].map(([title, rows]) =>
+                    (rows as ExpiryRow[]).length === 0 ? null : (
+                      <section key={title as string}>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">{title as string}</p>
+                        <Panel>
+                          {(rows as ExpiryRow[]).map((r, i) => (
+                            <div key={r.batchId} className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 ${i ? "border-t border-neutral-100" : ""}`}>
+                              <span className="min-w-0">
+                                <span className="block text-[14px] font-semibold text-ink">{r.item}</span>
+                                <span className="block text-[12.5px] text-neutral-600">
+                                  {[
+                                    r.daysLeft < 0
+                                      ? `Expired ${day(r.expiresOn)}`
+                                      : r.daysLeft === 0
+                                        ? "Expires today"
+                                        : `Expires ${day(r.expiresOn)}, in ${r.daysLeft} ${r.daysLeft === 1 ? "day" : "days"}`,
+                                    r.batchCode ? `batch ${r.batchCode}` : null,
+                                    multi ? r.place : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
+                              </span>
+                              <span className={`num flex-none text-[14px] font-semibold ${r.daysLeft < 0 ? "text-danger-ink" : r.daysLeft <= 7 ? "text-gold-700" : "text-ink"}`}>
+                                {qty(r.quantity)} left{r.value > 0 ? `, ${formatGHS(r.value)}` : ""}
+                              </span>
+                              {r.daysLeft < 0 && canAdjust && (
+                                <WriteOffExpired businessId={businessId} batchId={r.batchId} label={`${qty(r.quantity)} ${r.item}`} value={r.value} />
+                              )}
+                            </div>
+                          ))}
+                        </Panel>
+                      </section>
+                    )
+                  )}
+                </div>
+              )}
+              {expirySum && expirySum.unknownQuantity > 0 && (
+                <p className="mt-3 text-[12.5px] text-neutral-600">
+                  {qty(expirySum.unknownQuantity)} {expirySum.unknownQuantity === 1 ? "item has" : "items have"} no expiry date known: stock from before dates were switched on, or received without one. Ascend sells dated batches first, so check these boxes by hand.
+                </p>
+              )}
+            </>
+          )}
+
           {tab === "orders" && (
             <>
               {reorder.length > 0 && canAdjust && (
@@ -505,7 +594,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                             businessId={businessId}
                             businessName={businessName}
                             places={places}
-                            items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                            items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null, tracksExpiry: expiring.has(l.itemId) }))}
                             suppliers={supplierList.map((s) => ({ id: s.id, name: s.name, phone: s.phone }))}
                             draft={{ supplierId: g.supplierId, placeId: g.placeId, lines: g.lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitCost: l.unitCost })) }}
                           />
@@ -585,7 +674,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                             <ReceiveStock
                               businessId={businessId}
                               places={places}
-                              items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null }))}
+                              items={lines.map((l) => ({ id: l.itemId, name: l.name, averageCost: costs.get(l.itemId) ?? null, tracksExpiry: expiring.has(l.itemId) }))}
                               order={{
                                 id: o.id,
                                 number: o.number,

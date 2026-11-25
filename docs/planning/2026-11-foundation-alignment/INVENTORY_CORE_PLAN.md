@@ -192,3 +192,41 @@ Checked on live, 25 November 2026, with throwaway ZZ businesses, an owner and a 
 Found and fixed during the check: the Low figure at the top of Inventory said 0 while three rows said low, because it judged the business as a whole against the product's own mark. With two or more places a product now counts as low on Inventory when it is low at any one place, against that place's mark; one place behaves as before. And the reorder banner and the Orders tab counted product and place pairs ("3 products" for two products, rice due at two places); they count products now.
 
 Not yet: Home's low stock figure still judges the business as a whole against the product's own mark.
+
+**Home's low figure, place by place, 25 November 2026.** `0136_home_low_per_place.sql` (9/9 locally): `commerce_home_figures` (from 0116, one counted substitution) counts a product as low when it is at or under the mark at any active place that holds it or has its own mark (0135), that place's own mark else the product's. One place: the same figure as before, and every other Home figure unchanged. Several places: a product short at one place and plentiful at another now counts, as Inventory already does.
+
+Checked on live, 25 November 2026, with the A5 check below: rice 30 at Main and 4 at the stall, 34 in all against a mark of 10, made Home's Low stock 1 (it was 0 before 0136).
+
+## 8. Advanced Inventory, next: expiry and batches, and valuation
+
+The spec names these and no more (06, section 11: "expiry, batch, valuation"; the ledger "should preserve unit cost inputs to support future valuation and gross margin", which it does since I1). So the design is ours. Proposed, for Collins to decide.
+
+**A5, expiry dates and batches.** Who it is for: chemical sellers and pharmacies, provision shops (milk, biscuits, drinks), cosmetics. In Ghana expired stock is a daily loss and, for medicines, a licence risk.
+- A product is switched to "has expiry dates" (off by default). Only those products change; everything else works exactly as now.
+- Receiving such a product asks for the expiry date (and the batch number printed on the box, optional) on each line. Each line becomes a batch at that place: product, place, expiry, batch number, cost.
+- What is in a batch is never typed. It is worked out from the movements, like every stock figure: each movement of an expiring product is allocated to batches in the database.
+- Selling takes from the batch that expires first (first expiry, first out), automatically, when the sale reaches the office. The cashier never picks a batch and the till does not change, so offline selling is untouched.
+- Other decreases (damage, transfers out, counts that come up short) also take from the batch that expires first. Increases that are not receipts (returns, counts that come up over) go to the batch that expires last, or to an "unknown date" pool when there is none.
+- Transfers carry batches: what leaves Main in first-expiry order arrives at the stall as the same batches.
+- Inventory gains an Expiry tab: what expires in the next 30 days, place by place, oldest first, and what has already expired with "Write off as expired" (a damage_loss with reason "Expired", from that batch). Expired stock is still sellable at the till (decision 4: the till keeps selling), but Inventory and Home say how much expired stock is on the shelf.
+- Write-offs for expiry feed the write-off risk signal (0130) as any damage does.
+
+**A6, valuation.** Recommend not building FIFO costing now. The moving average (I1) is what a Ghanaian SME owner and most accountants here recognise, and FIFO layers would change every cost figure already recorded for little gain at this size. Instead: a Stock value figure on Inventory (on hand at average cost, by place) and gross margin per product (sales less the cost carried on each sale movement since I1), which is what an owner or a lender actually asks. FIFO stays named for when an accountant or an institution asks for it.
+
+**Decisions for Collins**
+1. **Order.** *Recommended:* A5 expiry and batches first, then A6 stock value and margin.
+2. **Who picks the batch at a sale.** *Recommended:* nobody; the office takes from the batch that expires first. The till does not change.
+3. **Which products.** *Recommended:* a per-product switch, off by default.
+4. **Expired stock at the till.** *Recommended:* still sells (decision 4), but Inventory and Home show it, and writing it off is one tap. The alternative, refusing to sell expired stock at the till, needs batches on the till and breaks offline selling.
+5. **Warning window.** *Recommended:* 30 days for every product to start; per product later if asked.
+6. **Valuation.** *Recommended:* stock value and margin from average cost; no FIFO now.
+
+**Approved 25 November 2026**, decisions 1 to 6 of section 8 as recommended.
+
+**A5, expiry dates and batches, 25 November 2026.** `0137_expiry_and_batches.sql` (30/30 locally).
+- `catalogue_item.tracks_expiry`, off by default; capability `inventory.expiry` in Advanced Inventory. `stock_batch` (product, place, expiry or none, batch number, cost) and `stock_batch_movement`, both append-only and erasable like history.
+- A trigger allocates every movement of an expiring product as it is written: receipts to the batch the line names (`receive_stock` from 0132, five counted substitutions: `expires_on` and `batch_code` per line, a bad date refused before anything is written); transfers arriving to the same batches that left (and a transfer called back to the batch it came from); every other decrease to the batch that expires first; returns and counts that came up over to the batch that expires last; anything else, and anything beyond what the batches hold, to the unknown-date pool, which may go below zero as stock can. A failure to allocate is written to the audit log and never stops the sale. The till does not change.
+- `set_expiry_tracking` switches a product on or off; switching on puts what the batches do not account for at each place into the unknown-date pool, so batches add up to the shelf. `write_off_expired` writes off what is left of one batch as damage ("Expired 23 Nov 2026, batch PK-0460"), which the write-off signal counts. `expiry_report` and `expiry_summary` for the screens.
+- Inventory: "Expiry dates" on a product's history (Does not expire / Has expiry dates); Receive stock asks for "Expires on" and "Batch number" on lines for those products, and says what happens without a date; an Expiry tab with what has expired (and "Write off as expired") and what expires in the next 30 days, oldest first; a red banner while expired stock is on the shelf. Home: a red "Expired stock on the shelf" item.
+
+Checked on live, 25 November 2026, with a throwaway ZZ business with two places, an owner and a cashier (11/11 through the real routes, then the browser): a business without the set and the cashier were refused switching a product on; switching milk on put the 5 on the shelf in date not known; a date that is not a date was refused in words; deliveries through Receive stock made PK-0391 (6, ten days), PK-0460 (12, sixty days) and an expired FanYogo batch FY-11 (20 at GHS 2, dated yesterday); a sale of 8 took the 6 expiring first and 2 of the next, with no allocation failures; the summary said one expired batch worth GHS 40. In the browser Home at 1440px showed "Expired stock on the shelf: GH₵40.00"; the Expiry tab listed FanYogo with its batch and place; at 375px "Write off as expired" asked once and took it off the shelf, the tab and banner cleared, and Movements said "Expired 24 Nov 2026, batch FY-11"; milk's history showed Has expiry dates on, and picking milk in Receive stock added Expires on, Batch number and the hint. Removed by id after. The confirmation read "20 FanYogo comes off the shelf"; it now asks "Take 20 FanYogo off the shelf and write off GH₵40.00?".
