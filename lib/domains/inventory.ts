@@ -616,3 +616,58 @@ export async function expirySummary(businessId: string): Promise<ExpirySummary |
     unknownQuantity: Number(s.unknown_quantity ?? 0),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Stock value and margin (Advanced Inventory A6, 0138)
+// ---------------------------------------------------------------------------
+
+export interface PlaceValue {
+  placeId: string;
+  units: number;
+  atCost: number;
+  atPrice: number;
+  products: number;
+  uncosted: number;
+}
+
+export interface ProductMargin {
+  itemId: string;
+  name: string;
+  units: number;
+  sales: number;
+  /** Null when the product has no cost: sales are shown, a margin is not. */
+  unitCost: number | null;
+  cost: number | null;
+  margin: number | null;
+}
+
+export async function stockValue(businessId: string): Promise<PlaceValue[]> {
+  const { data, error } = await supabaseServer().rpc("stock_value", { p_business: businessId });
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    placeId: r.location_id as string,
+    units: Number(r.units),
+    atCost: Number(r.at_cost),
+    atPrice: Number(r.at_price),
+    products: Number(r.products),
+    uncosted: Number(r.uncosted_products),
+  }));
+}
+
+/** Products sold in the period, best margin first, those with no cost last. */
+export async function productMargins(businessId: string, from: string, to: string): Promise<ProductMargin[]> {
+  const { data, error } = await supabaseServer().rpc("product_margins", { p_business: businessId, p_from: from, p_to: to });
+  if (error || !data) return [];
+  const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  return (data as Record<string, unknown>[])
+    .map((r) => ({
+      itemId: r.item_id as string,
+      name: r.name as string,
+      units: Number(r.units),
+      sales: Number(r.sales),
+      unitCost: n(r.unit_cost),
+      cost: n(r.cost),
+      margin: n(r.margin),
+    }))
+    .sort((a, b) => (a.margin === null ? 1 : b.margin === null ? -1 : b.margin - a.margin) || b.sales - a.sales);
+}

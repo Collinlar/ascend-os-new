@@ -21,7 +21,7 @@ import PlaceLowMarks from "@/components/inventory/PlaceLowMarks";
 import ExpirySwitch from "@/components/inventory/ExpirySwitch";
 import WriteOffExpired from "@/components/inventory/WriteOffExpired";
 import { orderMessage, whatsappLink } from "@/lib/inventory/order-message";
-import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, expiryRows, expirySummary, type ExpiryRow, type ExpirySummary, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
+import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, expiryRows, expirySummary, stockValue, productMargins, type ExpiryRow, type ExpirySummary, type PlaceValue, type ProductMargin, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +73,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const membershipId = membership.id;
   const canAdjust = ["owner", "manager"].includes(membership.role?.key ?? "");
   const asked = searchParams.tab;
-  let tab = asked === "moves" || asked === "counts" || asked === "transfers" || asked === "orders" || asked === "suppliers" || asked === "expiry" ? asked : "stock";
+  let tab = asked === "moves" || asked === "counts" || asked === "transfers" || asked === "orders" || asked === "suppliers" || asked === "expiry" || asked === "value" ? asked : "stock";
   const show: Show = searchParams.show === "low" || searchParams.show === "out" ? searchParams.show : "all";
   const itemFilter = /^[0-9a-f-]{36}$/i.test(searchParams.item ?? "") ? searchParams.item : undefined;
 
@@ -92,6 +92,12 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const canMove = caps.has("inventory.transfers");
   const canBuy = caps.has("inventory.purchasing");
   const canExpiry = caps.has("inventory.expiry");
+  const canValue = caps.has("inventory.valuation");
+  let values: PlaceValue[] = [];
+  let margins: ProductMargin[] = [];
+  // The last 30 days, Accra time, for margins (0138).
+  const valueTo = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+  const valueFrom = new Date(Date.now() - 29 * 86400000).toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
   let expiry: ExpiryRow[] = [];
   let expirySum: ExpirySummary | null = null;
   // Products that keep expiry dates (0137), so Receive stock asks for them.
@@ -99,6 +105,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   if (tab === "transfers" && !canMove) tab = "stock";
   if ((tab === "orders" || tab === "suppliers") && !canBuy) tab = "stock";
   if (tab === "expiry" && !canExpiry) tab = "stock";
+  if (tab === "value" && !canValue) tab = "stock";
   try {
     data = await stockLevels(businessId);
     counts = await stockCounts(businessId);
@@ -108,6 +115,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
       const { data: pm } = await supabaseServer().from("place_low_mark").select("location_id, item_id, low_at").eq("business_id", businessId);
       for (const m of pm ?? []) placeMarks.set(`${m.location_id}|${m.item_id}`, Number(m.low_at));
     }
+    if (canValue && tab === "value") [values, margins] = await Promise.all([stockValue(businessId), productMargins(businessId, valueFrom, valueTo)]);
     if (canExpiry) {
       [expiry, expirySum] = await Promise.all([expiryRows(businessId, 30), expirySummary(businessId)]);
       const { data: ex } = await supabaseServer().from("catalogue_item").select("id").eq("business_id", businessId).eq("tracks_expiry", true);
@@ -294,6 +302,7 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                     ["suppliers", "Suppliers"],
                   ]
                 : []),
+              ...(canValue ? [["value", "Value"]] : []),
               ...(canExpiry
                 ? [["expiry", expirySum && expirySum.expiredBatches > 0 ? `Expiry (${expirySum.expiredBatches} expired)` : "Expiry"]]
                 : []),
@@ -499,6 +508,95 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                 </Panel>
               )}
               {moves.length === 150 && <p className="mt-3 text-[12.5px] text-neutral-600">The latest 150. Pick a product to see its whole history.</p>}
+            </>
+          )}
+
+          {tab === "value" && (
+            <>
+              {values.length > 0 && (
+                <>
+                  <FigureRow
+                    figures={[
+                      {
+                        label: "Stock at cost",
+                        value: formatGHS(values.reduce((n, v) => n + v.atCost, 0)),
+                        sub: "What you paid for what is on the shelf",
+                      },
+                      {
+                        label: "At your selling prices",
+                        value: formatGHS(values.reduce((n, v) => n + v.atPrice, 0)),
+                        sub: values.some((v) => v.uncosted > 0)
+                          ? "At today's prices, including products with no cost yet"
+                          : "If all of it sold at today's prices",
+                      },
+                    ]}
+                  />
+                  {multi && (
+                    <Panel className="mb-4">
+                      {values.map((v, i) => (
+                        <div key={v.placeId} className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 py-3 text-[13.5px] ${i ? "border-t border-neutral-100" : ""}`}>
+                          <span className="font-semibold text-ink">{places.find((pl) => pl.id === v.placeId)?.name ?? "A place"}</span>
+                          <span className="num text-neutral-700">
+                            {formatGHS(v.atCost)} at cost · {formatGHS(v.atPrice)} at prices · {qty(v.units)} items
+                          </span>
+                        </div>
+                      ))}
+                    </Panel>
+                  )}
+                  {values.some((v) => v.uncosted > 0) && (
+                    <p className="-mt-1 mb-4 text-[12.5px] text-neutral-600">
+                      {values.reduce((n, v) => n + v.uncosted, 0)} {values.reduce((n, v) => n + v.uncosted, 0) === 1 ? "product on the shelf has" : "products on the shelf have"} no cost yet, so
+                      {" "}stock at cost leaves {values.reduce((n, v) => n + v.uncosted, 0) === 1 ? "it" : "them"} out. Add the cost when you next receive {values.reduce((n, v) => n + v.uncosted, 0) === 1 ? "it" : "them"}.
+                    </p>
+                  )}
+                </>
+              )}
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">What each product earned, last 30 days</p>
+              {margins.length === 0 ? (
+                <EmptyState title="No sales in the last 30 days." detail="Once products sell, each one shows what it sold for, what it cost you and what you kept." />
+              ) : (
+                <Panel>
+                  <div
+                    aria-hidden
+                    className="hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 lg:grid lg:grid-cols-[minmax(0,1fr)_80px_120px_120px_140px] lg:gap-4"
+                  >
+                    <span>Product</span>
+                    <span className="text-right">Sold</span>
+                    <span className="text-right">Sales</span>
+                    <span className="text-right">Cost</span>
+                    <span className="text-right">You kept</span>
+                  </div>
+                  {margins.map((m, i) => (
+                    <div
+                      key={m.itemId}
+                      className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-5 py-3 text-[13.5px] lg:grid lg:grid-cols-[minmax(0,1fr)_80px_120px_120px_140px] lg:gap-4 ${i ? "border-t border-neutral-100" : ""}`}
+                    >
+                      <span className="min-w-0 basis-full truncate font-semibold text-ink lg:basis-auto">{m.name}</span>
+                      <span className="num text-neutral-700 lg:text-right">
+                        <span className="lg:hidden">Sold </span>
+                        {qty(m.units)}
+                      </span>
+                      <span className="num text-neutral-700 lg:text-right">
+                        <span className="lg:hidden">for </span>
+                        {formatGHS(m.sales)}
+                      </span>
+                      <span className="num text-neutral-700 lg:text-right">
+                        <span className="lg:hidden">cost </span>
+                        {m.cost === null ? "not known" : formatGHS(m.cost)}
+                      </span>
+                      <span className={`num font-semibold lg:text-right ${m.margin === null ? "text-neutral-500" : m.margin < 0 ? "text-danger-ink" : "text-teal-800"}`}>
+                        {m.margin !== null && <span className="font-normal text-neutral-600 lg:hidden">kept </span>}
+                        {m.margin === null
+                          ? "Add a cost to see"
+                          : `${formatGHS(m.margin)}${m.sales > 0 ? `, ${Math.round((100 * m.margin) / m.sales)}%` : ""}`}
+                      </span>
+                    </div>
+                  ))}
+                </Panel>
+              )}
+              <p className="mt-3 text-[12.5px] text-neutral-600">
+                Cost is what you paid on average when each sale was made. Sales are what customers were charged, after discounts. Each product stands on its own; this is not your profit, which also pays rent, wages and transport.
+              </p>
             </>
           )}
 
