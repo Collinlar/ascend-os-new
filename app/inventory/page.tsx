@@ -17,6 +17,7 @@ import SupplierForm from "@/components/inventory/SupplierForm";
 import OrderClose from "@/components/inventory/OrderClose";
 import PayDelivery from "@/components/inventory/PayDelivery";
 import ReorderRule from "@/components/inventory/ReorderRule";
+import PlaceLowMarks from "@/components/inventory/PlaceLowMarks";
 import { orderMessage, whatsappLink } from "@/lib/inventory/order-message";
 import { isBelowZero, isLow, isOut, KIND_LABEL, stockCounts, stockOrders, stockTransfers, suppliers as loadSuppliers, reorderGroups, type ReorderGroup, type StockCountView, type StockOrderView, type StockTransferView, type SupplierView, recentMovements, stockLevels, type Movement, type StockLine } from "@/lib/domains/inventory";
 
@@ -81,6 +82,8 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   let orders: StockOrderView[] = [];
   let supplierList: SupplierView[] = [];
   let reorder: ReorderGroup[] = [];
+  // Each place's own low mark for a product (0135), "place|item".
+  const placeMarks = new Map<string, number>();
   const caps = await effectiveAccess(businessId)
     .then((a) => a.capabilities)
     .catch(() => new Set<string>());
@@ -93,6 +96,10 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     counts = await stockCounts(businessId);
     if (canMove) transfers = await stockTransfers(businessId);
     if (canBuy) [orders, supplierList, reorder] = await Promise.all([stockOrders(businessId), loadSuppliers(businessId), reorderGroups(businessId)]);
+    if (canBuy) {
+      const { data: pm } = await supabaseServer().from("place_low_mark").select("location_id, item_id, low_at").eq("business_id", businessId);
+      for (const m of pm ?? []) placeMarks.set(`${m.location_id}|${m.item_id}`, Number(m.low_at));
+    }
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
@@ -115,14 +122,23 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   }
   const tracked = lines.filter((l) => l.tracked);
   const untracked = lines.length - tracked.length;
-  const low = tracked.filter(isLow);
+  // With two or more places a product is low when it is low at any one of
+  // them, against that place's own mark (0135) or else the product's. One
+  // place: as before.
+  const lowAt = (placeId: string, l: StockLine) => placeMarks.get(`${placeId}|${l.itemId}`) ?? l.lowAt;
+  const lowSomewhere = (l: StockLine) =>
+    places.length > 1
+      ? l.tracked && places.some((p, j) => { const m = lowAt(p.id, l); return m !== null && l.at[j].available > 0 && l.at[j].available <= m; })
+      : isLow(l);
+  const low = tracked.filter(lowSomewhere);
   const out = tracked.filter(isOut);
   const held = tracked.reduce((n, l) => n + l.held, 0);
   const belowZero = tracked.filter(isBelowZero);
   const waiting = counts.filter((c) => c.status === "waiting");
   const onTheWay = transfers.filter((t) => t.status === "sent");
   const openOrders = orders.filter((o) => o.status === "open");
-  const dueCount = reorder.reduce((n, g) => n + g.lines.length, 0);
+  // Products, not product-and-place pairs: rice due at two places is one product.
+  const dueCount = new Set(reorder.flatMap((g) => g.lines.map((l) => l.itemId))).size;
   const owedTotal = supplierList.reduce((n, s) => n + s.owed, 0);
   const day = (d: string) => new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   // Out at one place while another still has some: worth a move, not a reorder.
@@ -342,8 +358,20 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                         places.map((p, j) => (
                           <span key={p.id} className="num flex justify-between text-[13px] text-neutral-700 lg:block lg:text-right">
                             <span className="lg:hidden">{p.name}</span>
-                            <span className={l.at[j].available <= 0 ? "font-semibold text-danger-ink" : undefined}>
-                              {l.at[j].available <= 0 ? `${qty(l.at[j].available)}, out` : qty(l.at[j].available)}
+                            <span
+                              className={
+                                l.at[j].available <= 0
+                                  ? "font-semibold text-danger-ink"
+                                  : l.at[j].available <= (lowAt(p.id, l) ?? -1)
+                                    ? "font-semibold text-gold-700"
+                                    : undefined
+                              }
+                            >
+                              {l.at[j].available <= 0
+                                ? `${qty(l.at[j].available)}, out`
+                                : l.at[j].available <= (lowAt(p.id, l) ?? -1)
+                                  ? `${qty(l.at[j].available)}, low`
+                                  : qty(l.at[j].available)}
                               {l.at[j].held > 0 && <span className="font-normal text-neutral-600"> ({qty(l.at[j].held)} held)</span>}
                             </span>
                           </span>
@@ -389,6 +417,16 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
                   reorderQuantity={rule.reorder_quantity === null ? null : Number(rule.reorder_quantity)}
                   supplierId={rule.preferred_supplier_id}
                   suppliers={supplierList.map((x) => ({ id: x.id, name: x.name }))}
+                />
+              )}
+              {filteredItem && rule && multi && (
+                <PlaceLowMarks
+                  key={`marks-${filteredItem.itemId}`}
+                  businessId={businessId}
+                  itemId={filteredItem.itemId}
+                  itemName={filteredItem.name}
+                  productMark={filteredItem.lowAt}
+                  places={places.map((pl) => ({ id: pl.id, name: pl.name, mark: placeMarks.get(`${pl.id}|${filteredItem.itemId}`) ?? null }))}
                 />
               )}
               {filteredItem && (

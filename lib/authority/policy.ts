@@ -176,6 +176,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // Paying for a delivery needs stock rights only (0134), like receiving one paid.
   "inventory/receipt/pay": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.basic", "inventory.connection"] }) },
   "inventory/reorder-rule": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
+  "inventory/place-marks": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.purchasing"] }) },
   // Advanced Inventory (0131). Sending and calling back need stock rights;
   // anyone at the receiving place may say what arrived.
   "inventory/transfer": { POST: member("body", { permission: ["inventory.manage"], capability: ["inventory.transfers"], location: "body" }) },
