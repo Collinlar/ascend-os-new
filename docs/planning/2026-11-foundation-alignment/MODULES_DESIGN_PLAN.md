@@ -103,7 +103,7 @@ Collins approved decisions 1 to 6 as recommended on 26 November 2026.
 
 Tested on live with a throwaway ZZ business (two places, a cashier limited to one, a sold-out product): 18 of 18 passed, covering the bell, the switcher's refusals, a forged place cookie, the folded sidebar, every band and tab set, and the bar's actions. Checked in the browser at 1440px and 375px with no horizontal scroll. ZZ data removed.
 
-### M2 Office (built 26 November 2026; 0139 waits to be run)
+### M2 Office (done, 26 November 2026; 0139 run on live)
 
 Office already had more than section 2 assumed: time off (0061, decided through `approval_request`), jobs with steps (0062), a schedule and a command centre. M2 reorganises them into the design's four tabs, and adds the one thing the board needed.
 
@@ -114,6 +114,6 @@ Office already had more than section 2 assumed: time off (0061, decided through 
 - **Migration 0139** (`0139_task_moves.sql`): `set_task_status` moves a task between the four columns with its event in the same transaction (`office.task.moved`, or `office.task.completed` exactly as `complete_task` writes it), refuses a cancelled task and another business's task. It also adds `approval_request.decision_note`: `decide_approval` wrote the decider's note over the requester's reason, and for a purchase the approval trigger reads that same note to write the purchase order. The route now sends `decide_approval` no note and keeps the decider's words in the new column. Tested locally, 13 of 13.
 - The old `WorkBoard`, `CommandCentre` and `Schedule` components are gone; their forms live in `components/office/OfficeForms.tsx`, shared by Today and the board.
 
-Tested on live before 0139 with a throwaway ZZ business (an owner, a staff member, a cashier, a GHS 50 spending rule, a job, three tasks, a spend and a time off request): 31 of 31. The moves and the decision note are tested once 0139 has run (`liveM2.mjs after0139`). Checked in the browser at 1440px and 375px with no horizontal scroll.
+Tested on live before 0139 with a throwaway ZZ business (an owner, a staff member, a cashier, a GHS 50 spending rule, a job, three tasks, a spend and a time off request): 31 of 31. After 0139 ran: 38 of 38, adding the moves (Start, Waiting, Done, a staff member refused on someone else's task, a cancelled column refused, one event per move) and the decision note (the reason kept, the note saved and shown to the person who asked). Checked in the browser at 1440px and 375px with no horizontal scroll.
 
 Not built, as decided (decision 4): leave balances ("Leave left"), staff documents, and a time-bound external accountant (Sharing covers an outside accountant). The design's "Business pulse" of sales, bookings and cash is Home's job; Today shows the team's last 7 days instead.
