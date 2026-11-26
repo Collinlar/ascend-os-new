@@ -19,6 +19,17 @@ function read(names: string[], label: string): string {
 
 const URL_NAMES = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"];
 
+/** The project URL, read at run time. Never write process.env.NEXT_PUBLIC_*
+ *  directly in server code: Next.js copies those values into the build,
+ *  and Netlify's secret scan then refuses the deploy. */
+export function supabaseUrl(): string | null {
+  for (const name of URL_NAMES) {
+    const value = process.env[name];
+    if (value) return value;
+  }
+  return null;
+}
+
 // Browser client: publishable key only. It is safe to ship, and the
 // database revokes anon access to every table, view and function anyway
 // (migration 0034), so this can only reach what is deliberately opened.

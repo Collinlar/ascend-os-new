@@ -1,6 +1,6 @@
 import "server-only";
 
-import { supabaseServer } from "@/lib/supabase";
+import { supabaseServer, supabaseUrl } from "@/lib/supabase";
 import { renderDocumentPdf, type PdfDocument, type PdfLine } from "./pdf";
 
 // Turns a stored document into the bytes a customer can keep.
@@ -170,7 +170,7 @@ export function lookTemplate(value: unknown): "classic" | "modern" | "compact" {
 // a request could supply, and a slow or missing one leaves the logo off
 // rather than holding the document up.
 export async function fetchLogo(url: string | null): Promise<Uint8Array | null> {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const base = supabaseUrl();
   if (!url || !base || !url.startsWith(`${base}/storage/v1/object/public/`)) return null;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
