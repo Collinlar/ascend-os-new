@@ -220,3 +220,76 @@ The three customer pages already followed the v3 design closely (the booking flo
 Checked with a throwaway ZZ business at 375px (storefront, invoice part-paid, booking), no horizontal scroll; the Verified label appeared only after the business was marked verified, and went when it was set back. ZZ data removed.
 
 **Still on the list from M6:** the visit-to-paid funnel (decision 3), Smart Setup from photos (decision 4), and online payment screens (Paystack).
+
+
+---
+
+## 7. Round 2: the improved designs (plan, 26 November 2026, for Collins to approve)
+
+Source: the Claude Design project, now on claude.ai (`AscendSME Mobile App Design`, 32 pages). Compared page by page with what M1 to M6 were built from: **Office, CRM and Services are unchanged.** What is new:
+
+- **Documents** gains two screens: **New document** (index 04) and **How documents look** (index 05).
+- **Shop, customer side** (index 19 to 32) is new: storefront, search and filters, product page, cart, guest checkout, waiting for payment, confirmed, order tracking, report a problem, and the same on a laptop.
+
+Paystack stays on hold, so every screen that takes money online (pay link, deposit at checkout, "Approve on your phone", "Paid. Order confirmed.") is shown as it can work today: order now and pay on the day, or pay the business directly.
+
+### Documents: New document
+
+| Design | Ascend today | |
+|---|---|---|
+| Pick the type: quotation, invoice, proforma, receipt, purchase order, delivery note, credit note | Creates quotation, proforma, invoice, receipt and purchase order; credit notes come from an invoice; delivery notes cannot be created yet | Build the five; credit note from its invoice; delivery note is decision 3 |
+| Start from blank, a till sale, a booking, a Shop order, or a copy of a past document | Only blank, and quotation to invoice | Build: the customer and items fill in from what is picked |
+| The customer from CRM, with Change | A name and phone typed in | Build a picker over the customer list, with add new |
+| Items from the catalogue with quantity steps, often added, prices editable for this document | Catalogue search and lines exist | Restyle as the design |
+| Dates and terms, a note on the document | Due date exists; valid until for quotations exists | Build |
+| Getting paid: pay link and QR, a 30% deposit, automatic reminders | Reminders exist (weekly while overdue); pay links and deposits need Paystack | Show reminders; the other two wait |
+| A live preview of what the customer receives, in the chosen look | No preview | Build, from the same look the PDF uses |
+| Send by WhatsApp, email, SMS link or PDF only | Ascend's WhatsApp waits for Meta; email exists; "Send it from your WhatsApp" exists | Build with what works |
+
+### Documents: How documents look
+
+| Design | Ascend today | |
+|---|---|---|
+| Templates: Classic, Modern, Compact | One look | Build the three, on screen and in the PDF |
+| Logo and brand colour | Accent colour exists; no logo | Logo needs an upload (the product photo upload is the pattern) |
+| Business details: name and address, phone and email, TIN, pay link and QR | Name, address and phone exist; no TIN field | Add TIN; pay link waits |
+| Numbering: prefix per type, next number, add the year | Fixed prefixes with the year (INV-2026-0001), never repeating | Decision 4 |
+| Default terms, signature areas on POs, delivery notes and agreements | A footer note exists | Build |
+| Free and Documents Plus side by side, with Plus features locked | Documents Plus is not priced or switched on anywhere | Decision 2 |
+| Samples: invoice, quotation, receipt (A4 and 80mm), PO, delivery note | PDFs exist for issued documents | Build the samples from the same renderer |
+
+### Shop, customer side
+
+| Design | Ascend today | |
+|---|---|---|
+| Storefront: verified, where they are, pickup and delivery up front, a promotion, bestsellers, bookable services, trust lines, Report | Storefront with verified (M6b), best seller, Book a service, search, categories, Report | Add pickup and delivery facts, a services row, trust lines; the promotion is decision 5 |
+| Pickup "ready in 2 hours", delivery "same day, GHS 30", order before 3pm, returns within 7 days | None of these is a setting today, and checkout never adds a delivery fee | Decision 1 |
+| Search and filters: sort, price range, in stock, pickup or delivery today | Search and categories | Build sort, price and in stock; "today" follows decision 1 |
+| Product page: sizes, quantity, stock left, fulfilment and returns, who sells it, Report | Product page with stock left | Add the rest; sizes are decision 6 |
+| Cart: quantities, "goes well with", checkout as a guest | Basket exists | Add suggestions from what is bought together |
+| Guest checkout: pickup place or delivery with GhanaPost GPS, name and phone, an unticked offers opt-in, pay | Pickup or delivery address, name and phone | Add the place to pick up from, GPS or landmark, the opt-in; paying waits |
+| Waiting for payment, confirmed | Order placed, confirmed on WhatsApp | Keep "pay on the day" until Paystack |
+| Order tracking: paid, packed, ready or out for delivery, the rider, the receipt, report a problem | Not built: a customer cannot see their order after placing it | Build a private order link |
+| Report a problem with photos; the shop sees it first, Ascend after 48 hours | Report exists, without photos or the 48-hour rule | Decision 7 |
+| Desktop storefront, product page, checkout and confirmation | The storefront is responsive | Adjust to the desktop design |
+
+### Steps
+
+| Step | What | Needs a migration |
+|---|---|---|
+| **R1 New document** | The full page: type, start from, customer picker, catalogue items, dates and note, live preview, send | No (delivery notes: decision 3) |
+| **R2 How documents look** | Templates, logo, colour, details with TIN, numbering, terms, signature areas, samples, and the PDF following the look | Yes: the look's settings, TIN, maybe numbering |
+| **R3 Shop settings for the customer side** | Pickup ready time, delivery areas and fee, order cut-off, returns policy, contact line; checkout adds the delivery fee | Yes |
+| **R4 The customer's shop** | Storefront facts, search filters, product page, cart suggestions, checkout with pickup place, GPS and opt-in, desktop layouts | No, after R3 |
+| **R5 Order tracking and reporting** | A private link to the order (steps, what was paid, the receipt), report with photos and the 48-hour rule | Yes |
+
+### Decisions for Collins
+
+1. **Shop delivery and pickup settings (R3).** *Recommended:* yes. The design's "Free pickup, ready in 2 hours" and "Accra delivery, same day, GHS 30" need the shop to set them, and today a delivery order is charged no delivery fee at all. Set per shop: pickup ready time, delivery areas with a fee each, the cut-off time, and a returns policy line.
+2. **Documents Plus.** It is drawn as a paid step (templates, logo, colour, numbering, terms, signatures) but has no price and no way to switch it on. *Recommended:* build the look settings for everyone now, with the Classic template and business details free, and mark the rest "Documents Plus" only once you give it a price. Or tell me the price and I gate it now.
+3. **Delivery notes.** *Recommended:* yes, made from an invoice or a Shop order, with ordered and delivered quantities and signature areas, no prices (as drawn).
+4. **Numbering.** *Recommended:* let a business choose the prefix (INV-, QUO-, RCT-) and whether the year is shown, keeping the never repeat, never skip rule. Changing the next number by hand stays off: a gap is a red flag in the evidence.
+5. **The storefront promotion banner** ("December bridal: free wash with any bridal booking"). There is no shop promotion today. *Recommended:* a simple banner the owner writes (headline, one line, a link to a service or product), built in R3.
+6. **Sizes on the product page.** The catalogue has variants underneath, but the storefront does not sell them. *Recommended:* add choosing a variant (size) to the product page, cart and order, since a shop with sizes cannot sell properly without it.
+7. **Report with photos and the 48-hour rule.** *Recommended:* yes. Photos through the same upload as product photos; the shop is told first, and the report reaches Ascend's risk desk if it is still open after 48 hours.
+8. **Order.** *Recommended:* R1, R2, R3, R4, R5.
