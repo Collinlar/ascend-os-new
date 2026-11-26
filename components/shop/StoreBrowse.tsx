@@ -25,6 +25,8 @@ export default function StoreBrowse({
   onOpen,
   onAdd,
   basket,
+  verified = false,
+  bookable = false,
 }: {
   slug: string;
   businessName: string;
@@ -35,6 +37,8 @@ export default function StoreBrowse({
   onOpen: (product: StorefrontProduct) => void;
   onAdd: (product: StorefrontProduct) => void;
   basket: Record<string, number>;
+  verified?: boolean;
+  bookable?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
@@ -101,10 +105,25 @@ export default function StoreBrowse({
       <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           <h1 className="font-heading text-[30px] font-extrabold leading-[1.1] text-ink-heading sm:text-[34px]">{businessName}</h1>
-          <p className="mt-2 text-[15px] text-neutral-600">
-            {[categories.slice(0, 3).join(", "), city, products.length > 0 ? `${products.length} ${products.length === 1 ? "item" : "items"}` : null]
-              .filter(Boolean)
-              .join(" · ")}
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-neutral-600">
+            {verified && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-[12.5px] font-bold text-teal-800">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+                Verified business
+              </span>
+            )}
+            <span>
+              {[
+                places.length > 1 ? places.map((pl) => pl.name).join(" and ") : city,
+                categories.slice(0, 3).join(", "),
+                products.length > 0 ? `${products.length} ${products.length === 1 ? "item" : "items"}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </p>
           <p className="mt-1.5 max-w-xl text-[15px] leading-relaxed text-neutral-700">
             {products.length > 0
@@ -132,12 +151,20 @@ export default function StoreBrowse({
                 </label>
               )}
 
-              {categories.length > 1 && (
-                <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-                  <Chip label="Everything" active={category === null} onClick={() => setCategory(null)} />
-                  {categories.map((c) => (
-                    <Chip key={c} label={c} active={category === c} onClick={() => setCategory(category === c ? null : c)} />
-                  ))}
+              {(categories.length > 1 || bookable) && (
+                <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+                  {categories.length > 1 && <Chip label="Everything" active={category === null} onClick={() => setCategory(null)} />}
+                  {categories.length > 1 &&
+                    categories.map((c) => <Chip key={c} label={c} active={category === c} onClick={() => setCategory(category === c ? null : c)} />)}
+                  {/* Services are booked on their own page, with a time. */}
+                  {bookable && (
+                    <a
+                      href={`/b/${slug}`}
+                      className="tap flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-teal-200 bg-teal-50 px-4 text-[14px] font-semibold text-teal-800"
+                    >
+                      Book a service
+                    </a>
+                  )}
                 </div>
               )}
 
@@ -166,6 +193,7 @@ export default function StoreBrowse({
           <div className="rounded-[20px] border border-neutral-100">
             <p className="px-4 pb-1.5 pt-3.5 font-heading text-[16px] font-bold text-ink-heading">Who you are buying from</p>
             <Fact k="Business" v={businessName} />
+            {verified && <Fact k="Checked by Ascend" v="Who runs this business has been verified" />}
             {city && <Fact k="Where" v={`${city}, Ghana`} />}
             {since && <Fact k="On Ascend since" v={since} />}
             <Fact k="Your order" v="Confirmed by the shop on WhatsApp" />
@@ -238,6 +266,9 @@ function Tile({
     <div className="relative">
       <div className="relative aspect-square w-full overflow-hidden rounded-[18px]">
         <Photo product={product} sizeHint="(min-width: 1024px) 240px, (min-width: 768px) 30vw, 45vw" />
+        {!soldOut && product.bestseller && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-teal-100 px-2.5 py-1 text-[12px] font-bold text-teal-800">Best seller</span>
+        )}
         {soldOut && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-white/95 px-2.5 py-1 text-[12px] font-bold text-danger-ink">Sold out</span>
         )}

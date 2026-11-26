@@ -25,11 +25,15 @@ interface Props {
   memberSince: string | null;
   places: { name: string; city: string | null }[];
   products: StorefrontProduct[];
+  /** Ascend has verified who runs it (Modules M6b). */
+  verified?: boolean;
+  /** It takes bookings on its booking page too. */
+  bookable?: boolean;
 }
 
 type View = "browse" | "product" | "basket" | "checkout" | "placed";
 
-export default function Storefront({ slug, businessName, city, memberSince, places, products }: Props) {
+export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false }: Props) {
   const [view, setView] = useState<View>("browse");
   const [openId, setOpenId] = useState<string | null>(null);
   const [basket, setBasket] = useState<Record<string, number>>({});
@@ -196,6 +200,8 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           memberSince={memberSince}
           places={places}
           products={products}
+          verified={verified}
+          bookable={bookable}
           basket={basket}
           onOpen={(p) => {
             setOpenId(p.id);

@@ -19,6 +19,8 @@ export interface StorefrontProduct {
   /** How many can still be ordered, for a product the shop counts. Absent
    *  when it does not count it: then there is no limit to show. */
   left?: number;
+  /** The shop's best seller over the last 30 days (Modules M6b). */
+  bestseller?: boolean;
 }
 
 // Deterministic tint for a product with no photo, so the same item is the

@@ -28,6 +28,10 @@ interface ShopData {
   memberSince: string | null;
   places: { name: string; city: string | null }[];
   products: StorefrontProduct[];
+  /** Ascend has verified who runs it (business.identity_verification). */
+  verified: boolean;
+  /** It takes bookings on its booking page too. */
+  bookable: boolean;
 }
 
 async function loadShop(slug: string): Promise<ShopData | null> {
@@ -81,6 +85,30 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       }
     }
 
+    // The customer-facing trust facts and the best seller (Modules M6b).
+    // Verified only when Ascend verified it; never a decoration.
+    const since30 = new Date(Date.now() - 30 * 864e5).toISOString();
+    const [trust, services, recent] = await Promise.all([
+      db.from("business").select("identity_verification").eq("id", business.id).maybeSingle(),
+      db.from("catalogue_item").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("kind", "service").eq("active", true).not("base_price", "is", null),
+      db
+        .from("shop_order")
+        .select("status, shop_order_line(item_id, quantity)")
+        .eq("business_id", business.id)
+        .gte("placed_at", since30)
+        .in("status", ["confirmed", "preparing", "ready", "out_for_delivery", "fulfilled"])
+        .limit(500),
+    ]);
+    const soldBy = new Map<string, number>();
+    for (const o of recent.data ?? []) {
+      for (const l of (o.shop_order_line ?? []) as unknown as Array<{ item_id: string; quantity: number }>) {
+        soldBy.set(l.item_id, (soldBy.get(l.item_id) ?? 0) + Number(l.quantity));
+      }
+    }
+    const best = Array.from(soldBy.entries()).sort((a, b) => b[1] - a[1])[0];
+    // A best seller has to have sold more than a handful, or it is noise.
+    const bestId = best && best[1] >= 3 ? best[0] : null;
+
     const products: StorefrontProduct[] = (items ?? []).flatMap((item) => {
       const listing = (item.channel_listing as unknown as Array<{
         price_override: number | null;
@@ -97,6 +125,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
           price: Number(price),
           image: listing?.media?.[0] ?? null,
           ...(item.track_stock ? { left: Math.max(0, Math.floor(left.get(item.id) ?? 0)) } : {}),
+          ...(item.id === bestId ? { bestseller: true } : {}),
         },
       ];
     });
@@ -109,6 +138,8 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       memberSince: (business.created_at as string | null) ?? null,
       places: (locations ?? []).map((l) => ({ name: l.name as string, city: (l.city as string | null) ?? null })),
       products,
+      verified: trust.data?.identity_verification === "verified",
+      bookable: (services.count ?? 0) > 0,
     };
   } catch {
     return null;
@@ -165,6 +196,8 @@ export default async function ShopPage({
       memberSince={shop.memberSince}
       places={shop.places}
       products={shop.products}
+      verified={shop.verified}
+      bookable={shop.bookable}
     />
   );
 }
