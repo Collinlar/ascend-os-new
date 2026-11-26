@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { formatShelfGHS } from "@/lib/money";
 import { Photo, type StorefrontProduct } from "./storefront-parts";
 import ReportProblem from "@/components/risk/ReportProblem";
+import { DEFAULT_SETTINGS, fulfilmentFacts, promoLive, type ShopSettings } from "@/lib/shop/settings";
 
 // The store front page, on the v3 Discover design's shop front: a banner,
 // who this shop is and what it sells, and beside it who you are buying
@@ -27,6 +28,8 @@ export default function StoreBrowse({
   basket,
   verified = false,
   bookable = false,
+  settings = DEFAULT_SETTINGS,
+  promoLink = null,
 }: {
   slug: string;
   businessName: string;
@@ -39,7 +42,11 @@ export default function StoreBrowse({
   basket: Record<string, number>;
   verified?: boolean;
   bookable?: boolean;
+  settings?: ShopSettings;
+  promoLink?: { kind: "product" | "service"; id: string } | null;
 }) {
+  const facts = fulfilmentFacts(settings, places.length > 1 ? places.map((p) => p.name) : []);
+  const promoProduct = promoLink?.kind === "product" ? products.find((p) => p.id === promoLink.id) ?? null : null;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
 
@@ -127,9 +134,40 @@ export default function StoreBrowse({
           </p>
           <p className="mt-1.5 max-w-xl text-[15px] leading-relaxed text-neutral-700">
             {products.length > 0
-              ? "Pick what you need and order in a minute. The shop confirms on WhatsApp, and you collect it or have it brought to you."
+              ? `Pick what you need and order in a minute. The shop confirms on WhatsApp, and you ${
+                  facts.pickup && facts.delivery ? "collect it or have it brought to you" : facts.delivery ? "have it brought to you" : "collect it"
+                }.`
               : "This shop is open. Nothing is listed on the page just yet."}
           </p>
+
+          {/* How it reaches you, said before anything is in the basket (R3). */}
+          {settings.saved && (facts.pickup || facts.delivery) && (
+            <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+              {facts.pickup && <WayToGet title={facts.pickup.title} detail={facts.pickup.detail} />}
+              {facts.delivery && <WayToGet title={facts.delivery.title} detail={facts.delivery.detail} />}
+            </div>
+          )}
+
+          {/* The shop's one promotion (decision 5). */}
+          {promoLive(settings) && (
+            // @contrast-ignore white on the deep navy ground (#0F172A), 17:1
+            <div className="mt-4 flex flex-col gap-1.5 rounded-[22px] bg-navy-deep px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <span className="flex min-w-0 flex-col gap-1">
+                <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-mint-bright">{settings.promo.headline}</span>
+                {settings.promo.body && <span className="font-heading text-[17px] font-bold leading-snug">{settings.promo.body}</span>}
+              </span>
+              {promoLink?.kind === "service" && (
+                <a href={`/b/${slug}`} className="tap mt-2 inline-flex min-h-[44px] flex-none items-center self-start rounded-full bg-white px-5 text-[14px] font-bold text-ink sm:mt-0 sm:self-auto">
+                  Book now
+                </a>
+              )}
+              {promoProduct && (
+                <button type="button" onClick={() => onOpen(promoProduct)} className="tap mt-2 inline-flex min-h-[44px] flex-none items-center self-start rounded-full bg-white px-5 text-[14px] font-bold text-ink sm:mt-0 sm:self-auto">
+                  See it
+                </button>
+              )}
+            </div>
+          )}
 
           {products.length > 0 && (
             <>
@@ -197,7 +235,16 @@ export default function StoreBrowse({
             {city && <Fact k="Where" v={`${city}, Ghana`} />}
             {since && <Fact k="On Ascend since" v={since} />}
             <Fact k="Your order" v="Confirmed by the shop on WhatsApp" />
-            <Fact k="Getting it" v="Collect it, or the shop brings it to you" />
+            {settings.saved ? (
+              <>
+                {facts.pickup && <Fact k={facts.pickup.title} v={facts.pickup.detail} />}
+                {facts.delivery && <Fact k={facts.delivery.title} v={[facts.delivery.detail, settings.deliveryNote].filter(Boolean).join(". ")} />}
+                {facts.returns && <Fact k="Returns" v={facts.returns} />}
+                {settings.contactLine && <Fact k="Reach them" v={settings.contactLine} />}
+              </>
+            ) : (
+              <Fact k="Getting it" v="Collect it, or the shop brings it to you" />
+            )}
           </div>
           {places.length > 1 && (
             <div className="rounded-[20px] border border-neutral-100">
@@ -321,6 +368,15 @@ function Tile({
           <span className="mt-0.5 block text-[12.5px] font-semibold text-gold-700">Only {product.left} left</span>
         )}
       </button>
+    </div>
+  );
+}
+
+function WayToGet({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-[16px] border border-neutral-100 bg-teal-50 px-4 py-3">
+      <span className="text-[14px] font-bold text-teal-800">{title}</span>
+      <span className="text-[13px] text-neutral-700">{detail}</span>
     </div>
   );
 }

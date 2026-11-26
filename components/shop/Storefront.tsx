@@ -9,6 +9,7 @@ import OrderPlaced from "./OrderPlaced";
 import ProductDetail from "./ProductDetail";
 import StoreBrowse from "./StoreBrowse";
 import { initials, type StorefrontProduct } from "./storefront-parts";
+import { DEFAULT_SETTINGS, type ShopSettings } from "@/lib/shop/settings";
 
 export type { StorefrontProduct } from "./storefront-parts";
 
@@ -29,23 +30,28 @@ interface Props {
   verified?: boolean;
   /** It takes bookings on its booking page too. */
   bookable?: boolean;
+  /** Pickup, delivery, returns, contact and the promotion (round 2, R3). */
+  settings?: ShopSettings;
+  promoLink?: { kind: "product" | "service"; id: string } | null;
 }
 
 type View = "browse" | "product" | "basket" | "checkout" | "placed";
 
-export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false }: Props) {
+export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false, settings = DEFAULT_SETTINGS, promoLink = null }: Props) {
   const [view, setView] = useState<View>("browse");
   const [openId, setOpenId] = useState<string | null>(null);
   const [basket, setBasket] = useState<Record<string, number>>({});
 
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
-  const [fulfilment, setFulfilment] = useState<Fulfilment>("pickup");
+  const [fulfilment, setFulfilment] = useState<Fulfilment>(settings.pickupEnabled ? "pickup" : "merchant_delivery");
   const [address, setAddress] = useState("");
+  // The delivery area the customer picks; its fee is the shop's (R3).
+  const [area, setArea] = useState(settings.deliveryAreas.length === 1 ? settings.deliveryAreas[0].name : "");
 
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [placed, setPlaced] = useState<{ orderId: string | null; total: number | null } | null>(
+  const [placed, setPlaced] = useState<{ orderId: string | null; total: number | null; deliveryFee?: number | null } | null>(
     null
   );
   // One reference for the whole visit, so a customer who taps twice or
@@ -70,6 +76,9 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
 
   const itemCount = lines.reduce((n, l) => n + l.quantity, 0);
   const subtotal = lines.reduce((n, l) => n + l.product.price * l.quantity, 0);
+  // Shown here; charged by the server from the same settings.
+  const deliveryFee =
+    fulfilment === "merchant_delivery" ? settings.deliveryAreas.find((a) => a.name === area)?.fee ?? null : 0;
 
   // Every screen change is a new page as far as the customer is concerned,
   // so it starts at the top. Without this, opening a product from halfway
@@ -109,6 +118,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           customerPhone: phone,
           fulfilment,
           deliveryAddress: address,
+          deliveryArea: fulfilment === "merchant_delivery" ? area : undefined,
           lines: lines.map((l) => ({ itemId: l.product.id, quantity: l.quantity })),
         }),
       });
@@ -117,7 +127,12 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
         setError(data?.error ?? "We could not place your order just now. Tap again.");
         return;
       }
-      setPlaced({ orderId: data.orderId ?? null, total: data.total ?? null });
+      setPlaced({
+        orderId: data.orderId ?? null,
+        total: data.total ?? null,
+        // Only a fee the shop's settings set; otherwise it is still agreed on WhatsApp.
+        deliveryFee: settings.deliveryAreas.length > 0 ? Number(data.deliveryFee ?? 0) : null,
+      });
       setView("placed");
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
@@ -202,6 +217,8 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           products={products}
           verified={verified}
           bookable={bookable}
+          settings={settings}
+          promoLink={promoLink}
           basket={basket}
           onOpen={(p) => {
             setOpenId(p.id);
@@ -242,6 +259,10 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           phone={phone}
           fulfilment={fulfilment}
           address={address}
+          settings={settings}
+          places={places.map((p) => p.name)}
+          area={area}
+          deliveryFee={deliveryFee}
           placing={placing}
           error={error}
           onBack={() => setView("basket")}
@@ -250,6 +271,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
             if (patch.phone !== undefined) setPhone(patch.phone);
             if (patch.fulfilment !== undefined) setFulfilment(patch.fulfilment);
             if (patch.address !== undefined) setAddress(patch.address);
+            if (patch.area !== undefined) setArea(patch.area);
           }}
           onPlace={placeOrder}
         />
@@ -262,6 +284,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           total={placed?.total ?? null}
           phone={phone}
           delivering={fulfilment === "merchant_delivery"}
+          deliveryFee={placed?.deliveryFee ?? null}
           onBack={startAgain}
         />
       )}

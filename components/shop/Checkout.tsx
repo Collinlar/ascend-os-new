@@ -2,6 +2,7 @@
 
 import { formatGHS } from "@/lib/money";
 import { BackButton } from "./storefront-parts";
+import { fulfilmentFacts, type ShopSettings } from "@/lib/shop/settings";
 
 // Where a stranger hands over their name and number.
 //
@@ -21,6 +22,10 @@ export default function Checkout({
   phone,
   fulfilment,
   address,
+  settings,
+  places,
+  area,
+  deliveryFee,
   placing,
   error,
   onBack,
@@ -34,6 +39,12 @@ export default function Checkout({
   phone: string;
   fulfilment: Fulfilment;
   address: string;
+  /** Pickup, delivery areas and fees (round 2, R3). */
+  settings: ShopSettings;
+  places: string[];
+  area: string;
+  /** The fee for the chosen area; null while none is chosen. */
+  deliveryFee: number | null;
   placing: boolean;
   error: string | null;
   onBack: () => void;
@@ -42,10 +53,15 @@ export default function Checkout({
     phone?: string;
     fulfilment?: Fulfilment;
     address?: string;
+    area?: string;
   }) => void;
   onPlace: () => void;
 }) {
   const delivering = fulfilment === "merchant_delivery";
+  const facts = fulfilmentFacts(settings, places.length > 1 ? places : []);
+  const areas = settings.deliveryAreas;
+  const total = subtotal + (delivering ? deliveryFee ?? 0 : 0);
+  const ghs = (n: number) => (n === 0 ? "Free" : formatGHS(n));
 
   return (
     <form
@@ -65,21 +81,50 @@ export default function Checkout({
           <legend className="text-xs font-bold text-ink-muted">
             How would you like it?
           </legend>
-          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-            <Choice
-              active={!delivering}
-              onClick={() => onChange({ fulfilment: "pickup" })}
-              title="I will collect it"
-              detail="Come to the shop"
-            />
-            <Choice
-              active={delivering}
-              onClick={() => onChange({ fulfilment: "merchant_delivery" })}
-              title="Bring it to me"
-              detail="Cost agreed on WhatsApp"
-            />
+          <div className={`mt-2.5 grid gap-2.5 ${facts.pickup && facts.delivery ? "grid-cols-2" : "grid-cols-1"}`}>
+            {facts.pickup && (
+              <Choice
+                active={!delivering}
+                onClick={() => onChange({ fulfilment: "pickup" })}
+                title="I will collect it"
+                detail={settings.saved ? `Free${settings.pickupReadyMinutes ? ` · ${facts.pickup.detail.split(" · ").pop()}` : ""}` : "Come to the shop"}
+              />
+            )}
+            {facts.delivery && (
+              <Choice
+                active={delivering}
+                onClick={() => onChange({ fulfilment: "merchant_delivery" })}
+                title="Bring it to me"
+                detail={facts.delivery.detail}
+              />
+            )}
           </div>
         </fieldset>
+
+        {delivering && areas.length > 0 && (
+          <fieldset>
+            <legend className="text-xs font-bold text-ink-muted">Which area?</legend>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {areas.map((a) => (
+                <button
+                  key={a.name}
+                  type="button"
+                  onClick={() => onChange({ area: a.name })}
+                  aria-pressed={area === a.name}
+                  className={`tap inline-flex min-h-[44px] items-center gap-2 rounded-full border-[1.5px] px-4 text-[13.5px] font-semibold ${
+                    area === a.name ? "border-teal bg-teal-light text-teal-dark" : "border-line bg-surface text-ink-soft"
+                  }`}
+                >
+                  {a.name}
+                  <span className="num text-[12.5px] opacity-85">{ghs(a.fee)}</span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11.5px] font-medium text-slate-grey">
+              Not listed? {settings.pickupEnabled ? "Choose pickup, or ask" : "Ask"} {businessName} on WhatsApp.
+            </p>
+          </fieldset>
+        )}
 
         <div>
           <label
@@ -151,15 +196,23 @@ export default function Checkout({
             value={formatGHS(subtotal)}
           />
           <Row
-            label={delivering ? "Delivery" : "Collection"}
-            value={delivering ? "Agreed with the shop" : "Free"}
+            label={delivering ? (area && areas.length ? `Delivery to ${area}` : "Delivery") : "Collection"}
+            value={
+              !delivering
+                ? "Free"
+                : areas.length === 0
+                  ? "Agreed with the shop"
+                  : deliveryFee === null
+                    ? "Pick an area"
+                    : ghs(deliveryFee)
+            }
           />
           <div className="mt-1 flex items-baseline justify-between border-t border-line pt-2.5">
             <span className="text-[14.5px] font-extrabold text-ink">
               To pay on the day
             </span>
             <span className="num text-xl font-extrabold text-ink">
-              {formatGHS(subtotal)}
+              {formatGHS(total)}
             </span>
           </div>
         </div>
@@ -172,12 +225,14 @@ export default function Checkout({
           )}
           <button
             type="submit"
-            disabled={placing}
+            disabled={placing || (delivering && areas.length > 0 && deliveryFee === null)}
             className="tap flex w-full items-center justify-center rounded-panel bg-navy-deep font-bold text-white disabled:opacity-60"
           >
             {placing
               ? `Sending your order to ${businessName}...`
-              : `Place my order · ${formatGHS(subtotal)}`}
+              : delivering && areas.length > 0 && deliveryFee === null
+                ? "Pick your delivery area"
+                : `Place my order · ${formatGHS(total)}`}
           </button>
         </div>
       </div>

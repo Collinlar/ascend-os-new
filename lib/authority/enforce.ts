@@ -23,6 +23,7 @@ const ROUTE_GROUP: Record<string, string> = {
   "services/bookings/[id]": "services",
   "shop/catalogue": "shop",
   "shop/catalogue-suggest": "shop",
+  "shop/settings": "shop",
   "shop/orders/[id]": "shop",
   documents: "documents",
   "documents/[id]": "documents",

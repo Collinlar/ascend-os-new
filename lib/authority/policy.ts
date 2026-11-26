@@ -191,6 +191,9 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "shop/catalogue": {
     POST: member("body", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
   },
+  "shop/settings": {
+    POST: member("body", { permission: ["business.settings"], capability: ["shop.storefront"] }),
+  },
   "shop/catalogue-suggest": {
     POST: member("active", { permission: ["catalogue.manage"], capability: ["shop.storefront"] }),
   },

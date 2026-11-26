@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { openShop } from "@/lib/shop/openShop";
 import Storefront, { StorefrontProduct } from "@/components/shop/Storefront";
+import { SETTINGS_COLUMNS, settingsFromRow, type ShopSettings } from "@/lib/shop/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,10 @@ interface ShopData {
   verified: boolean;
   /** It takes bookings on its booking page too. */
   bookable: boolean;
+  /** Pickup, delivery, returns, contact and the promotion (round 2, R3). */
+  settings: ShopSettings;
+  /** Where the promotion links: a product here, or the booking page. */
+  promoLink: { kind: "product" | "service"; id: string } | null;
 }
 
 async function loadShop(slug: string): Promise<ShopData | null> {
@@ -138,6 +143,17 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       memberSince: (business.created_at as string | null) ?? null,
       places: (locations ?? []).map((l) => ({ name: l.name as string, city: (l.city as string | null) ?? null })),
       products,
+      ...(await (async () => {
+        // Before 0143 the table is not there, and the shop keeps its old ways.
+        const { data: row } = await db.from("shop_settings").select(SETTINGS_COLUMNS).eq("business_id", business.id).maybeSingle();
+        const settings = settingsFromRow((row ?? null) as Record<string, unknown> | null);
+        let promoLink: ShopData["promoLink"] = null;
+        if (settings.promo.itemId) {
+          const { data: item } = await db.from("catalogue_item").select("id, kind").eq("id", settings.promo.itemId).eq("business_id", business.id).eq("active", true).maybeSingle();
+          if (item) promoLink = { kind: item.kind === "service" ? "service" : "product", id: item.id as string };
+        }
+        return { settings, promoLink };
+      })()),
       verified: trust.data?.identity_verification === "verified",
       bookable: (services.count ?? 0) > 0,
     };
@@ -198,6 +214,8 @@ export default async function ShopPage({
       products={shop.products}
       verified={shop.verified}
       bookable={shop.bookable}
+      settings={shop.settings}
+      promoLink={shop.promoLink}
     />
   );
 }

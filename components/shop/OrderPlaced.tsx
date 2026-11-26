@@ -15,6 +15,7 @@ export default function OrderPlaced({
   total,
   phone,
   delivering,
+  deliveryFee = null,
   onBack,
 }: {
   businessName: string;
@@ -22,6 +23,8 @@ export default function OrderPlaced({
   total: number | null;
   phone: string;
   delivering: boolean;
+  /** Set when the shop's settings priced the delivery (round 2, R3). */
+  deliveryFee?: number | null;
   onBack: () => void;
 }) {
   // The real id, shortened to something a person can read down a phone.
@@ -43,7 +46,9 @@ export default function OrderPlaced({
     {
       title: delivering ? "On its way to you" : "Ready to collect",
       meta: delivering
-        ? "They agree the delivery cost with you first"
+        ? deliveryFee !== null
+          ? `Delivery ${deliveryFee > 0 ? formatGHS(deliveryFee) : "free"}, included below`
+          : "They agree the delivery cost with you first"
         : "They tell you when to come",
       done: false,
     },

@@ -165,11 +165,13 @@ export function inventoryTabs(
 }
 
 /** Shop (Modules M6a): the overview, its orders, and the products on it. */
-export function shopTabs(capabilities: Set<string>, current: "/shop" | "/orders" | "/products", waiting = 0): ModuleTab[] {
+export function shopTabs(capabilities: Set<string>, current: "/shop" | "/orders" | "/products" | "/shop/settings", waiting = 0): ModuleTab[] {
   const tabs: Array<{ label: string; href: string; shown: boolean }> = [
     { label: "Overview", href: "/shop", shown: earns(capabilities, "/shop") },
     { label: waiting ? `Orders (${waiting})` : "Orders", href: "/orders", shown: earns(capabilities, "/orders") },
     { label: "Products", href: "/products", shown: earns(capabilities, "/products") },
+    // Pickup, delivery and fees, returns and the promotion (round 2, R3).
+    { label: "Settings", href: "/shop/settings", shown: earns(capabilities, "/shop") },
   ];
   return tabs.filter((t) => t.shown).map(({ label, href }) => ({ label, href, current: href === current }));
 }

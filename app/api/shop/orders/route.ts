@@ -16,6 +16,8 @@ interface OrderBody {
   customerPhone?: string;
   fulfilment?: "pickup" | "merchant_delivery";
   deliveryAddress?: string;
+  /** One of the shop's delivery areas (R3); its fee is set by the shop. */
+  deliveryArea?: string;
   lines?: Array<{ itemId: string; quantity: number }>;
 }
 
@@ -101,7 +103,7 @@ async function handlePOST(request: NextRequest) {
       fulfilment: body.fulfilment ?? "pickup",
       delivery_detail:
         body.fulfilment === "merchant_delivery"
-          ? { address: body.deliveryAddress }
+          ? { address: body.deliveryAddress, ...(body.deliveryArea ? { area: String(body.deliveryArea).slice(0, 40) } : {}) }
           : {},
       source: "shop_link",
       lines: body.lines.map((l) => ({ item_id: l.itemId, quantity: l.quantity })),
@@ -125,6 +127,14 @@ async function handlePOST(request: NextRequest) {
         { status: 409 }
       );
     }
+    // How the order reaches them, by the shop's settings (R3).
+    const route: Record<string, string> = {
+      delivery_area_unknown: "Pick one of the areas this shop delivers to, or choose pickup.",
+      delivery_unavailable: "This shop is not delivering right now. Choose pickup instead.",
+      pickup_unavailable: "This shop only delivers. Choose delivery and add where to bring it.",
+    };
+    const said = Object.keys(route).find((k) => error.message.includes(k));
+    if (said) return NextResponse.json({ error: route[said] }, { status: 422 });
     const unavailable = /item unavailable|no price/.test(error.message);
     return NextResponse.json(
       {
@@ -139,6 +149,7 @@ async function handlePOST(request: NextRequest) {
   return NextResponse.json({
     orderId: data.order_id,
     total: data.total,
+    deliveryFee: data.delivery_fee ?? 0,
     businessName: business.name,
     duplicate: Boolean(data.duplicate),
   });
