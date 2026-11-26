@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { currentPersonId } from "@/lib/auth/session";
-import { loadDashboard, type AttentionItem } from "@/lib/reporting/dashboard";
+import { loadDashboard } from "@/lib/reporting/dashboard";
+import { toAttentionRows } from "@/lib/reporting/attention";
 import {
   loadHomeDevices,
   loadHomeFigures,
@@ -141,27 +142,7 @@ export default async function Dashboard() {
   }
 
   // ------------------------------------------------------- needs attention --
-  const attention: AttentionRow[] = data.attention.map(toRow);
-  if (figures && figures.stock.out > 0) {
-    attention.push({
-      id: "out-of-stock",
-      title: `${figures.stock.out} product${figures.stock.out === 1 ? " is" : "s are"} out of stock`,
-      action: "See what is out",
-      href: "/inventory?show=out",
-      tone: "gold",
-      icon: "box",
-    });
-  }
-  if (expiry && expiry.expiredBatches > 0) {
-    attention.push({
-      id: "expired-stock",
-      title: `Expired stock on the shelf: ${formatGHS(expiry.expiredValue)}`,
-      action: "See what expired",
-      href: "/inventory?tab=expiry",
-      tone: "red",
-      icon: "box",
-    });
-  }
+  const attention: AttentionRow[] = toAttentionRows(data.attention, figures?.stock.out ?? 0, expiry);
   const quietLine = hasTill
     ? "No orders waiting, no overdue invoices, nothing stuck on a till."
     : "No orders waiting, no overdue invoices, nothing left to chase.";
@@ -331,24 +312,6 @@ export default async function Dashboard() {
 
 // Said the same on every money figure when the core cannot be read.
 const UNAVAILABLE = "We could not load this just now. Refresh in a moment.";
-
-const ATTENTION_ICON: Record<string, IconName> = {
-  "pending-orders": "inbox",
-  overdue: "file",
-  unsynced: "device",
-  "no-balance": "money",
-};
-
-function toRow(item: AttentionItem): AttentionRow {
-  return {
-    id: item.id,
-    title: item.label,
-    action: item.action,
-    href: item.href,
-    tone: item.tone,
-    icon: ATTENTION_ICON[item.id] ?? "alert",
-  };
-}
 
 // ---------------------------------------------------------------- sections --
 

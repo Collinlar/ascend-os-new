@@ -1,7 +1,9 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, currentCapabilities, officeTabs } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import {EmptyState} from "@/components/shell/Page";
 import TeamDirectory, { type TeamRow } from "@/components/office/TeamDirectory";
 import Locations, { type LocationRow } from "@/components/office/Locations";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -134,15 +136,7 @@ export default async function Team() {
   const data = await load();
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Team"
-        intro={
-          data && data.team.length > 1
-            ? `${data.team.length} people · who can do what. Their hours, sales and approvals count toward your Sustainability Score.`
-            : "Everyone who works here, and what each of them is allowed to do. Their hours, sales and approvals count toward your Sustainability Score."
-        }
-      />
+    <ModulePage identity={MODULES.office} title="People" tabs={officeTabs(await currentCapabilities(), "/team")}>
 
       {data === null ? (
         <EmptyState
@@ -160,6 +154,6 @@ export default async function Team() {
           <Locations locations={data.locations} canManage={data.canManageLocations} />
         </>
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

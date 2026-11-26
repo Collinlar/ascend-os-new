@@ -1,3 +1,5 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES } from "@/lib/nav/modules";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -19,7 +21,7 @@ import {
   type OwedRow,
   type SupplierDebt,
 } from "@/lib/reporting/money";
-import { EmptyState, FigureRow, PageHeader, PageShell, Panel } from "@/components/shell/Page";
+import { EmptyState, FigureRow, Panel } from "@/components/shell/Page";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +68,7 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
   };
 
   return (
-    <PageShell>
-      <PageHeader title="Money" intro="Money you recorded, money a provider confirmed, money owed to you and money you owe, kept apart" />
+    <ModulePage identity={MODULES.money}>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {months.map((m) => {
@@ -122,7 +123,7 @@ export default async function Money({ searchParams }: { searchParams: { tab?: st
       ) : (
         <YouOwe debts={debts} businessId={workspace.businessId} canPay={canPay} />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }
 

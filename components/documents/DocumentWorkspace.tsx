@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
@@ -74,11 +74,17 @@ export default function DocumentWorkspace({
   documents,
   catalogue,
   owed,
+  query = "",
+  startCreating: startWith = null,
 }: {
   businessId: string;
   documents: DocumentRow[];
   catalogue: CatalogueOption[];
   owed: OwedSummary;
+  /** What the module bar's search asked for (?q=). */
+  query?: string;
+  /** Opened from "New invoice" or "New quotation" in the module bar (?new=). */
+  startCreating?: DocumentType | null;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -97,7 +103,6 @@ export default function DocumentWorkspace({
   const [note, setNote] = useState<string | null>(null);
   // Finding one document among hundreds. A filing cabinet nobody can search
   // is a pile.
-  const [query, setQuery] = useState("");
   const [shelf, setShelf] = useState<"all" | "owed" | "invoice" | "receipt" | "quotation" | "purchase_order">("all");
 
   const total = useMemo(
@@ -270,10 +275,14 @@ export default function DocumentWorkspace({
     key === "all"
       ? undefined
       : documents.filter((d) => (key === "owed" ? d.type === "invoice" && OWED.has(d.status) : d.type === key)).length;
-  const startCreating = (t: DocumentType) => {
-    setType(t);
+  // "New invoice" lives in the top bar, so it arrives as ?new=invoice. Open
+  // the form, then take the flag off the address so the next tap opens it.
+  useEffect(() => {
+    if (!startWith) return;
+    setType(startWith);
     setCreating(true);
-  };
+    router.replace(query ? `/documents?q=${encodeURIComponent(query)}` : "/documents", { scroll: false });
+  }, [startWith, query, router]);
 
   return (
     <div className="space-y-6">
@@ -310,32 +319,7 @@ export default function DocumentWorkspace({
         />
       )}
 
-      {!creating ? (
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-          {documents.length > 0 && (
-            <label className="flex h-11 flex-1 items-center gap-2.5 rounded-control border border-line-brand bg-white px-3.5 text-neutral-500 focus-within:border-teal">
-              <Icon name="search" size={16} />
-              <span className="sr-only">Search your documents</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Which one? A number or a name"
-                className="min-h-0 w-full border-0 bg-transparent text-base text-ink placeholder:text-neutral-500 focus:outline-none"
-              />
-            </label>
-          )}
-          <div className="flex flex-none gap-2 sm:ml-auto">
-            <button onClick={() => startCreating("quotation")} className={`${secondaryAction} flex-1 justify-center sm:flex-none`}>
-              <Icon name="plus" size={16} />
-              New quotation
-            </button>
-            <button onClick={() => startCreating("invoice")} className={`${primaryAction} flex-1 justify-center sm:flex-none`}>
-              <Icon name="plus" size={16} />
-              New invoice
-            </button>
-          </div>
-        </div>
-      ) : (
+      {creating && (
         <div className="rounded-[18px] border border-line-brand bg-white p-5">
           <div className="flex flex-wrap gap-2">
             {(["invoice", "quotation", "receipt", "purchase_order"] as DocumentType[]).map((t) => (

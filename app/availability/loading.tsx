@@ -1,5 +1,6 @@
-import { SkeletonPage } from "@/components/shell/Skeleton";
+import { SkeletonModulePage } from "@/components/shell/Skeleton";
 
+// A module screen opening: the header band first, then the list.
 export default function Loading() {
-  return <SkeletonPage rows={7} />;
+  return <SkeletonModulePage />;
 }

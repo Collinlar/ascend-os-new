@@ -1,3 +1,5 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, currentCapabilities, servicesTabs } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
@@ -5,7 +7,7 @@ import BookingList, {
   type OwnerBooking,
   type ProviderOption,
 } from "@/components/services/BookingList";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import {EmptyState} from "@/components/shell/Page";
 import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
@@ -93,11 +95,7 @@ export default async function Bookings() {
   const data = await load();
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Bookings"
-        intro="Requests needing an answer come first, then what is coming up."
-      />
+    <ModulePage identity={MODULES.services} tabs={servicesTabs(await currentCapabilities(), "/bookings")}>
 
       {data === null ? (
         <EmptyState
@@ -112,6 +110,6 @@ export default async function Bookings() {
       ) : (
         <BookingList bookings={data.bookings} providers={data.providers} />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

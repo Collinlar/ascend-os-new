@@ -1,3 +1,5 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES } from "@/lib/nav/modules";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -5,7 +7,7 @@ import { checkPageAccess } from "@/lib/authority/page";
 import { formatGHS } from "@/lib/money";
 import { loadHomeFigures, METHOD_LABEL, CHANNEL_LABEL } from "@/lib/reporting/home";
 import { loadSales, loadShifts, SALES_LIMIT, type SaleRow, type SalesChannel, type ShiftRow } from "@/lib/reporting/sales";
-import { EmptyState, FigureRow, PageHeader, PageShell, Panel, primaryAction } from "@/components/shell/Page";
+import { EmptyState, FigureRow, Panel, primaryAction } from "@/components/shell/Page";
 import { Icon } from "@/components/shell/icons";
 
 export const dynamic = "force-dynamic";
@@ -50,19 +52,14 @@ export default async function Sales({ searchParams }: { searchParams: { tab?: st
   const weekCount = week.reduce((n, d) => n + d.count, 0);
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Sales"
-        intro={`Every sale from your ${channels.map((c) => c.label.toLowerCase()).join(", ").replace(/, ([^,]*)$/, " and $1") || "business"}, in one history`}
-        action={
-          hasTill ? (
+    <ModulePage identity={MODULES.sales}
+      action={hasTill ? (
             <Link href="/pos" className={primaryAction}>
               <Icon name="sell" size={16} />
               Open the till
             </Link>
-          ) : null
-        }
-      />
+          ) : null}
+    >
 
       {figures && today && (
         <FigureRow
@@ -100,7 +97,7 @@ export default async function Sales({ searchParams }: { searchParams: { tab?: st
       ) : (
         <ShiftsTable shifts={shifts} />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }
 

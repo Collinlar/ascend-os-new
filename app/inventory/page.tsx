@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { checkPageAccess } from "@/lib/authority/page";
-import { EmptyState, FigureRow, PageHeader, PageShell, Panel, secondaryAction } from "@/components/shell/Page";
+import { EmptyState, FigureRow, Panel, secondaryAction } from "@/components/shell/Page";
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, inventoryTabs, type InventoryView } from "@/lib/nav/modules";
 import AdjustStock from "@/components/inventory/AdjustStock";
 import ReceiveStock from "@/components/inventory/ReceiveStock";
 import { supabaseServer } from "@/lib/supabase";
@@ -54,19 +57,17 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   const personId = await currentPersonId();
   if (!personId) {
     return (
-      <PageShell>
-        <PageHeader title="Inventory" />
+      <ModulePage identity={MODULES.inventory}>
         <EmptyState title="Sign in to see your stock." detail="We send a code to the WhatsApp number your business is set up with." />
-      </PageShell>
+      </ModulePage>
     );
   }
   const membership = await activeMembership<{ id: string; business_id: string; role: { key: string } | null }>(personId, "id, business_id, role:role_id(key)");
   if (!membership) {
     return (
-      <PageShell>
-        <PageHeader title="Inventory" />
+      <ModulePage identity={MODULES.inventory}>
         <EmptyState title="Set up your business first." detail="Your stock lives here once it exists." />
-      </PageShell>
+      </ModulePage>
     );
   }
   const businessId = membership.business_id;
@@ -124,10 +125,9 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
     if (tab === "moves") moves = await recentMovements(businessId, { itemId: itemFilter, limit: 150 });
   } catch {
     return (
-      <PageShell>
-        <PageHeader title="Inventory" />
+      <ModulePage identity={MODULES.inventory}>
         <EmptyState title="We could not load your stock just now." detail="Refresh in a moment. Nothing has changed on your shelf." />
-      </PageShell>
+      </ModulePage>
     );
   }
 
@@ -192,11 +192,20 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
   }));
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Inventory"
-        intro={multi ? `Stock across your ${places.length} places, and every change that made it.` : "What is on your shelf, and every change that made it."}
-        action={
+    <ModulePage
+      identity={MODULES.inventory}
+      tabs={inventoryTabs(caps, tab as InventoryView, {
+        stock: multi ? "Stock by place" : "Stock",
+        counts: waiting.length ? `Counts (${waiting.length} waiting)` : undefined,
+        transfers: onTheWay.length ? `Transfers (${onTheWay.length} on the way)` : undefined,
+        orders: dueCount ? `Orders (${dueCount} to reorder)` : openOrders.length ? `Orders (${openOrders.length} open)` : undefined,
+        expiry: expirySum && expirySum.expiredBatches > 0 ? `Expiry (${expirySum.expiredBatches} expired)` : undefined,
+      })}
+    >
+      {/* The stock actions. Several, each opening its own sheet, so they sit
+          at the head of the page rather than crowding the top bar. */}
+      <InventoryActions
+        actions={
           canAdjust && lines.length > 0 ? (
             <>
               <Link href="/inventory/count" className={secondaryAction}>
@@ -289,37 +298,6 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
               </p>
             </div>
           )}
-
-          <div role="tablist" aria-label="Inventory views" className="mb-4 flex gap-1 overflow-x-auto border-b border-line-brand [scrollbar-width:none]">
-            {[
-              ["stock", multi ? "Stock by place" : "Stock"],
-              ["moves", "Movements"],
-              ["counts", waiting.length ? `Counts (${waiting.length} waiting)` : "Counts"],
-              ...(canMove ? [["transfers", onTheWay.length ? `Transfers (${onTheWay.length} on the way)` : "Transfers"]] : []),
-              ...(canBuy
-                ? [
-                    ["orders", dueCount ? `Orders (${dueCount} to reorder)` : openOrders.length ? `Orders (${openOrders.length} open)` : "Orders"],
-                    ["suppliers", "Suppliers"],
-                  ]
-                : []),
-              ...(canValue ? [["value", "Value"]] : []),
-              ...(canExpiry
-                ? [["expiry", expirySum && expirySum.expiredBatches > 0 ? `Expiry (${expirySum.expiredBatches} expired)` : "Expiry"]]
-                : []),
-            ].map(([k, label]) => (
-              <Link
-                key={k}
-                role="tab"
-                aria-selected={tab === k}
-                href={link({ tab: k })}
-                className={`tap flex min-h-[44px] flex-none items-center whitespace-nowrap border-b-2 px-3 text-[14px] font-semibold ${
-                  tab === k ? "border-teal text-teal-800" : "border-transparent text-neutral-600 hover:text-ink"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
 
           {tab === "stock" && (
             <>
@@ -1041,6 +1019,12 @@ export default async function Inventory({ searchParams }: { searchParams: { tab?
           )}
         </>
       )}
-    </PageShell>
+    </ModulePage>
   );
+}
+
+// The head-of-page row of stock actions (Modules M1).
+function InventoryActions({ actions }: { actions: ReactNode }) {
+  if (!actions) return null;
+  return <div className="mb-4 flex flex-wrap justify-end gap-2">{actions}</div>;
 }

@@ -4,8 +4,10 @@
 // setup path all read the same context rather than each deciding for
 // themselves what a business owns.
 
+import { cache } from "react";
 import { currentPersonId } from "@/lib/auth/session";
 import { currentBusinessChoice } from "@/lib/auth/current-business";
+import { currentPlaceChoice } from "@/lib/auth/current-place";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import { supabaseServer } from "@/lib/supabase";
 import type { ProductSetKey, UUID } from "@/lib/domains/types";
@@ -23,8 +25,11 @@ export interface Workspace {
   businessName: string;
   /** How many businesses this person could be looking at instead. */
   businessCount: number;
+  /** The place being looked at: the one chosen in the top bar, else the first. */
   locationId: UUID | null;
   locationName: string | null;
+  /** Every active place this person's membership reaches, oldest first. */
+  places: Array<{ id: UUID; name: string }>;
   productSets: ProductSetKey[];
   /** What this business may actually do. Gates ask this, not the set. */
   capabilities: Set<string>;
@@ -37,67 +42,60 @@ export interface Workspace {
 // way: that is the connected catalogue showing up as one thing rather than
 // two that happen to share a URL.
 //
-// Ordered by how often a merchant needs it, because only the first few
-// become phone tabs; the ones marked `more` sit under More in the sidebar
-// and are never tabs. Serving customers outranks
-// setting the business up: a shop with orders waiting should not have to
-// open a menu to find them while Tills sits in a tab.
+// Listed in the order the sidebar shows them, under the business modules
+// design's three groups (Modules M1): Sell; Customers and money; Run the
+// business. The phone has room for four tabs, and those are picked by
+// `rank`, how often a merchant needs the screen, not by where it sits in
+// the sidebar: a shop with orders waiting should not have to open a menu to
+// find them while its storefront settings sit in a tab.
 // `requires` is one capability, or several where a destination is earned
 // more than one way. The staff directory is the case that needs it: a till
 // business gets cashier accounts as an embedded essential of POS, and Full
 // Office gets the same screen through people.core.
 const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
-  { href: "/pos", label: "Sell", short: "Sell", icon: "sell", requires: "pos.sell" },
+  { href: "/pos", label: "Sell", short: "Sell", icon: "sell", group: "sell", rank: 1, requires: "pos.sell" },
   {
     href: "/sales",
     label: "Sales",
     short: "Sales",
     icon: "chart",
+    group: "sell",
+    rank: 2,
     // Every way a business sells lands in one history.
     requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
   },
-  { href: "/orders", label: "Orders", short: "Orders", icon: "inbox", requires: "shop.orders" },
-  { href: "/bookings", label: "Bookings", short: "Bookings", icon: "calendar", requires: "services.bookings" },
-  { href: "/documents", label: "Documents", short: "Documents", icon: "file", requires: "documents.issue" },
+  { href: "/orders", label: "Orders", short: "Orders", icon: "inbox", group: "sell", rank: 3, requires: "shop.orders" },
+  { href: "/shop", label: "Shop", short: "Shop", icon: "store", group: "sell", rank: 10, requires: "shop.storefront" },
+  { href: "/bookings", label: "Bookings", short: "Bookings", icon: "calendar", group: "sell", rank: 4, requires: "services.bookings" },
   {
     href: "/customers",
     label: "Customers",
     short: "Customers",
     icon: "users",
+    group: "money",
+    rank: 6,
     // Earned by any set that creates customers, because the record is
     // shared and the screen reads all of them at once.
     requires: ["customers.core", "customers.basic"],
   },
+  { href: "/documents", label: "Documents", short: "Documents", icon: "file", group: "money", rank: 5, requires: "documents.issue" },
   {
     href: "/money",
     label: "Money",
     short: "Money",
     icon: "money",
+    group: "money",
+    rank: 7,
     // Read from the Financial Foundation, which every way of selling feeds.
     requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
   },
-  { href: "/products", label: "Products", short: "Products", icon: "tag", requires: "catalogue.core" },
-  {
-    href: "/inventory",
-    label: "Inventory",
-    short: "Stock",
-    icon: "box",
-    // POS counts stock itself; Shop reads what a till keeps.
-    requires: ["inventory.basic", "inventory.connection"],
-  },
-  { href: "/shop", label: "Shop", short: "Shop", icon: "store", requires: "shop.storefront" },
-  {
-    href: "/team",
-    label: "Team",
-    short: "Team",
-    icon: "team",
-    requires: ["people.cashiers", "people.core"],
-  },
   {
     href: "/work",
-    label: "Work",
-    short: "Work",
-    icon: "clipboard",
+    label: "Office",
+    short: "Office",
+    icon: "briefcase",
+    group: "run",
+    rank: 12,
     // Full Office is paid, but the PRD embeds parts of it in the anchor
     // products (31): POS carries attendance and shifts, Shop carries
     // fulfilment assignment, Services carries provider assignment. A
@@ -112,12 +110,30 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
       "people.provider_assignment",
     ],
   },
-  { href: "/promote", label: "Promote", short: "Promote", icon: "target", requires: "discover.listing" },
+  // The staff directory. Inside Office as its People tab whenever Office is
+  // there; on its own only for a business that has staff but no Office.
+  { href: "/team", label: "Team", short: "Team", icon: "team", group: "run", rank: 11, requires: ["people.cashiers", "people.core"] },
+  {
+    href: "/inventory",
+    label: "Inventory",
+    short: "Stock",
+    icon: "box",
+    group: "run",
+    rank: 8,
+    // POS counts stock itself; Shop reads what a till keeps.
+    requires: ["inventory.basic", "inventory.connection"],
+  },
+  // The catalogue. Inside Inventory as its Products tab whenever Inventory
+  // is there; on its own for a business that sells without counting stock.
+  { href: "/products", label: "Products", short: "Products", icon: "tag", group: "run", rank: 9, requires: "catalogue.core" },
+  { href: "/promote", label: "Promote", short: "Promote", icon: "target", group: "run", rank: 13, requires: "discover.listing" },
   {
     href: "/readiness",
     label: "Investment readiness",
     short: "Readiness",
     icon: "shield",
+    group: "run",
+    rank: 14,
     requires: "readiness.score",
   },
   // Set up once, opened rarely: under More.
@@ -125,7 +141,7 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     href: "/services",
     label: "Service catalogue",
     short: "Services",
-    icon: "briefcase",
+    icon: "clipboard",
     more: true,
     requires: "services.bookings",
   },
@@ -147,6 +163,23 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     requires: "readiness.score",
   },
 ];
+
+// A screen that lives inside another module once that module is there:
+// Team is Office's People tab, Products is Inventory's Products tab.
+const FOLDED_INTO: Record<string, string> = {
+  "/team": "/work",
+  "/products": "/inventory",
+};
+
+/** Whether a business with these capabilities earns a destination, folded
+ *  into a module or not. Module tabs ask this, so a tab never leads to a
+ *  screen the sidebar would not have offered. */
+export function earns(capabilities: Set<string>, href: string): boolean {
+  const destination = DESTINATIONS.find((d) => d.href === href);
+  if (!destination) return false;
+  const needed = Array.isArray(destination.requires) ? destination.requires : [destination.requires];
+  return needed.some((capability) => capabilities.has(capability));
+}
 
 // The one room where the business gets bigger. Not a capability, because
 // nothing grants it: it is the door to the sets a business has not taken
@@ -179,7 +212,11 @@ const ROLE_NAME: Record<string, string> = {
   cashier: "Cashier",
 };
 
-export async function currentWorkspace(): Promise<Workspace | null> {
+// Once per request. The shell, the page and the module band all ask, and
+// the answer cannot change halfway through drawing one page.
+export const currentWorkspace = cache(resolveWorkspace);
+
+async function resolveWorkspace(): Promise<Workspace | null> {
   const personId = await currentPersonId();
   if (!personId) return null;
 
@@ -197,7 +234,7 @@ export async function currentWorkspace(): Promise<Workspace | null> {
 
   const { data: memberships } = await db
     .from("business_membership")
-    .select("business_id, created_at, business:business_id(name), role:role_id(key)")
+    .select("business_id, created_at, location_scope, business:business_id(name), role:role_id(key)")
     .eq("person_id", personId)
     .eq("status", "active")
     // An expired membership does not open the business (Phase 1, step 1e).
@@ -212,13 +249,20 @@ export async function currentWorkspace(): Promise<Workspace | null> {
 
   const businessId = membership.business_id as UUID;
 
-  const { data: location } = await db
+  // The places this membership reaches. A member limited to some places
+  // (location_scope) is offered only those; null means every place.
+  const { data: placeRows } = await db
     .from("location")
-    .select("id, name")
+    .select("id, name, created_at")
     .eq("business_id", businessId)
     .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const scope = (membership as unknown as { location_scope: string[] | null }).location_scope;
+  const places = (placeRows ?? [])
+    .filter((p) => !scope || scope.length === 0 || scope.includes(p.id as string))
+    .map((p) => ({ id: p.id as UUID, name: (p.name as string | null) ?? "Main place" }));
+  const chosenPlace = currentPlaceChoice();
+  const location = places.find((p) => p.id === chosenPlace) ?? places[0] ?? null;
 
   let productSets: ProductSetKey[] = [];
   let capabilities = new Set<string>();
@@ -244,6 +288,14 @@ export async function currentWorkspace(): Promise<Workspace | null> {
     const { requires: _requires, ...item } = destination;
     items.push(item);
   }
+  // Fold a screen into its module when the module is there, so the sidebar
+  // names Office once rather than Office and Team side by side.
+  const present = new Set(items.map((i) => i.href));
+  for (const [href, into] of Object.entries(FOLDED_INTO)) {
+    if (present.has(href) && present.has(into)) {
+      items.splice(items.findIndex((i) => i.href === href), 1);
+    }
+  }
 
   // Only while there is something left to add. A business already running
   // everything does not need a door to nothing.
@@ -261,8 +313,9 @@ export async function currentWorkspace(): Promise<Workspace | null> {
     businessName:
       (membership.business as unknown as { name: string } | null)?.name ?? "Your business",
     businessCount: memberships.length,
-    locationId: (location?.id as UUID) ?? null,
-    locationName: (location?.name as string | null) ?? null,
+    locationId: location?.id ?? null,
+    locationName: location?.name ?? null,
+    places,
     productSets,
     capabilities,
     items,

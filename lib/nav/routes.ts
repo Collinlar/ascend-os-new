@@ -16,7 +16,19 @@ export interface NavItem {
   icon: IconName;
   /** Under "More": set up once, opened rarely. */
   more?: boolean;
+  /** The sidebar group it sits under (business modules design, M1). */
+  group?: NavGroup;
+  /** How often a merchant needs it; the phone's four tabs are the lowest. */
+  rank?: number;
 }
+
+export type NavGroup = "sell" | "money" | "run";
+
+export const NAV_GROUP_LABEL: Record<NavGroup, string> = {
+  sell: "Sell",
+  money: "Customers and money",
+  run: "Run the business",
+};
 
 // Surfaces that must not carry the workspace nav: the till runs full screen
 // on a counter, onboarding is a funnel, and the public pages belong to the

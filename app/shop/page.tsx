@@ -1,4 +1,6 @@
-import { PageHeader, PageShell } from "@/components/shell/Page";
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES } from "@/lib/nav/modules";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -99,8 +101,7 @@ export default async function ShopHome() {
   const empty = shop.listed === 0;
 
   return (
-    <PageShell>
-      <PageHeader title="Shop" intro="Your products online, with one link to share on WhatsApp and Instagram." />
+    <ModulePage identity={MODULES.shop}>
 
       <div className="max-w-3xl space-y-6">
         {/* A shop that is open with nothing on it is the failure nobody
@@ -174,7 +175,7 @@ export default async function ShopHome() {
           <span className="text-sm text-teal-dark">Open the order list</span>
         </Link>
       </div>
-    </PageShell>
+    </ModulePage>
   );
 }
 

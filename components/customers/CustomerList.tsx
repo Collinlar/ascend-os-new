@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { EmptyState, Panel, primaryAction } from "@/components/shell/Page";
@@ -55,11 +55,14 @@ export default function CustomerList({
   customers,
   query,
   canRecordConsent,
+  startAdding = false,
 }: {
   customers: CustomerRow[];
   query: string;
   /** customers.manage (0088): only then is the consent switch, or adding someone, offered. */
   canRecordConsent: boolean;
+  /** Opened from "Add customer" in the module bar (?add=1). */
+  startAdding?: boolean;
 }) {
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -70,7 +73,14 @@ export default function CustomerList({
   const [consent, setConsent] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [filter, setFilter] = useState("Everyone");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(startAdding);
+  // "Add customer" lives in the top bar, so it arrives as ?add=1. Open the
+  // form, then take the flag off the address so the next tap opens it again.
+  useEffect(() => {
+    if (!startAdding) return;
+    setAdding(true);
+    router.replace(query ? `/customers?q=${encodeURIComponent(query)}` : "/customers", { scroll: false });
+  }, [startAdding, query, router]);
 
   const groups = useMemo(
     () =>
@@ -125,26 +135,6 @@ export default function CustomerList({
 
   return (
     <div>
-      <div className="mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <form className="flex-1" action="/customers" role="search">
-          <label className="flex h-11 items-center gap-2.5 rounded-control border border-line-brand bg-white px-3.5 text-neutral-500 focus-within:border-teal">
-            <Icon name="search" size={16} />
-            <span className="sr-only">Search your customers</span>
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Who are you looking for? A name, number or email"
-              className="min-h-0 w-full border-0 bg-transparent text-base text-ink placeholder:text-neutral-500 focus:outline-none"
-            />
-          </label>
-        </form>
-        {canRecordConsent && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className={`${primaryAction} justify-center`}>
-            <Icon name="plus" size={16} />
-            Add a customer
-          </button>
-        )}
-      </div>
       {canRecordConsent && adding && <AddCustomer onAdded={() => router.refresh()} onClose={() => setAdding(false)} />}
 
       {customers.length > 0 && (

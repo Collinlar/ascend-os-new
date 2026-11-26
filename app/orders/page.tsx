@@ -1,8 +1,10 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import OrderList, { OwnerOrder } from "@/components/shop/OrderList";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import { EmptyState } from "@/components/shell/Page";
 import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
@@ -66,11 +68,7 @@ export default async function Orders() {
   const orders = await loadOrders();
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Orders"
-        intro="New orders first. Confirm quickly, customers are waiting on WhatsApp."
-      />
+    <ModulePage identity={MODULES.orders}>
 
       {orders === null ? (
         <EmptyState
@@ -85,6 +83,6 @@ export default async function Orders() {
       ) : (
         <OrderList orders={orders} />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

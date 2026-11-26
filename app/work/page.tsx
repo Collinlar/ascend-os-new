@@ -1,4 +1,6 @@
-import { PageHeader, PageShell } from "@/components/shell/Page";
+
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, currentCapabilities, officeTabs } from "@/lib/nav/modules";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
@@ -260,8 +262,7 @@ export default async function Work() {
   if (data === "not_included") redirect("/grow");
 
   return (
-    <PageShell>
-      <PageHeader title="Work" intro="What is late, who is here, and what needs deciding." />
+    <ModulePage identity={MODULES.office} tabs={officeTabs(await currentCapabilities(), "/work")}>
 
       <div className="max-w-3xl">
         {data === "signed_out" ? (
@@ -296,6 +297,6 @@ export default async function Work() {
           </div>
         )}
       </div>
-    </PageShell>
+    </ModulePage>
   );
 }

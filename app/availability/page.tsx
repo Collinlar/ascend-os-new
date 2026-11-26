@@ -1,5 +1,7 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, currentCapabilities, servicesTabs } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import {EmptyState} from "@/components/shell/Page";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -80,11 +82,7 @@ export default async function Availability() {
   const data = await load();
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Availability"
-        intro="Your normal week, and the days you are shut. Customers only ever see times that survive both."
-      />
+    <ModulePage identity={MODULES.services} title="Availability" tabs={servicesTabs(await currentCapabilities(), "/availability")}>
 
       {data === null ? (
         <EmptyState
@@ -98,6 +96,6 @@ export default async function Availability() {
           initialTimeOff={data.timeOff}
         />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

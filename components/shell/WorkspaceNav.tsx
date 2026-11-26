@@ -43,6 +43,8 @@ export default async function WorkspaceNav({ children }: { children: React.React
       roleName={workspace.roleName}
       businessCount={workspace.businessCount}
       badges={badges}
+      places={workspace.places}
+      locationId={workspace.locationId}
     >
       {children}
     </NavBar>

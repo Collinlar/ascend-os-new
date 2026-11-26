@@ -1,7 +1,11 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import Link from "next/link";
+import { EmptyState, primaryAction } from "@/components/shell/Page";
+import { ModulePage } from "@/components/shell/Module";
+import { Icon } from "@/components/shell/icons";
+import { MODULES } from "@/lib/nav/modules";
 import CustomerList, { type CustomerRow } from "@/components/customers/CustomerList";
 import { checkPageAccess } from "@/lib/authority/page";
 
@@ -72,7 +76,7 @@ async function load(query: string): Promise<{
 export default async function Customers({
   searchParams,
 }: {
-  searchParams: { q?: string };
+  searchParams: { q?: string; add?: string };
 }) {
   // Phase 1 authority check: records what it decides here, and acts on it
   // only once this page's group is enforced (lib/authority/enforce.ts).
@@ -81,16 +85,22 @@ export default async function Customers({
   const data = await load(searchParams.q ?? "");
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Customers"
-        intro={
-          data && data.customers.length > 0 && !data.query
-            ? `${data.customers.length} ${data.customers.length === 1 ? "customer" : "customers"} · one record each, however they bought`
-            : "Everyone who has bought from you. A till sale, an online order, a booking and an invoice all sit under one person."
-        }
-      />
-
+    <ModulePage
+      identity={MODULES.customers}
+      search={{
+        action: "/customers",
+        placeholder: "Search by name or number",
+        defaultValue: data?.query ?? "",
+      }}
+      action={
+        data?.canRecordConsent ? (
+          <Link href="/customers?add=1" className={primaryAction}>
+            <Icon name="plus" size={16} />
+            Add customer
+          </Link>
+        ) : undefined
+      }
+    >
       {data === null ? (
         <EmptyState
           title="Sign in to see your customers."
@@ -101,8 +111,9 @@ export default async function Customers({
           customers={data.customers}
           query={data.query}
           canRecordConsent={data.canRecordConsent}
+          startAdding={searchParams.add === "1"}
         />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

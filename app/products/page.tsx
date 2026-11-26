@@ -1,10 +1,12 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, inventoryTabs } from "@/lib/nav/modules";
+import { currentWorkspace, earns } from "@/lib/nav/workspace";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import { currentWorkspace } from "@/lib/nav/workspace";
 import ProductManager from "@/components/catalogue/ProductManager";
-import { EmptyState, PageHeader, PageShell, primaryAction, secondaryAction } from "@/components/shell/Page";
+import { EmptyState, primaryAction, secondaryAction } from "@/components/shell/Page";
 import { Icon } from "@/components/shell/icons";
 import type { StockRow } from "@/app/api/catalogue/items/route";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -112,20 +114,17 @@ export default async function Products() {
   await checkPageAccess("/products");
 
   const data = await load();
+  // Inside Inventory as its Products tab when the business counts stock;
+  // its own screen when it only sells.
+  const caps = (await currentWorkspace().catch(() => null))?.capabilities ?? new Set<string>();
+  const inInventory = earns(caps, "/inventory");
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Products"
-        intro={
-          data.kind === "ok" && data.items.length > 0
-            ? `${data.items.length} ${data.items.length === 1 ? "product" : "products"} · one list for your till${
-                data.sellsOnline ? " and your shop" : ""
-              }`
-            : "Set your prices, add barcodes so the till can scan, and keep your counts honest."
-        }
-        action={
-          data.kind === "ok" && data.items.length > 0 ? (
+    <ModulePage
+      identity={inInventory ? MODULES.inventory : MODULES.products}
+      title="Products"
+      tabs={inInventory ? inventoryTabs(caps, "products") : []}
+      action={data.kind === "ok" && data.items.length > 0 ? (
             <>
               {data.items.some((i) => i.trackStock) && (
                 <Link href="/inventory" className={secondaryAction}>
@@ -138,9 +137,8 @@ export default async function Products() {
                 Add a product
               </Link>
             </>
-          ) : null
-        }
-      />
+          ) : null}
+    >
 
       {data.kind === "no_session" && (
         <EmptyState
@@ -168,6 +166,6 @@ export default async function Products() {
           sellsOnline={data.sellsOnline}
         />
       )}
-    </PageShell>
+    </ModulePage>
   );
 }

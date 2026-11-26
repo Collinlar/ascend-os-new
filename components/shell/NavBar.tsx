@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { isBareRoute, type NavItem } from "@/lib/nav/routes";
+import { isBareRoute, NAV_GROUP_LABEL, type NavGroup, type NavItem } from "@/lib/nav/routes";
 import { Icon } from "./icons";
+import TopBar, { Bell, PlaceSwitcher, type Place } from "./TopBar";
 
 // The workspace shell (v3 design, D2).
 //
@@ -43,6 +44,8 @@ export default function NavBar({
   roleName,
   businessCount = 1,
   badges = [],
+  places = [],
+  locationId = null,
   children,
 }: {
   items: NavItem[];
@@ -53,6 +56,9 @@ export default function NavBar({
   businessCount?: number;
   /** Counts shown against a destination, for work that is waiting. */
   badges?: NavBadge[];
+  /** The places this person can look at, and the one they are looking at. */
+  places?: Place[];
+  locationId?: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -61,6 +67,16 @@ export default function NavBar({
   const [accountOpen, setAccountOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const account = useRef<HTMLDivElement>(null);
+  // Which bar is showing. The bell asks Ascend what is waiting, so only the
+  // visible bar carries one; before the first paint, neither does.
+  const [desktop, setDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => setDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   // A menu that will not close is worse than no menu.
   useEffect(() => {
@@ -105,8 +121,12 @@ export default function NavBar({
 
   const main = items.filter((i) => !i.more);
   const more = items.filter((i) => i.more);
-  const tabs = main.slice(0, PHONE_TABS);
-  const behindMore = [...main.slice(PHONE_TABS), ...more];
+  // The phone's tabs are the screens needed most often, wherever they sit
+  // in the sidebar; Home is always first.
+  const tabs = [...main]
+    .sort((a, b) => (a.href === "/dashboard" ? -1 : b.href === "/dashboard" ? 1 : (a.rank ?? 99) - (b.rank ?? 99)))
+    .slice(0, PHONE_TABS);
+  const behindMore = [...main.filter((i) => !tabs.includes(i)), ...more];
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -165,7 +185,19 @@ export default function NavBar({
         </div>
 
         <div className="scr flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {main.map(sideLink)}
+          {main.filter((i) => !i.group).map(sideLink)}
+          {(Object.keys(NAV_GROUP_LABEL) as NavGroup[]).map((group) => {
+            const inGroup = main.filter((i) => i.group === group);
+            if (inGroup.length === 0) return null;
+            return (
+              <div key={group} className="flex flex-col gap-0.5">
+                <span className="px-2.5 pb-1.5 pt-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                  {NAV_GROUP_LABEL[group]}
+                </span>
+                {inGroup.map(sideLink)}
+              </div>
+            );
+          })}
           {more.length > 0 && (
             <>
               <span className="px-2.5 pb-1.5 pt-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
@@ -231,7 +263,7 @@ export default function NavBar({
 
       {/* -------------------------------------------------- phone top bar */}
       <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white lg:hidden">
-        <div className="flex items-center gap-3 px-5 py-2.5">
+        <div className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
           <span
             aria-hidden
             className="flex h-9 w-9 flex-none items-center justify-center rounded-[11px] bg-teal font-heading text-[13px] font-extrabold text-white"
@@ -240,15 +272,21 @@ export default function NavBar({
           </span>
           <span className="min-w-0 leading-tight">
             <span className="block truncate text-[15px] font-bold text-ink">{businessName}</span>
-            {locationName && (
+            {locationName && places.length < 2 && (
               <span className="block truncate text-[11.5px] font-medium text-neutral-500">{locationName}</span>
             )}
           </span>
+          <span className="flex-1" />
+          <PlaceSwitcher places={places} current={locationId} compact />
+          {desktop === false && <Bell />}
         </div>
       </header>
 
       {/* The page, in the space the sidebar leaves. */}
-      <div className="lg:pl-[248px]">{children}</div>
+      <div className="lg:pl-[248px]">
+        <TopBar places={places} current={locationId} bell={desktop === true} />
+        {children}
+      </div>
 
       {/* ---------------------------------------------- phone bottom tabs */}
       <nav

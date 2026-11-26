@@ -131,3 +131,45 @@ export function SkeletonPage({
     </PageShell>
   );
 }
+
+// A module screen loading (Modules M1): the header band's shape, then the
+// figures and a list, so the band does not jump in when the data lands.
+export function SkeletonModulePage({
+  rows = 6,
+  stats = 4,
+}: {
+  rows?: number;
+  stats?: number;
+}) {
+  return (
+    <main className="min-h-screen bg-canvas">
+      <p className="sr-only" role="status">
+        Opening this screen
+      </p>
+      <div className="border-b border-neutral-100 bg-white">
+        <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3.5 px-4 pt-5 sm:px-8 lg:pt-6">
+          <div className="flex items-center gap-3.5">
+            <SkeletonBar w="w-11" h="h-11" className="flex-none rounded-[13px]" />
+            <div>
+              <SkeletonBar w="w-28" h="h-3" />
+              <SkeletonBar w="w-40" h="h-6" className="mt-2" />
+            </div>
+          </div>
+          <div className="flex gap-4 pb-3">
+            <SkeletonBar w="w-16" h="h-4" />
+            <SkeletonBar w="w-16" h="h-4" />
+            <SkeletonBar w="w-16" h="h-4" />
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-5 sm:px-8 sm:pb-16 sm:pt-[22px]">
+        {stats > 0 && (
+          <div className="mb-4">
+            <SkeletonStats count={stats} />
+          </div>
+        )}
+        <SkeletonRows rows={rows} />
+      </div>
+    </main>
+  );
+}

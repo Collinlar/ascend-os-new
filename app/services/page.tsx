@@ -1,9 +1,11 @@
+import { ModulePage } from "@/components/shell/Module";
+import { MODULES, currentCapabilities, servicesTabs } from "@/lib/nav/modules";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import { supabaseServer } from "@/lib/supabase";
 import { originFromRequest } from "@/lib/origin";
-import { PageHeader, PageShell } from "@/components/shell/Page";
+
 import BookingLink from "@/components/services/BookingLink";
 import ServiceManager from "@/components/services/ServiceManager";
 import type { ServiceRow } from "@/app/api/services/offerings/route";
@@ -103,11 +105,7 @@ export default async function ServicesHome() {
   const ready = bookable > 0 && state.providers.length > 0;
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Service catalogue"
-        intro="What you offer, who can do it, and the link that lets somebody take a time."
-      />
+    <ModulePage identity={MODULES.services} title="Service catalogue" tabs={servicesTabs(await currentCapabilities(), "/services")}>
 
       <div className="flex flex-col gap-6">
         {/* The two things a booking needs, said before anything else, so a
@@ -194,7 +192,7 @@ export default async function ServicesHome() {
           </Link>
         </div>
       </div>
-    </PageShell>
+    </ModulePage>
   );
 }
 

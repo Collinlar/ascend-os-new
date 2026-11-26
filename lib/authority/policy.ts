@@ -102,6 +102,10 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "auth/signout": { POST: { kind: "public", why: "Signing out; harmless without a session" } },
   // Choosing which business to open: you must be a member of it.
   "auth/current-business": { POST: member("body") },
+  // The top bar (Modules M1). Membership only: what is waiting, and which
+  // of your own places you are looking at.
+  attention: { GET: member("active") },
+  "business/place": { POST: member("active", { location: "body" }) },
   "auth/step-up": { POST: { kind: "session", why: "Confirming a fresh code for a sensitive action" } },
   "business/create": { POST: { kind: "session", why: "Creating a business makes you its owner" } },
   // Session, not member: a suspended business is refused every change at the

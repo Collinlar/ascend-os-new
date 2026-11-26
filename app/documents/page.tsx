@@ -1,7 +1,12 @@
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
-import { EmptyState, PageHeader, PageShell } from "@/components/shell/Page";
+import Link from "next/link";
+import { EmptyState, primaryAction, secondaryAction } from "@/components/shell/Page";
+import { ModulePage } from "@/components/shell/Module";
+import { Icon } from "@/components/shell/icons";
+import { MODULES } from "@/lib/nav/modules";
+import type { DocumentType } from "@/lib/domains/types";
 import DocumentWorkspace, {
   type CatalogueOption,
   type DocumentRow,
@@ -111,19 +116,43 @@ async function load(): Promise<{
   }
 }
 
-export default async function Documents() {
+// What "New ..." in the module bar may open.
+const NEW_TYPES = new Set(["invoice", "quotation", "receipt", "purchase_order"]);
+
+export default async function Documents({
+  searchParams,
+}: {
+  searchParams: { q?: string; new?: string };
+}) {
   // Phase 1 authority check: records what it decides here, and acts on it
   // only once this page's group is enforced (lib/authority/enforce.ts).
   await checkPageAccess("/documents");
 
   const data = await load();
+  const query = (searchParams.q ?? "").trim();
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Documents"
-        intro="Quotations, invoices and receipts. Once one is sent out it keeps its number and cannot be quietly changed."
-      />
+    <ModulePage
+      identity={MODULES.documents}
+      search={
+        data && data.documents.length > 0
+          ? { action: "/documents", placeholder: "Search by number or name", defaultValue: query }
+          : undefined
+      }
+      action={
+        data ? (
+          <>
+            <Link href="/documents?new=quotation" className={secondaryAction}>
+              New quotation
+            </Link>
+            <Link href="/documents?new=invoice" className={primaryAction}>
+              <Icon name="plus" size={16} />
+              New invoice
+            </Link>
+          </>
+        ) : undefined
+      }
+    >
 
       {data === null ? (
         <EmptyState
@@ -138,9 +167,11 @@ export default async function Documents() {
             documents={data.documents}
             catalogue={data.catalogue}
             owed={data.owed}
+            query={query}
+            startCreating={NEW_TYPES.has(searchParams.new ?? "") ? (searchParams.new as DocumentType) : null}
           />
         </>
       )}
-    </PageShell>
+    </ModulePage>
   );
 }
