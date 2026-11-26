@@ -18,7 +18,13 @@ interface OrderBody {
   deliveryAddress?: string;
   /** One of the shop's delivery areas (R3); its fee is set by the shop. */
   deliveryArea?: string;
-  lines?: Array<{ itemId: string; quantity: number }>;
+  /** GhanaPost GPS, like GA-123-4567 (R4). */
+  deliveryGps?: string;
+  /** Which of the shop's places to collect from (R4). */
+  locationId?: string;
+  /** Ticked "send me offers" at checkout (R4). Never assumed. */
+  marketingOptIn?: boolean;
+  lines?: Array<{ itemId: string; variantId?: string | null; quantity: number }>;
 }
 
 async function handlePOST(request: NextRequest) {
@@ -62,6 +68,20 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // GhanaPost GPS: two letters, then the district and the place numbers.
+  let gps: string | null = null;
+  const rawGps = (body.deliveryGps ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  if (body.fulfilment === "merchant_delivery" && rawGps) {
+    const m = /^([A-Z]{2})-?(\d{3,4})-?(\d{4})$/.exec(rawGps);
+    if (!m) {
+      return NextResponse.json(
+        { error: "That GhanaPost GPS looks off. It looks like GA-123-4567, or leave it empty." },
+        { status: 422 }
+      );
+    }
+    gps = `${m[1]}-${m[2]}-${m[3]}`;
+  }
+
   const db = supabaseServer();
   const { data: business } = await db
     .from("business")
@@ -103,10 +123,22 @@ async function handlePOST(request: NextRequest) {
       fulfilment: body.fulfilment ?? "pickup",
       delivery_detail:
         body.fulfilment === "merchant_delivery"
-          ? { address: body.deliveryAddress, ...(body.deliveryArea ? { area: String(body.deliveryArea).slice(0, 40) } : {}) }
+          ? {
+              address: body.deliveryAddress,
+              ...(body.deliveryArea ? { area: String(body.deliveryArea).slice(0, 40) } : {}),
+              ...(gps ? { gps } : {}),
+            }
           : {},
+      ...(body.fulfilment !== "merchant_delivery" && body.locationId && /^[0-9a-f-]{36}$/i.test(body.locationId)
+        ? { location_id: body.locationId }
+        : {}),
+      marketing_opt_in: body.marketingOptIn === true,
       source: "shop_link",
-      lines: body.lines.map((l) => ({ item_id: l.itemId, quantity: l.quantity })),
+      lines: body.lines.map((l) => ({
+        item_id: l.itemId,
+        quantity: l.quantity,
+        ...(l.variantId && /^[0-9a-f-]{36}$/i.test(l.variantId) ? { variant_id: l.variantId } : {}),
+      })),
     },
   });
 
@@ -135,6 +167,22 @@ async function handlePOST(request: NextRequest) {
     };
     const said = Object.keys(route).find((k) => error.message.includes(k));
     if (said) return NextResponse.json({ error: route[said] }, { status: 422 });
+    // Sizes and the pickup place (R4).
+    const sized = /size_(required|unavailable)\|(.+)$/.exec(error.message);
+    if (sized) {
+      return NextResponse.json(
+        {
+          error:
+            sized[1] === "required"
+              ? `Pick a size for ${sized[2]} and order again.`
+              : `${sized[2]} in that size just became unavailable. Pick another size.`,
+        },
+        { status: 409 }
+      );
+    }
+    if (error.message.includes("pickup_place_unknown")) {
+      return NextResponse.json({ error: "Pick one of the shop's places to collect from." }, { status: 422 });
+    }
     const unavailable = /item unavailable|no price/.test(error.message);
     return NextResponse.json(
       {

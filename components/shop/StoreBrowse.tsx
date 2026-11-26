@@ -30,6 +30,7 @@ export default function StoreBrowse({
   bookable = false,
   settings = DEFAULT_SETTINGS,
   promoLink = null,
+  services = [],
 }: {
   slug: string;
   businessName: string;
@@ -44,11 +45,26 @@ export default function StoreBrowse({
   bookable?: boolean;
   settings?: ShopSettings;
   promoLink?: { kind: "product" | "service"; id: string } | null;
+  services?: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
 }) {
   const facts = fulfilmentFacts(settings, places.length > 1 ? places.map((p) => p.name) : []);
   const promoProduct = promoLink?.kind === "product" ? products.find((p) => p.id === promoLink.id) ?? null : null;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  // Search filters (round 2, R4): sort, a price ceiling, in stock.
+  const [sort, setSort] = useState<"popular" | "low" | "high" | "new">("popular");
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  const [inStock, setInStock] = useState(false);
+  const priceOf = (p: StorefrontProduct) => (p.sizes?.length ? Math.min(...p.sizes.map((z) => z.price)) : p.price);
+  // Ceilings that actually split this shop's list, so no chip empties it
+  // or does nothing.
+  const ceilings = useMemo(() => {
+    const prices = products.map(priceOf);
+    return [20, 50, 100, 200, 500, 1000].filter((c) => prices.some((x) => x <= c) && prices.some((x) => x > c)).slice(0, 3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
+  const counted = products.some((p) => p.left !== undefined);
+  const filtering = maxPrice !== null || inStock || sort !== "popular";
 
   const categories = useMemo(() => {
     const seen = new Map<string, number>();
@@ -65,16 +81,27 @@ export default function StoreBrowse({
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       if (category && p.category !== category) return false;
+      if (maxPrice !== null && priceOf(p) > maxPrice) return false;
+      if (inStock && p.left === 0) return false;
       if (!q) return true;
       return (
         p.name.toLowerCase().includes(q) ||
         (p.description ?? "").toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q)
+        (p.category ?? "").toLowerCase().includes(q) ||
+        (p.sizes ?? []).some((z) => z.name.toLowerCase().includes(q))
       );
     });
-  }, [products, query, category]);
+    const sorted = [...list];
+    if (sort === "low") sorted.sort((a, b) => priceOf(a) - priceOf(b));
+    else if (sort === "high") sorted.sort((a, b) => priceOf(b) - priceOf(a));
+    else if (sort === "new") sorted.sort((a, b) => (b.added ?? "").localeCompare(a.added ?? ""));
+    else sorted.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
+    // Sold out last, whatever the order.
+    return sorted.sort((a, b) => Number(a.left === 0) - Number(b.left === 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, query, category, sort, maxPrice, inStock]);
 
   const pictured = products.filter((p) => p.image).slice(0, 5);
 
@@ -206,8 +233,44 @@ export default function StoreBrowse({
                 </div>
               )}
 
+              {products.length > 3 && (
+                <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+                  <label className="flex h-11 flex-none items-center gap-1.5 rounded-full border-[1.5px] border-neutral-200 bg-white pl-4 pr-2 text-[14px] font-semibold text-ink">
+                    <span className="text-neutral-600">Sort</span>
+                    <select
+                      value={sort}
+                      onChange={(e) => setSort(e.target.value as typeof sort)}
+                      aria-label="Sort by"
+                      className="h-full bg-transparent pr-1 font-semibold text-ink focus:outline-none"
+                    >
+                      <option value="popular">Popular</option>
+                      <option value="low">Price, low to high</option>
+                      <option value="high">Price, high to low</option>
+                      <option value="new">Newest</option>
+                    </select>
+                  </label>
+                  {ceilings.map((c) => (
+                    <Chip key={c} label={`Under GHS ${c}`} active={maxPrice === c} onClick={() => setMaxPrice(maxPrice === c ? null : c)} />
+                  ))}
+                  {counted && <Chip label="In stock" active={inStock} onClick={() => setInStock(!inStock)} />}
+                  {filtering && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSort("popular");
+                        setMaxPrice(null);
+                        setInStock(false);
+                      }}
+                      className="tap flex h-11 flex-none items-center px-2 text-[14px] font-semibold text-teal-700"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
               <h2 id="shop-all" className="mt-7 scroll-mt-20 font-heading text-[20px] font-extrabold text-ink-heading">
-                {category ?? "Everything we sell"}
+                {category ?? (query.trim() || filtering ? `${shown.length} ${shown.length === 1 ? "result" : "results"}${query.trim() ? ` for "${query.trim()}"` : ""}` : "Everything we sell")}
               </h2>
 
               {shown.length === 0 ? (
@@ -223,6 +286,41 @@ export default function StoreBrowse({
               )}
             </>
           )}
+
+          {/* Services are booked with a time on the booking page (R4). */}
+          {services.length > 0 && (
+            <section className="mt-9">
+              <h2 className="font-heading text-[20px] font-extrabold text-ink-heading">Book with us</h2>
+              <p className="mt-1 text-[14px] text-neutral-600">Pick a time on the booking page.</p>
+              <div className="mt-3 flex flex-col rounded-[20px] border border-neutral-100">
+                {services.map((sv) => (
+                  <a key={sv.id} href={`/b/${slug}`} className="tap flex items-center gap-3 border-b border-neutral-100 px-4 py-3 last:border-b-0 hover:bg-teal-50">
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-[14.5px] font-bold text-ink">{sv.name}</span>
+                      <span className="text-[12.5px] text-neutral-600">
+                        {[
+                          sv.minutes ? (sv.minutes >= 60 ? `${Math.round((sv.minutes / 60) * 10) / 10} hour${sv.minutes === 60 ? "" : "s"}` : `${sv.minutes} minutes`) : null,
+                          sv.deposit ? `deposit ${formatShelfGHS(sv.deposit)} secures your slot` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Book a time"}
+                      </span>
+                    </span>
+                    <span className="num flex-none text-[14px] font-extrabold text-ink">{formatShelfGHS(sv.price)}</span>
+                    <span className="flex-none rounded-full bg-teal-50 px-3 py-1.5 text-[13px] font-bold text-teal-800">Book</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Why a stranger can trust this page: only what Ascend holds (R4). */}
+          <div className="mt-9 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            {verified && <Trust title="Verified business" detail="Checked by Ascend" />}
+            <Trust title="Confirmed on WhatsApp" detail="Nothing moves until the shop confirms" />
+            {settings.saved && facts.returns && <Trust title={settings.returnsDays ? `${settings.returnsDays}-day returns` : "Returns"} detail={settings.returnsNote || facts.returns} />}
+            {settings.contactLine ? <Trust title="Real people" detail={settings.contactLine} /> : <Trust title="Pay on the day" detail="When you collect it or it reaches you" />}
+          </div>
         </div>
 
         {/* Who you are buying from. A stranger who arrived from a forwarded
@@ -362,7 +460,8 @@ function Tile({
           {product.name}
         </span>
         <span className="num mt-0.5 block font-heading text-[16px] font-extrabold text-ink-heading">
-          {formatShelfGHS(product.price)}
+          {product.sizes?.length ? "from " : ""}
+          {formatShelfGHS(product.sizes?.length ? Math.min(...product.sizes.map((z) => z.price)) : product.price)}
         </span>
         {product.left !== undefined && product.left > 0 && product.left <= 5 && (
           <span className="mt-0.5 block text-[12.5px] font-semibold text-gold-700">Only {product.left} left</span>
@@ -377,6 +476,15 @@ function WayToGet({ title, detail }: { title: string; detail: string }) {
     <div className="flex flex-col gap-0.5 rounded-[16px] border border-neutral-100 bg-teal-50 px-4 py-3">
       <span className="text-[14px] font-bold text-teal-800">{title}</span>
       <span className="text-[13px] text-neutral-700">{detail}</span>
+    </div>
+  );
+}
+
+function Trust({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-[16px] bg-neutral-50 px-3.5 py-3">
+      <span className="text-[13.5px] font-bold text-ink">{title}</span>
+      <span className="text-[12.5px] leading-snug text-neutral-600">{detail}</span>
     </div>
   );
 }

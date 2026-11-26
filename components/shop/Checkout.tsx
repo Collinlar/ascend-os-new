@@ -26,6 +26,10 @@ export default function Checkout({
   places,
   area,
   deliveryFee,
+  placeOptions,
+  placeId,
+  gps,
+  offers,
   placing,
   error,
   onBack,
@@ -45,6 +49,13 @@ export default function Checkout({
   area: string;
   /** The fee for the chosen area; null while none is chosen. */
   deliveryFee: number | null;
+  /** The shop's places, to choose where to collect (R4). */
+  placeOptions: Array<{ id: string; name: string; city: string | null }>;
+  placeId: string;
+  /** GhanaPost GPS or a landmark (R4). */
+  gps: string;
+  /** Offers on WhatsApp, unticked until ticked (R4). */
+  offers: boolean;
   placing: boolean;
   error: string | null;
   onBack: () => void;
@@ -54,6 +65,9 @@ export default function Checkout({
     fulfilment?: Fulfilment;
     address?: string;
     area?: string;
+    placeId?: string;
+    gps?: string;
+    offers?: boolean;
   }) => void;
   onPlace: () => void;
 }) {
@@ -63,20 +77,35 @@ export default function Checkout({
   const total = subtotal + (delivering ? deliveryFee ?? 0 : 0);
   const ghs = (n: number) => (n === 0 ? "Free" : formatGHS(n));
 
+  const placeButton = (
+    <button
+      type="submit"
+      disabled={placing || (delivering && areas.length > 0 && deliveryFee === null)}
+      className="tap flex w-full items-center justify-center rounded-panel bg-navy-deep font-bold text-white disabled:opacity-60"
+    >
+      {placing
+        ? `Sending your order to ${businessName}...`
+        : delivering && areas.length > 0 && deliveryFee === null
+          ? "Pick your delivery area"
+          : `Place my order · ${formatGHS(total)}`}
+    </button>
+  );
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         onPlace();
       }}
-      className="mx-auto max-w-2xl px-5 pb-40 pt-4 sm:px-11"
+      className="mx-auto max-w-[1100px] px-5 pb-40 pt-4 sm:px-11 lg:pb-16"
     >
       <div className="flex items-center gap-3">
         <BackButton onClick={onBack} label="Back to your basket" />
         <h1 className="text-xl font-extrabold text-ink">Your details</h1>
       </div>
 
-      <div className="mt-6 flex flex-col gap-6">
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
+      <div className="flex min-w-0 flex-col gap-6">
         <fieldset>
           <legend className="text-xs font-bold text-ink-muted">
             How would you like it?
@@ -100,6 +129,28 @@ export default function Checkout({
             )}
           </div>
         </fieldset>
+
+        {!delivering && placeOptions.length > 1 && (
+          <fieldset>
+            <legend className="text-xs font-bold text-ink-muted">Where will you collect it?</legend>
+            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+              {placeOptions.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onChange({ placeId: p.id })}
+                  aria-pressed={placeId === p.id}
+                  className={`tap flex min-h-[48px] flex-col justify-center rounded-control border px-4 py-2.5 text-left ${
+                    placeId === p.id ? "border-teal bg-teal-light text-teal-dark" : "border-line bg-surface text-ink-soft"
+                  }`}
+                >
+                  <span className="text-[13.5px] font-bold">{p.name}</span>
+                  {p.city && <span className="text-[11.5px] font-medium opacity-85">{p.city}</span>}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {delivering && areas.length > 0 && (
           <fieldset>
@@ -174,66 +225,92 @@ export default function Checkout({
               placeholder="Area, street and the closest landmark"
               className="mt-2 w-full resize-none rounded-control border border-line-strong bg-surface px-4 py-3 font-medium leading-snug text-ink outline-none placeholder:text-slate-grey focus:border-teal"
             />
+            <label htmlFor="gps" className="mt-3 block text-xs font-bold text-ink-muted">
+              GhanaPost GPS, if you have it
+            </label>
+            <input
+              id="gps"
+              value={gps}
+              onChange={(e) => onChange({ gps: e.target.value.toUpperCase() })}
+              maxLength={20}
+              autoCapitalize="characters"
+              placeholder="GA-123-4567"
+              className="mono mt-2 w-full rounded-control border border-line-strong bg-surface px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-slate-grey focus:border-teal"
+            />
+            <p className="mt-1.5 text-[11.5px] font-medium text-slate-grey">It helps the rider find you. A landmark above works too.</p>
           </div>
         )}
 
-        {/* Said plainly, because a customer deciding whether to type their
-            number wants to know what happens to their money first. */}
-        <div className="flex gap-3 rounded-panel border border-line bg-teal-light px-4 py-3.5">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
-            <rect x="4.5" y="10.5" width="15" height="10" rx="2.2" stroke="#006B62" strokeWidth="1.6" />
-            <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="#006B62" strokeWidth="1.6" />
-          </svg>
-          <p className="text-[12.5px] font-medium leading-snug text-teal-dark">
-            You pay nothing now. {businessName} messages you on WhatsApp to
-            confirm, and you settle when you collect it or when it reaches you.
-          </p>
-        </div>
+        {/* Offers: asked, never assumed. Unticked until they tick it. */}
+        <label className="flex cursor-pointer items-start gap-3 rounded-panel border border-line px-4 py-3.5">
+          <input
+            type="checkbox"
+            checked={offers}
+            onChange={(e) => onChange({ offers: e.target.checked })}
+            className="mt-0.5 h-5 w-5 flex-none accent-teal"
+          />
+          <span className="text-[13px] font-medium leading-snug text-ink-muted">
+            Send me offers from {businessName} on WhatsApp. You can stop anytime.
+          </span>
+        </label>
 
-        <div className="flex flex-col gap-2 rounded-panel bg-surface px-4 py-4">
-          <Row
-            label={`${itemCount} ${itemCount === 1 ? "item" : "items"}`}
-            value={formatGHS(subtotal)}
-          />
-          <Row
-            label={delivering ? (area && areas.length ? `Delivery to ${area}` : "Delivery") : "Collection"}
-            value={
-              !delivering
-                ? "Free"
-                : areas.length === 0
-                  ? "Agreed with the shop"
-                  : deliveryFee === null
-                    ? "Pick an area"
-                    : ghs(deliveryFee)
-            }
-          />
-          <div className="mt-1 flex items-baseline justify-between border-t border-line pt-2.5">
-            <span className="text-[14.5px] font-extrabold text-ink">
-              To pay on the day
-            </span>
-            <span className="num text-xl font-extrabold text-ink">
-              {formatGHS(total)}
-            </span>
-          </div>
-        </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white px-5 py-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+      {/* What it comes to, and the button: under the form on a phone,
+          beside it on a laptop (R4). */}
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-24">
+          {/* Said plainly, because a customer deciding whether to type their
+              number wants to know what happens to their money first. */}
+          <div className="flex gap-3 rounded-panel border border-line bg-teal-light px-4 py-3.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
+              <rect x="4.5" y="10.5" width="15" height="10" rx="2.2" stroke="#006B62" strokeWidth="1.6" />
+              <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="#006B62" strokeWidth="1.6" />
+            </svg>
+            <p className="text-[12.5px] font-medium leading-snug text-teal-dark">
+              You pay nothing now. {businessName} messages you on WhatsApp to
+              confirm, and you settle when you collect it or when it reaches you.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-panel bg-surface px-4 py-4">
+            <Row
+              label={`${itemCount} ${itemCount === 1 ? "item" : "items"}`}
+              value={formatGHS(subtotal)}
+            />
+            <Row
+              label={delivering ? (area && areas.length ? `Delivery to ${area}` : "Delivery") : "Collection"}
+              value={
+                !delivering
+                  ? "Free"
+                  : areas.length === 0
+                    ? "Agreed with the shop"
+                    : deliveryFee === null
+                      ? "Pick an area"
+                      : ghs(deliveryFee)
+              }
+            />
+            <div className="mt-1 flex items-baseline justify-between border-t border-line pt-2.5">
+              <span className="text-[14.5px] font-extrabold text-ink">
+                To pay on the day
+              </span>
+              <span className="num text-xl font-extrabold text-ink">
+                {formatGHS(total)}
+              </span>
+            </div>
+          </div>
+        <div className="hidden lg:block">
+          {error && <p className="mb-2 text-sm font-semibold text-danger">{error}</p>}
+          {placeButton}
+        </div>
+      </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white px-5 py-4 pb-[max(16px,env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto max-w-2xl">
           {error && (
             <p className="mb-2 text-sm font-semibold text-danger">{error}</p>
           )}
-          <button
-            type="submit"
-            disabled={placing || (delivering && areas.length > 0 && deliveryFee === null)}
-            className="tap flex w-full items-center justify-center rounded-panel bg-navy-deep font-bold text-white disabled:opacity-60"
-          >
-            {placing
-              ? `Sending your order to ${businessName}...`
-              : delivering && areas.length > 0 && deliveryFee === null
-                ? "Pick your delivery area"
-                : `Place my order · ${formatGHS(total)}`}
-          </button>
+          {placeButton}
         </div>
       </div>
     </form>

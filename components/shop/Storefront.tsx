@@ -24,7 +24,7 @@ interface Props {
   businessName: string;
   city: string | null;
   memberSince: string | null;
-  places: { name: string; city: string | null }[];
+  places: { id: string; name: string; city: string | null }[];
   products: StorefrontProduct[];
   /** Ascend has verified who runs it (Modules M6b). */
   verified?: boolean;
@@ -33,13 +33,16 @@ interface Props {
   /** Pickup, delivery, returns, contact and the promotion (round 2, R3). */
   settings?: ShopSettings;
   promoLink?: { kind: "product" | "service"; id: string } | null;
+  services?: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
 }
 
 type View = "browse" | "product" | "basket" | "checkout" | "placed";
 
-export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false, settings = DEFAULT_SETTINGS, promoLink = null }: Props) {
+export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false, settings = DEFAULT_SETTINGS, promoLink = null, services = [] }: Props) {
   const [view, setView] = useState<View>("browse");
   const [openId, setOpenId] = useState<string | null>(null);
+  // Keyed by line: the product id, or "product:size" for a product with
+  // sizes, so 250ml and 500ml of one product are two lines (round 2, R4).
   const [basket, setBasket] = useState<Record<string, number>>({});
 
   const [customerName, setCustomerName] = useState("");
@@ -48,6 +51,12 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
   const [address, setAddress] = useState("");
   // The delivery area the customer picks; its fee is the shop's (R3).
   const [area, setArea] = useState(settings.deliveryAreas.length === 1 ? settings.deliveryAreas[0].name : "");
+  // Where to collect, when the shop has more than one place (R4).
+  const [placeId, setPlaceId] = useState<string>(places[0]?.id ?? "");
+  // GhanaPost GPS or a landmark, for delivery (R4).
+  const [gps, setGps] = useState("");
+  // Offers on WhatsApp: unticked until the customer ticks it (R4).
+  const [offers, setOffers] = useState(false);
 
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,16 +75,26 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
   const lines: BasketLine[] = useMemo(
     () =>
       Object.entries(basket)
-        .map(([id, quantity]) => {
+        .map(([key, quantity]) => {
+          const [id, sizeId] = key.split(":");
           const product = byId.get(id);
-          return product ? { product, quantity } : null;
+          if (!product) return null;
+          const size = sizeId ? product.sizes?.find((z) => z.id === sizeId) ?? null : null;
+          if (sizeId && !size) return null;
+          return { key, product, size, quantity, price: size?.price ?? product.price };
         })
         .filter((l): l is BasketLine => l !== null),
     [basket, byId]
   );
+  // How many of each product, whatever the size: sizes share its stock.
+  const perItem = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of lines) m[l.product.id] = (m[l.product.id] ?? 0) + l.quantity;
+    return m;
+  }, [lines]);
 
   const itemCount = lines.reduce((n, l) => n + l.quantity, 0);
-  const subtotal = lines.reduce((n, l) => n + l.product.price * l.quantity, 0);
+  const subtotal = lines.reduce((n, l) => n + l.price * l.quantity, 0);
   // Shown here; charged by the server from the same settings.
   const deliveryFee =
     fulfilment === "merchant_delivery" ? settings.deliveryAreas.find((a) => a.name === area)?.fee ?? null : 0;
@@ -87,20 +106,24 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
     window.scrollTo({ top: 0 });
   }, [view, openId]);
 
-  function setQuantity(productId: string, wanted: number) {
-    // Never more in the basket than the shop has left of a counted product.
+  function setQuantity(key: string, wanted: number) {
+    // Never more in the basket than the shop has left of a counted product,
+    // across all its sizes.
+    const productId = key.split(":")[0];
     const left = byId.get(productId)?.left;
-    const quantity = left === undefined ? wanted : Math.min(wanted, left);
+    const others = (perItem[productId] ?? 0) - (basket[key] ?? 0);
+    const quantity = left === undefined ? wanted : Math.min(wanted, Math.max(0, left - others));
     setBasket((prev) => {
       const next = { ...prev };
-      if (quantity <= 0) delete next[productId];
-      else next[productId] = quantity;
+      if (quantity <= 0) delete next[key];
+      else next[key] = quantity;
       return next;
     });
   }
 
-  function add(product: StorefrontProduct, quantity = 1) {
-    setQuantity(product.id, (basket[product.id] ?? 0) + quantity);
+  function add(product: StorefrontProduct, quantity = 1, sizeId?: string) {
+    const key = sizeId ? `${product.id}:${sizeId}` : product.id;
+    setQuantity(key, (basket[key] ?? 0) + quantity);
   }
 
   async function placeOrder() {
@@ -119,7 +142,10 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           fulfilment,
           deliveryAddress: address,
           deliveryArea: fulfilment === "merchant_delivery" ? area : undefined,
-          lines: lines.map((l) => ({ itemId: l.product.id, quantity: l.quantity })),
+          deliveryGps: fulfilment === "merchant_delivery" ? gps : undefined,
+          locationId: fulfilment === "pickup" && places.length > 1 ? placeId : undefined,
+          marketingOptIn: offers,
+          lines: lines.map((l) => ({ itemId: l.product.id, variantId: l.size?.id, quantity: l.quantity })),
         }),
       });
       const data = await res.json().catch(() => null);
@@ -219,24 +245,38 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           bookable={bookable}
           settings={settings}
           promoLink={promoLink}
-          basket={basket}
+          services={services}
+          basket={perItem}
           onOpen={(p) => {
             setOpenId(p.id);
             setView("product");
           }}
-          onAdd={(p) => add(p)}
+          // A product with sizes opens, so the customer picks one first.
+          onAdd={(p) => {
+            if (p.sizes?.length) {
+              setOpenId(p.id);
+              setView("product");
+            } else add(p);
+          }}
         />
       )}
 
       {view === "product" && open && (
         <ProductDetail
+          key={open.id}
           product={open}
-          inBasket={basket[open.id] ?? 0}
-          onBack={() => setView("browse")}
-          onAdd={(quantity) => {
-            add(open, quantity);
+          inBasket={perItem[open.id] ?? 0}
+          businessName={businessName}
+          slug={slug}
+          settings={settings}
+          places={places.map((p) => p.name)}
+          suggestions={(open.goesWith ?? []).map((id) => byId.get(id)).filter((p): p is StorefrontProduct => Boolean(p) && p!.left !== 0).slice(0, 4)}
+          onOpenOther={(p) => setOpenId(p.id)}
+          onAdd={(quantity, sizeId) => {
+            add(open, quantity, sizeId);
             setView("basket");
           }}
+          onBack={() => setView("browse")}
         />
       )}
 
@@ -246,6 +286,24 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           subtotal={subtotal}
           onBack={() => setView("browse")}
           onSetQuantity={setQuantity}
+          settings={settings}
+          suggestions={(() => {
+            // Goes well with: what is bought with what is in the basket,
+            // not already in it, and not sold out.
+            const inBasket = new Set(lines.map((l) => l.product.id));
+            const score = new Map<string, number>();
+            for (const l of lines) (l.product.goesWith ?? []).forEach((id, i) => score.set(id, (score.get(id) ?? 0) + 4 - i));
+            return Array.from(score.entries())
+              .sort((a, b) => b[1] - a[1])
+              .map(([id]) => byId.get(id))
+              .filter((p): p is StorefrontProduct => Boolean(p) && !inBasket.has(p!.id) && p!.left !== 0)
+              .slice(0, 3);
+          })()}
+          onOpen={(p) => {
+            setOpenId(p.id);
+            setView("product");
+          }}
+          onAdd={(p) => (p.sizes?.length ? (setOpenId(p.id), setView("product")) : add(p))}
           onCheckout={() => setView("checkout")}
         />
       )}
@@ -261,6 +319,10 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           address={address}
           settings={settings}
           places={places.map((p) => p.name)}
+          placeOptions={places}
+          placeId={placeId}
+          gps={gps}
+          offers={offers}
           area={area}
           deliveryFee={deliveryFee}
           placing={placing}
@@ -272,6 +334,9 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
             if (patch.fulfilment !== undefined) setFulfilment(patch.fulfilment);
             if (patch.address !== undefined) setAddress(patch.address);
             if (patch.area !== undefined) setArea(patch.area);
+            if (patch.placeId !== undefined) setPlaceId(patch.placeId);
+            if (patch.gps !== undefined) setGps(patch.gps);
+            if (patch.offers !== undefined) setOffers(patch.offers);
           }}
           onPlace={placeOrder}
         />

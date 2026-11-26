@@ -27,7 +27,7 @@ interface ShopData {
   city: string | null;
   slug: string;
   memberSince: string | null;
-  places: { name: string; city: string | null }[];
+  places: { id: string; name: string; city: string | null }[];
   products: StorefrontProduct[];
   /** Ascend has verified who runs it (business.identity_verification). */
   verified: boolean;
@@ -37,6 +37,8 @@ interface ShopData {
   settings: ShopSettings;
   /** Where the promotion links: a product here, or the booking page. */
   promoLink: { kind: "product" | "service"; id: string } | null;
+  /** A few services to book, for the "Book with us" row (R4). */
+  services: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
 }
 
 async function loadShop(slug: string): Promise<ShopData | null> {
@@ -50,7 +52,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
 
     const { data: locations } = await db
       .from("location")
-      .select("name, city")
+      .select("id, name, city")
       .eq("business_id", business.id)
       .eq("active", true)
       .order("created_at", { ascending: true })
@@ -60,7 +62,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     const { data: items } = await db
       .from("catalogue_item")
       .select(
-        "id, name, description, category, base_price, currency_code, track_stock, channel_listing!inner(price_override, media, visible, channel)"
+        "id, name, description, category, base_price, currency_code, track_stock, created_at, channel_listing!inner(price_override, media, visible, channel)"
       )
       .eq("business_id", business.id)
       .eq("active", true)
@@ -93,9 +95,11 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     // The customer-facing trust facts and the best seller (Modules M6b).
     // Verified only when Ascend verified it; never a decoration.
     const since30 = new Date(Date.now() - 30 * 864e5).toISOString();
-    const [trust, services, recent] = await Promise.all([
+    const since90 = new Date(Date.now() - 90 * 864e5).toISOString();
+    const itemIds = (items ?? []).map((i) => i.id as string);
+    const [trust, services, recent, variants, together] = await Promise.all([
       db.from("business").select("identity_verification").eq("id", business.id).maybeSingle(),
-      db.from("catalogue_item").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("kind", "service").eq("active", true).not("base_price", "is", null),
+      db.from("catalogue_item").select("id, name, base_price, service_attributes", { count: "exact" }).eq("business_id", business.id).eq("kind", "service").eq("active", true).not("base_price", "is", null).order("name").limit(4),
       db
         .from("shop_order")
         .select("status, shop_order_line(item_id, quantity)")
@@ -103,7 +107,37 @@ async function loadShop(slug: string): Promise<ShopData | null> {
         .gte("placed_at", since30)
         .in("status", ["confirmed", "preparing", "ready", "out_for_delivery", "fulfilled"])
         .limit(500),
+      // Sizes (round 2, R4)
+      itemIds.length
+        ? db.from("item_variant").select("id, item_id, name, price_delta").in("item_id", itemIds).eq("active", true).order("name")
+        : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+      // What is bought together, and how much sold, over 90 days (R4)
+      db
+        .from("shop_order")
+        .select("shop_order_line(item_id, quantity)")
+        .eq("business_id", business.id)
+        .gte("placed_at", since90)
+        .neq("status", "cancelled")
+        .limit(800),
     ]);
+    const sizesBy = new Map<string, Array<{ id: string; name: string; delta: number }>>();
+    for (const v of (variants.data ?? []) as Array<Record<string, unknown>>) {
+      const list = sizesBy.get(v.item_id as string) ?? [];
+      list.push({ id: v.id as string, name: v.name as string, delta: Number(v.price_delta) });
+      sizesBy.set(v.item_id as string, list);
+    }
+    const sold90 = new Map<string, number>();
+    const pairs = new Map<string, Map<string, number>>();
+    for (const o of (together.data ?? []) as Array<{ shop_order_line: Array<{ item_id: string; quantity: number }> }>) {
+      const ids = Array.from(new Set((o.shop_order_line ?? []).map((l) => l.item_id)));
+      for (const l of o.shop_order_line ?? []) sold90.set(l.item_id, (sold90.get(l.item_id) ?? 0) + Number(l.quantity));
+      for (const a of ids) for (const b of ids) {
+        if (a === b) continue;
+        const m = pairs.get(a) ?? new Map<string, number>();
+        m.set(b, (m.get(b) ?? 0) + 1);
+        pairs.set(a, m);
+      }
+    }
     const soldBy = new Map<string, number>();
     for (const o of recent.data ?? []) {
       for (const l of (o.shop_order_line ?? []) as unknown as Array<{ item_id: string; quantity: number }>) {
@@ -131,6 +165,15 @@ async function loadShop(slug: string): Promise<ShopData | null> {
           image: listing?.media?.[0] ?? null,
           ...(item.track_stock ? { left: Math.max(0, Math.floor(left.get(item.id) ?? 0)) } : {}),
           ...(item.id === bestId ? { bestseller: true } : {}),
+          ...(sizesBy.has(item.id)
+            ? { sizes: sizesBy.get(item.id)!.map((z) => ({ id: z.id, name: z.name, price: Number(price) + z.delta })) }
+            : {}),
+          sold: sold90.get(item.id) ?? 0,
+          added: (item.created_at as string) ?? undefined,
+          goesWith: Array.from((pairs.get(item.id) ?? new Map<string, number>()).entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([id]) => id),
         },
       ];
     });
@@ -141,7 +184,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       city: location?.city ?? null,
       slug: business.shop_slug,
       memberSince: (business.created_at as string | null) ?? null,
-      places: (locations ?? []).map((l) => ({ name: l.name as string, city: (l.city as string | null) ?? null })),
+      places: (locations ?? []).map((l) => ({ id: l.id as string, name: l.name as string, city: (l.city as string | null) ?? null })),
       products,
       ...(await (async () => {
         // Before 0143 the table is not there, and the shop keeps its old ways.
@@ -154,6 +197,16 @@ async function loadShop(slug: string): Promise<ShopData | null> {
         }
         return { settings, promoLink };
       })()),
+      services: ((services.data ?? []) as Array<Record<string, unknown>>).slice(0, 3).map((s) => {
+        const a = (s.service_attributes ?? {}) as { duration_minutes?: number; deposit_amount?: number };
+        return {
+          id: s.id as string,
+          name: s.name as string,
+          price: Number(s.base_price),
+          minutes: a.duration_minutes ? Number(a.duration_minutes) : null,
+          deposit: a.deposit_amount ? Number(a.deposit_amount) : null,
+        };
+      }),
       verified: trust.data?.identity_verification === "verified",
       bookable: (services.count ?? 0) > 0,
     };
@@ -216,6 +269,7 @@ export default async function ShopPage({
       bookable={shop.bookable}
       settings={shop.settings}
       promoLink={shop.promoLink}
+      services={shop.services}
     />
   );
 }

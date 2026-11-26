@@ -60,6 +60,23 @@ async function load(): Promise<LoadResult> {
     // same way the navigation does. Minimal without hiding anything owned.
     const workspace = await currentWorkspace().catch(() => null);
 
+    // Sizes for each product (round 2, R4).
+    const ids = (data ?? []).map((r: { item_id: string }) => r.item_id);
+    const sizesBy = new Map<string, Array<{ id: string; name: string; priceDelta: number }>>();
+    if (ids.length) {
+      const { data: variants } = await db
+        .from("item_variant")
+        .select("id, item_id, name, price_delta")
+        .in("item_id", ids)
+        .eq("active", true)
+        .order("name");
+      for (const v of variants ?? []) {
+        const list = sizesBy.get(v.item_id as string) ?? [];
+        list.push({ id: v.id as string, name: v.name as string, priceDelta: Number(v.price_delta) });
+        sizesBy.set(v.item_id as string, list);
+      }
+    }
+
     return {
       kind: "ok" as const,
       businessId: membership.business_id,
@@ -100,6 +117,7 @@ async function load(): Promise<LoadResult> {
             row.shop_price_override === null || row.shop_price_override === undefined
               ? null
               : Number(row.shop_price_override),
+          sizes: sizesBy.get(row.item_id) ?? [],
         })
       ),
     };

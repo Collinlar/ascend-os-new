@@ -28,6 +28,8 @@ export interface StockRow {
   /** Null when the business has never listed this on its Shop. */
   shopVisible: boolean | null;
   shopPriceOverride: number | null;
+  /** Sizes customers choose from, each with a price difference (round 2, R4). */
+  sizes: Array<{ id: string; name: string; priceDelta: number }>;
 }
 
 async function scope(personId: string, businessId: string) {
@@ -69,7 +71,8 @@ async function handleGET(request: NextRequest) {
     p_business: businessId,
     p_location: locationId,
   });
-  if (error) {
+  if (error) {
+
 
     const denied = deniedByDatabase(error);
 
@@ -108,6 +111,8 @@ async function handlePATCH(request: NextRequest) {
     // absent for one that has not.
     shopVisible?: boolean;
     shopPriceOverride?: number | string | null;
+    /** The whole list of sizes; any left out are switched off (0144). */
+    sizes?: Array<{ id?: string | null; name?: string; priceDelta?: number | string }>;
   };
   try {
     body = await request.json();
@@ -151,7 +156,8 @@ async function handlePATCH(request: NextRequest) {
 
   const db = supabaseServer();
   const { error } = await db.rpc("update_catalogue_item", { p: payload });
-  if (error) {
+  if (error) {
+
 
     const denied = deniedByDatabase(error);
 
@@ -198,6 +204,44 @@ async function handlePATCH(request: NextRequest) {
 
   // Channel settings are a separate record, so they are written separately
   // and a failure there does not undo the product edit.
+  // Sizes, after the price, so a size is checked against the new price.
+  let savedSizes: Array<{ id: string; name: string; priceDelta: number }> | undefined;
+  if (Array.isArray(body.sizes)) {
+    const { data: sizeData, error: sizeError } = await db.rpc("set_item_variants", {
+      p: {
+        business_id: body.businessId,
+        item_id: body.itemId,
+        actor_membership_id: scoped?.membershipId ?? "",
+        sizes: body.sizes.map((s) => ({ id: s.id ?? "", name: s.name ?? "", price_delta: String(Number(s.priceDelta ?? 0) || 0) })),
+      },
+    });
+    if (sizeError) {
+      const denied = deniedByDatabase(sizeError);
+      if (denied) return denied;
+      const repeated = /size_repeated\|(.+)$/.exec(sizeError.message);
+      const negative = /size_price_negative\|(.+)$/.exec(sizeError.message);
+      return NextResponse.json(
+        {
+          error: repeated
+            ? `${repeated[1]} is listed twice. Keep one.`
+            : negative
+              ? `${negative[1]} would cost less than nothing. Lower the discount.`
+              : /too_many_sizes/.test(sizeError.message)
+                ? "Keep it to 12 sizes or fewer."
+                : /function .* does not exist|set_item_variants/.test(sizeError.message)
+                  ? "Sizes switch on after this week's update. Everything else saved."
+                  : "We could not save the sizes just now. Tap save again.",
+        },
+        { status: 422 }
+      );
+    }
+    savedSizes = ((sizeData?.sizes ?? []) as Array<{ id: string; name: string; price_delta: number | string }>).map((v) => ({
+      id: v.id,
+      name: v.name,
+      priceDelta: Number(v.price_delta),
+    }));
+  }
+
   if (body.shopVisible !== undefined || body.shopPriceOverride !== undefined) {
     const { error: channelError } = await db.rpc("set_channel_listing", {
       p: {
@@ -215,7 +259,8 @@ async function handlePATCH(request: NextRequest) {
               : String(body.shopPriceOverride),
       },
     });
-    if (channelError) {
+    if (channelError) {
+
 
       const denied = deniedByDatabase(channelError);
 
@@ -227,7 +272,7 @@ async function handlePATCH(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ saved: true });
+  return NextResponse.json({ saved: true, ...(savedSizes ? { sizes: savedSizes } : {}) });
 }
 
 function toRow(row: {
@@ -265,6 +310,8 @@ function toRow(row: {
       row.shop_price_override === null || row.shop_price_override === undefined
         ? null
         : Number(row.shop_price_override),
+    // The GET list does not carry sizes; the products page loads them.
+    sizes: [],
   };
 }
 

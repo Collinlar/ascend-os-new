@@ -47,6 +47,8 @@ export default function ProductManager({
   const [lowStock, setLowStock] = useState("");
   const [shopVisible, setShopVisible] = useState(true);
   const [shopPrice, setShopPrice] = useState("");
+  // Sizes a customer picks from on the Shop (round 2, R4).
+  const [sizes, setSizes] = useState<Array<{ key: number; id: string | null; name: string; delta: string }>>([]);
   const [newPhoto, setNewPhoto] = useState<{ base64: string; mediaType: string; preview: string } | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const [photoFor, setPhotoFor] = useState<string | null>(null);
@@ -88,6 +90,7 @@ export default function ProductManager({
     setLowStock(row.lowStockThreshold === null ? "" : String(row.lowStockThreshold));
     setShopVisible(row.shopVisible ?? true);
     setShopPrice(row.shopPriceOverride === null ? "" : String(row.shopPriceOverride));
+    setSizes(row.sizes.map((s, i) => ({ key: i + 1, id: s.id, name: s.name, delta: s.priceDelta ? String(s.priceDelta) : "" })));
     setNewPhoto(null);
     setError(null);
     setNote(null);
@@ -149,6 +152,9 @@ export default function ProductManager({
                 description: description.trim() === "" ? null : description.trim(),
                 shopVisible,
                 shopPriceOverride: shopPrice.trim() === "" ? null : Number(shopPrice),
+                sizes: sizes
+                  .filter((s) => s.name.trim())
+                  .map((s) => ({ id: s.id, name: s.name.trim(), priceDelta: s.delta.trim() === "" ? 0 : Number(s.delta) })),
               }
             : {}),
         }),
@@ -181,6 +187,8 @@ export default function ProductManager({
                     ? null
                     : Number(shopPrice)
                   : r.shopPriceOverride,
+                // As saved, with the ids the database gave new sizes.
+                sizes: Array.isArray(data?.sizes) ? data.sizes : r.sizes,
               }
             : r
         )
@@ -632,6 +640,56 @@ export default function ProductManager({
                         placeholder="Leave empty to use the same price"
                         className="num mt-1 w-full rounded-control border border-line px-3 py-2 focus:border-teal focus:outline-none"
                       />
+                    </div>
+
+                    {/* Sizes (decision 6): 250ml and 500ml, S, M and L. They
+                        share this product's stock. */}
+                    <div>
+                      <p className="text-xs text-ink-muted">Sizes customers choose from</p>
+                      <div className="mt-1 space-y-2">
+                        {sizes.map((s) => (
+                          <div key={s.key} className="flex items-center gap-2">
+                            <input
+                              value={s.name}
+                              onChange={(e) => setSizes((prev) => prev.map((x) => (x.key === s.key ? { ...x, name: e.target.value } : x)))}
+                              placeholder="250ml, Large, 1B"
+                              maxLength={40}
+                              aria-label="Size name"
+                              className="min-w-0 flex-1 rounded-control border border-line px-3 py-2 text-sm focus:border-teal focus:outline-none"
+                            />
+                            <input
+                              value={s.delta}
+                              onChange={(e) => setSizes((prev) => prev.map((x) => (x.key === s.key ? { ...x, delta: e.target.value.replace(/[^\d.-]/g, "") } : x)))}
+                              inputMode="decimal"
+                              placeholder="+ GHS 0"
+                              aria-label={`Extra price for ${s.name || "this size"}`}
+                              className="num w-24 rounded-control border border-line px-3 py-2 text-sm focus:border-teal focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setSizes((prev) => prev.filter((x) => x.key !== s.key))}
+                              aria-label={`Remove ${s.name || "this size"}`}
+                              className="tap rounded-control px-2 text-lg font-bold text-ink-muted"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        {sizes.length < 12 && (
+                          <button
+                            type="button"
+                            onClick={() => setSizes((prev) => [...prev, { key: Date.now(), id: null, name: "", delta: "" }])}
+                            className="tap text-sm font-semibold text-teal-dark"
+                          >
+                            {sizes.length ? "Add another size" : "Add sizes"}
+                          </button>
+                        )}
+                        {sizes.length > 0 && (
+                          <p className="text-[11.5px] text-ink-muted">
+                            The extra price is added to the shop price. Customers must pick a size. Sizes share this product&rsquo;s stock.
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     <div>

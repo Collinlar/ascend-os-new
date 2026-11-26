@@ -21,6 +21,14 @@ export interface StorefrontProduct {
   left?: number;
   /** The shop's best seller over the last 30 days (Modules M6b). */
   bestseller?: boolean;
+  /** Sizes to choose from, each at its own price (round 2, R4). */
+  sizes?: Array<{ id: string; name: string; price: number }>;
+  /** How many sold in the last 90 days, for "Popular". */
+  sold?: number;
+  /** When it was added, for "Newest". */
+  added?: string;
+  /** What customers often buy with it, most often first. */
+  goesWith?: string[];
 }
 
 // Deterministic tint for a product with no photo, so the same item is the
