@@ -270,6 +270,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
       byAction: {
         attendance: { permission: ["attendance.own"], capability: officeCap("attendance") },
         complete_task: { permission: ["tasks.own"], capability: officeCap("complete_task") },
+        move_task: { permission: ["tasks.own"], capability: officeCap("move_task") },
         create_task: { capability: officeCap("create_task"), gap: "No work-management permission yet (work.manage)" },
         create_project: { capability: officeCap("create_project"), gap: "No work-management permission yet (work.manage)" },
         decide_approval: { permission: ["approvals.decide", "refunds.approve"], capability: officeCap("decide_approval") },
@@ -313,6 +314,8 @@ export const PAGE_POLICY: Record<string, MemberRule> = {
   "/devices": { permission: ["staff.manage"], capability: ["pos.tills"] },
   "/availability": { permission: ["bookings.manage", "bookings.manage_assigned"], capability: ["services.basic_availability"] },
   "/team": { permission: ["staff.manage"], capability: ["people.cashiers", "people.core"] },
+  "/work/approvals": { capability: ["office.work", "work.approvals", "pos.refunds"] },
+  "/work/board": { capability: ["office.work", "work.core", "office.basic_order_assignment", "people.provider_assignment"] },
   "/work": { capability: ["office.work", "office.basic_attendance", "office.basic_shifts", "office.basic_order_assignment", "people.provider_assignment"] },
   "/promote": { permission: ["campaigns.send"], capability: ["discover.listing"] },
   "/readiness": { permission: ["reports.view"], capability: ["readiness.score"] },

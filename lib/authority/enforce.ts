@@ -60,6 +60,8 @@ const ROUTE_GROUP: Record<string, string> = {
 /** Pages in each group. */
 const PAGE_GROUP: Record<string, string> = {
   "/work": "office",
+  "/work/approvals": "office",
+  "/work/board": "office",
   "/services": "services",
   "/bookings": "services",
   "/availability": "services",

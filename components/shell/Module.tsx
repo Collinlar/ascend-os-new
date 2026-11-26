@@ -97,7 +97,7 @@ export function ModuleBand({
         </div>
 
         {!slots && (search || action) && (
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center lg:hidden">
             {search && (
               <div className="min-w-0 flex-1">
                 <SearchBox search={search} />

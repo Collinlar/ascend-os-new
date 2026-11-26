@@ -69,6 +69,7 @@ export type OfficeModules = Record<OfficeModule, boolean>;
 export const OFFICE_ACTIONS: Record<string, readonly string[] | null> = {
   attendance: OFFICE_MODULES.attendance,
   complete_task: OFFICE_MODULES.tasks,
+  move_task: OFFICE_MODULES.tasks,
   create_task: OFFICE_MODULES.projects,
   create_project: OFFICE_MODULES.projects,
   decide_approval: OFFICE_MODULES.approvals,

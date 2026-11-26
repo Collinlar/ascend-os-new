@@ -7,6 +7,7 @@
 // screen the business has earned (the same test the sidebar uses).
 
 import type { IconName } from "@/components/shell/icons";
+import { officeModules } from "@/lib/office/access";
 import { currentWorkspace, earns } from "./workspace";
 
 export interface ModuleIdentity {
@@ -95,12 +96,25 @@ function routeTabs(
     .map((t) => ({ ...t, current: t.href === current }));
 }
 
-/** Office: the work page and the people in it (Team folds in as People). */
-export function officeTabs(capabilities: Set<string>, current: "/work" | "/team"): ModuleTab[] {
-  return routeTabs(capabilities, current, [
-    { label: "Work", href: "/work" },
-    { label: "People", href: "/team" },
-  ]);
+/** Office (Modules M2): Today, Approvals, the Work board, and People (the
+ *  staff directory folded in). People is for whoever manages staff. */
+export function officeTabs(
+  capabilities: Set<string>,
+  current: "/work" | "/work/approvals" | "/work/board" | "/team",
+  opts: { runsThePlace?: boolean; waiting?: number } = {}
+): ModuleTab[] {
+  const modules = officeModules(capabilities);
+  const tabs: Array<{ label: string; href: string; shown: boolean }> = [
+    { label: "Today", href: "/work", shown: earns(capabilities, "/work") },
+    {
+      label: opts.waiting ? `Approvals (${opts.waiting})` : "Approvals",
+      href: "/work/approvals",
+      shown: modules.approvals && opts.runsThePlace !== false,
+    },
+    { label: "Work", href: "/work/board", shown: modules.tasks },
+    { label: "People", href: "/team", shown: earns(capabilities, "/team") && opts.runsThePlace !== false },
+  ];
+  return tabs.filter((t) => t.shown).map(({ label, href }) => ({ label, href, current: href === current }));
 }
 
 /** Services: the schedule, what is offered, and when. */

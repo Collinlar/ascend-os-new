@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EmptyState, Panel, primaryAction } from "@/components/shell/Page";
-import { Icon } from "@/components/shell/icons";
+import { EmptyState, Panel } from "@/components/shell/Page";
+import { Avatar, StatusPill, type Tone } from "@/components/shell/Parts";
 
 // The people who work here.
 //
@@ -18,6 +18,12 @@ export interface TeamRow {
   roleKey: string;
   status: string;
   isSelf: boolean;
+  /** Where they work: their places, or every place (Modules M2). */
+  places?: string;
+  /** Today: in since, on time off, or not in. Only with attendance. */
+  today?: { text: string; tone: Tone } | null;
+  /** The last 7 days: days in and hours. Only with attendance. */
+  week?: string | null;
 }
 
 // What the team screen can add someone as (add_team_member, 0119). A
@@ -49,15 +55,26 @@ export default function TeamDirectory({
   team,
   canManage,
   isOwner = false,
+  startAdding = false,
 }: {
   businessId: string;
   team: TeamRow[];
   canManage: boolean;
   /** Only the owner adds managers and accountants (roles.change). */
   isOwner?: boolean;
+  /** Opened from "Add someone" in the module bar (?add=1). */
+  startAdding?: boolean;
 }) {
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
+  // "Works at" only means something when there is more than one place.
+  const showPlaces = team.some((m) => m.places);
+  const COLS = showPlaces ? COLS_PLACES : COLS_ONE_PLACE;
+  const [adding, setAdding] = useState(startAdding && canManage);
+  useEffect(() => {
+    if (!startAdding) return;
+    if (canManage) setAdding(true);
+    router.replace("/team", { scroll: false });
+  }, [startAdding, canManage, router]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   // add_team_member (0119): cashier and staff for anyone who manages the
@@ -157,15 +174,6 @@ export default function TeamDirectory({
         </p>
       )}
 
-      {canManage && !adding && (
-        <div className="mb-3.5 flex justify-end">
-          <button onClick={() => setAdding(true)} className={primaryAction}>
-            <Icon name="plus" size={16} />
-            Add someone
-          </button>
-        </div>
-      )}
-
       {adding && (
         <div className="mb-3.5 rounded-[18px] border border-line-brand bg-white p-5">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -250,9 +258,9 @@ export default function TeamDirectory({
             className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}
           >
             <span>Person</span>
-            <span>Role</span>
-            <span>Phone</span>
-            <span>Status</span>
+            {showPlaces && <span>Works at</span>}
+            <span>Today</span>
+            <span>Last 7 days</span>
             <span />
           </div>
           {team.map((m, i) => {
@@ -262,37 +270,40 @@ export default function TeamDirectory({
               <div key={m.membershipId} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
                 <div className={`flex flex-wrap items-center gap-3 px-5 py-3 ${COLS}`}>
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span
-                      aria-hidden
-                      className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-teal-50 text-[11.5px] font-bold text-teal-800"
-                    >
-                      {initials(m.name)}
-                    </span>
+                    <Avatar name={m.name} size={34} />
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-[14px] font-semibold text-ink">
                         {m.name}
                         {m.isSelf && <span className="ml-1.5 text-xs font-semibold text-neutral-500">you</span>}
                       </span>
-                      <span className="truncate text-xs text-neutral-500 lg:hidden">
+                      <span className="truncate text-xs text-neutral-500">
                         {ROLE_LABEL[m.roleKey] ?? m.roleKey}
                         {m.phone ? ` · ${local(m.phone)}` : ""}
+                        {m.places ? <span className="lg:hidden"> · {m.places}</span> : null}
                       </span>
                     </span>
                   </div>
-                  <span className="hidden min-w-0 lg:block">
-                    <span className="sr-only">Role: </span>
-                    <span className="block text-[13.5px] font-semibold text-ink">{ROLE_LABEL[m.roleKey] ?? m.roleKey}</span>
-                    <span className="block truncate text-xs text-neutral-500">{ROLE_MEANS[m.roleKey]}</span>
-                  </span>
-                  <span className="hidden truncate text-[13.5px] text-neutral-600 lg:block">
-                    <span className="sr-only">Phone: </span>
-                    {m.phone ? local(m.phone) : "None given"}
-                  </span>
+                  {showPlaces && (
+                    <span className="hidden truncate text-[13.5px] text-neutral-600 lg:block">
+                      <span className="sr-only">Works at: </span>
+                      {m.places ?? "Every place"}
+                    </span>
+                  )}
                   <span className="flex-none">
-                    <span className="sr-only">Status: </span>
-                    <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${status.cls}`}>{status.text}</span>
+                    <span className="sr-only">Today: </span>
+                    {m.status !== "active" ? (
+                      <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${status.cls}`}>{status.text}</span>
+                    ) : m.today ? (
+                      <StatusPill tone={m.today.tone}>{m.today.text}</StatusPill>
+                    ) : (
+                      <StatusPill tone="ok">On the team</StatusPill>
+                    )}
                   </span>
-                  <span className="flex flex-none flex-wrap justify-end gap-2 lg:justify-end">
+                  <span className="hidden text-[13px] text-neutral-600 lg:block">
+                    <span className="sr-only">Last 7 days: </span>
+                    {m.week ?? "Not tracked"}
+                  </span>
+                  <span className="flex flex-none flex-wrap justify-end gap-2 lg:flex-col lg:items-stretch">
                     {managed && changing !== m.membershipId && confirming !== m.membershipId && (
                       <>
                         <button
@@ -359,18 +370,10 @@ export default function TeamDirectory({
   );
 }
 
-function initials(name: string): string {
-  const letters = name
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-  return letters || name.slice(0, 1).toUpperCase();
-}
-
-// The design's team table, from 1024px: person, role, phone, status, actions.
-const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_230px_140px_110px_300px] lg:items-center lg:gap-4";
+// The People table, from 1024px: person, where they work, today, the last
+// seven days, and what can be changed (Modules M2).
+const COLS_PLACES = "lg:grid lg:grid-cols-[minmax(0,1fr)_110px_130px_110px_170px] lg:items-center lg:gap-3";
+const COLS_ONE_PLACE = "lg:grid lg:grid-cols-[minmax(0,1fr)_130px_120px_170px] lg:items-center lg:gap-3";
 
 const STATUS: Record<string, { text: string; cls: string }> = {
   active: { text: "Active", cls: "bg-success-tint text-success-ink" },

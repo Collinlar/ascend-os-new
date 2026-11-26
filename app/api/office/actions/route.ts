@@ -15,6 +15,7 @@ interface Body {
   action?:
     | "create_task"
     | "complete_task"
+    | "move_task"
     | "submit_expense"
     | "decide_approval"
     | "attendance"
@@ -25,6 +26,8 @@ interface Body {
     | "save_location"
     | "assign_booking";
   taskId?: string;
+  /** move_task: the column it goes to. */
+  status?: "open" | "in_progress" | "blocked" | "done";
   title?: string;
   assigneeMembershipId?: string;
   dueAt?: string;
@@ -187,6 +190,55 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ status: "done", unchanged: Boolean(data.unchanged) });
   }
 
+  // Moving work across the Work board (Modules M2, 0139). An owner or a
+  // manager moves anything; anyone else moves only work that is theirs or
+  // nobody's, the same tasks the board shows them.
+  if (body.action === "move_task") {
+    if (!body.taskId || !body.status) {
+      return NextResponse.json({ error: "Pick a task and where it goes." }, { status: 422 });
+    }
+    const [{ data: task }, { data: me }] = await Promise.all([
+      db.from("task").select("id, assigned_membership_id").eq("id", body.taskId).eq("business_id", businessId).maybeSingle(),
+      db.from("business_membership").select("role:role_id(key)").eq("id", membershipId).maybeSingle(),
+    ]);
+    if (!task) {
+      return NextResponse.json({ error: "We could not find that task." }, { status: 404 });
+    }
+    const roleKey = (me?.role as unknown as { key: string } | null)?.key;
+    const runsThePlace = roleKey === "owner" || roleKey === "manager";
+    if (!runsThePlace && task.assigned_membership_id && task.assigned_membership_id !== membershipId) {
+      return NextResponse.json(
+        { error: "That task is someone else's. Ask your manager to move it." },
+        { status: 403 }
+      );
+    }
+    const { data, error } = await db.rpc("set_task_status", {
+      p: {
+        business_id: businessId,
+        task_id: task.id,
+        status: body.status,
+        actor_membership_id: membershipId,
+        channel: "business_web",
+      },
+    });
+    if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
+      if (/status_invalid/.test(error.message)) {
+        return NextResponse.json({ error: "Tasks go to To do, In progress, Waiting or Done." }, { status: 422 });
+      }
+      if (/task_cancelled/.test(error.message)) {
+        return NextResponse.json({ error: "That task was called off with its order or booking, so it stays closed." }, { status: 409 });
+      }
+      if (/task_not_found/.test(error.message)) {
+        return NextResponse.json({ error: "We could not find that task." }, { status: 404 });
+      }
+      console.error("move_task failed:", error.message);
+      return NextResponse.json({ error: "We could not move that just now. Tap again in a moment." }, { status: 500 });
+    }
+    return NextResponse.json({ status: data.status, unchanged: Boolean(data.unchanged) });
+  }
+
   if (body.action === "submit_expense") {
     if (!(Number(body.amount) > 0)) {
       return NextResponse.json(
@@ -237,12 +289,23 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: "We could not find that request." }, { status: 404 });
     }
 
+    // Turning something down says why, so the person who asked is not left
+    // guessing (Modules M2).
+    const decisionNote = (body.note ?? "").trim();
+    if (!body.approved && decisionNote.length < 2) {
+      return NextResponse.json(
+        { error: "Say why you are turning it down. They see your note." },
+        { status: 422 }
+      );
+    }
+    // No note to decide_approval: it would write over the reason the person
+    // gave when they asked. The decider's words go in their own column (0139).
     const { data, error } = await db.rpc("decide_approval", {
       p: {
         approval_id: approval.id,
         decider_membership_id: membershipId,
         approved: body.approved ?? false,
-        note: body.note ?? null,
+        note: null,
       },
     });
 
@@ -267,6 +330,17 @@ async function handlePOST(request: NextRequest) {
         { error: "We could not save that decision. Tap again in a moment." },
         { status: 500 }
       );
+    }
+
+    if (decisionNote) {
+      // Read on its own terms: a database without 0139 still decides, it
+      // only keeps no note.
+      const { error: noteError } = await db
+        .from("approval_request")
+        .update({ decision_note: decisionNote.slice(0, 500) })
+        .eq("id", approval.id)
+        .eq("business_id", businessId);
+      if (noteError) console.error("decision_note not saved:", noteError.message);
     }
 
     return NextResponse.json({ approved: data.approved });
