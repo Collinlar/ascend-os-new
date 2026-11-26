@@ -316,7 +316,7 @@ Approved by Collins on 26 November 2026, all eight as recommended.
 - The small "How your documents look" panel on the documents list is replaced by a card that opens the page.
 - Tested: PGlite 16/16 (0142 applied twice); the three templates rendered and checked by eye; live before 0142, 13 checks; after 0142, 8 more on live (logo upload, Modern PDF with TIN, prefix on a real invoice, the no-year series, signatures off, the note kept), then removed with the test logo.
 
-### R3 Shop settings for the customer side (built 26 November 2026; needs 0143)
+### R3 Shop settings for the customer side (done, 26 November 2026; 0143 run on live)
 
 - Shop gets a Settings tab (`/shop/settings`, `components/shop/ShopSettingsForm.tsx`), with a live "What customers see" beside it:
   - Pickup: on or off, and the ready time.
@@ -325,4 +325,4 @@ Approved by Collins on 26 November 2026, all eight as recommended.
   - The promotion (decision 5): a headline, one line, an optional link to a product or a service (booking), and an end date.
 - **0143**: `shop_settings`, one row per business, and `place_shop_order` checks how the order is fulfilled and adds the area's fee. The server sets the fee, never the browser. A shop with no settings keeps what it had: both offered, no fee. The fee reaches the commerce core (`charges_total`) and the receipt as a Delivery line, as 0083 and 0052 already handled.
 - Storefront: the pickup and delivery promises under the intro, the promotion, and the side column's returns and contact (`lib/shop/settings.ts` holds the wording). Checkout asks which area, shows its fee and adds it to the total; with no areas listed the cost is still agreed on WhatsApp. The order page already showed a delivery fee.
-- Tested: PGlite 17/17 (0143 applied twice; the fee in the commerce core, the payment settling it, the receipt line); live before 0143, 5 checks that nothing changed; `scratchpad/liveR3.mjs after` is ready for after 0143.
+- Tested: PGlite 17/17 (0143 applied twice; the fee in the commerce core, the payment settling it, the receipt line); live before 0143, 5 checks that nothing changed; after 0143, 20 on live (saving and refusals, what the storefront says, GHS 45.50 to Tema on a real order, an unlisted area refused, the fee taken from the shop, pickup off refused), then removed.
