@@ -62,7 +62,7 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
       .order("occurred_at"),
     db
       .from("event_outbox")
-      .select("event_type, occurred_at, payload, actor:actor_membership_id(person:person_id(full_name))")
+      .select("event_type, occurred_at, payload, actor_membership_id")
       .eq("business_id", businessId)
       .eq("entity_type", "service_booking")
       .eq("entity_id", id)
@@ -97,8 +97,10 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
   // booking's own events and payments.
   const flow: BookingDetail["flow"] = [{ id: "made", at: b.created_at as string, title: b.status === "requested" ? "Asked to book" : "Booked", tone: "teal" }];
   for (const e of events.data ?? []) {
-    const who = (e.actor as unknown as { person: { full_name: string } | null } | null)?.person?.full_name;
-    const to = (e.payload as Record<string, unknown> | null)?.to_status as string | undefined;
+    // No foreign key on the event's actor, so the name comes from the team.
+    const who = (members.data ?? []).find((m) => m.id === e.actor_membership_id)?.person as unknown as { full_name: string } | null | undefined;
+    const payload = (e.payload as Record<string, unknown> | null) ?? {};
+    const to = (payload.to ?? payload.to_status) as string | undefined;
     const t = e.event_type as string;
     const title =
       t === "services.booking.confirmed"
@@ -121,7 +123,7 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
       id: `${t}:${e.occurred_at}`,
       at: e.occurred_at as string,
       title,
-      detail: [who ? `by ${who}` : null, to === "cancelled" && b.cancellation_reason ? `"${b.cancellation_reason}"` : null].filter(Boolean).join(", ") || undefined,
+      detail: [who?.full_name ? `by ${who.full_name}` : null, to === "cancelled" && b.cancellation_reason ? `"${b.cancellation_reason}"` : null].filter(Boolean).join(", ") || undefined,
       tone: title === "Did not come" || title === "Cancelled" ? "bad" : title === "Done" ? "ok" : "teal",
     });
   }

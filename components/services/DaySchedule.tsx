@@ -82,7 +82,7 @@ export default function DaySchedule({ columns, day }: { columns: DayColumn[]; da
           ))}
         </div>
         <div className="max-h-[640px] overflow-y-auto">
-          <div className="relative flex" style={{ height: hours.length * HOUR }}>
+          <div className="relative mt-2.5 flex" style={{ height: hours.length * HOUR }}>
             <div className="w-14 flex-none">
               {hours.map((h) => (
                 <div key={h} className="relative border-t border-neutral-100" style={{ height: HOUR }}>

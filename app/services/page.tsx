@@ -173,7 +173,7 @@ export default async function ServicesHome() {
           />
         </section>
 
-        <ServiceManager businessId={workspace.businessId} services={state.services} />
+        <ServiceManager businessId={workspace.businessId} services={state.services} businessName={workspace.businessName} placeNames={workspace.places.map((p) => p.name)} />
 
         <div className="flex flex-wrap gap-3">
           <Link

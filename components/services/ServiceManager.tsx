@@ -24,9 +24,14 @@ const BLANK = {
 export default function ServiceManager({
   businessId,
   services,
+  businessName = "",
+  placeNames = [],
 }: {
   businessId: string;
   services: ServiceRow[];
+  /** For the preview of what customers see (Modules M4). */
+  businessName?: string;
+  placeNames?: string[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(services);
@@ -146,7 +151,8 @@ export default function ServiceManager({
       )}
 
       {editing !== null && (
-        <div className="mb-3.5 rounded-[18px] border border-line-brand bg-white p-5">
+        <div className="mb-3.5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="rounded-[18px] border border-line-brand bg-white p-5">
           <div className="flex flex-col gap-4">
             <Field
               id="svc-name"
@@ -213,10 +219,12 @@ export default function ServiceManager({
                 onClick={() => setEditing(null)}
                 className="tap flex items-center rounded-control border border-line px-[18px] text-[13.5px] font-bold text-ink-slate"
               >
-                Cancel
+                Not now
               </button>
             </div>
           </div>
+        </div>
+        <Preview form={form} businessName={businessName} placeNames={placeNames} />
         </div>
       )}
 
@@ -314,6 +322,51 @@ function Field({
           numeric ? "num" : ""
         }`}
       />
+    </div>
+  );
+}
+
+// What a customer sees on the booking page as the form is filled in
+// (Modules M4). Times are not invented here: they come from availability.
+function Preview({
+  form,
+  businessName,
+  placeNames,
+}: {
+  form: typeof BLANK;
+  businessName: string;
+  placeNames: string[];
+}) {
+  const minutes = Number(form.durationMinutes) || 0;
+  const length =
+    minutes >= 60
+      ? `${Math.floor(minutes / 60)} hour${Math.floor(minutes / 60) === 1 ? "" : "s"}${minutes % 60 ? ` ${minutes % 60} min` : ""}`
+      : `${minutes} min`;
+  const price = form.price.trim() === "" ? null : Number(form.price);
+  const deposit = form.depositAmount.trim() === "" ? null : Number(form.depositAmount);
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-semibold text-neutral-600">What customers see</span>
+      <div className="flex flex-col gap-2.5 rounded-[18px] border border-line-brand bg-white p-4 shadow-card">
+        <span className="self-start rounded-full bg-neutral-100 px-2.5 py-1 text-[11.5px] font-semibold text-neutral-700">{length}</span>
+        <strong className="text-[15px] text-ink">{form.name.trim() || "Your service"}</strong>
+        {form.description.trim() && <span className="text-[13px] text-neutral-700">{form.description}</span>}
+        {(businessName || placeNames.length > 0) && (
+          <span className="text-xs text-neutral-600">
+            {[businessName, placeNames.join(", ")].filter(Boolean).join(" · ")}
+          </span>
+        )}
+        <span className="flex flex-wrap items-center gap-2">
+          <strong className="num text-[15px] text-ink">{price === null || Number.isNaN(price) ? "Price on asking" : formatGHS(price)}</strong>
+          {deposit !== null && deposit > 0 && (
+            <span className="num rounded-full bg-teal-100 px-2 py-0.5 text-[11.5px] font-bold text-teal-800">{formatGHS(deposit)} to hold</span>
+          )}
+        </span>
+        <span className="text-xs text-neutral-600">They pick a time from your availability.</span>
+        <span className="flex min-h-[40px] items-center justify-center rounded-control bg-teal px-3 text-[13px] font-bold text-white">
+          {deposit !== null && deposit > 0 ? `Book and pay ${formatGHS(deposit)} now` : "Book this time"}
+        </span>
+      </div>
     </div>
   );
 }

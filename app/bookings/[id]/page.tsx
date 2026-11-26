@@ -20,6 +20,8 @@ export const dynamic = "force-dynamic";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { timeZone: "Africa/Accra", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const localPhone = (e164: string) =>
+  e164.startsWith("+233") && e164.length === 13 ? `0${e164.slice(4, 6)} ${e164.slice(6, 9)} ${e164.slice(9)}` : e164;
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Africa/Accra", hour: "2-digit", minute: "2-digit" });
 
 const STATE: Record<string, { text: string; tone: Tone }> = {
@@ -47,7 +49,9 @@ export default async function BookingPage({ params }: { params: { id: string } }
   if (!b) notFound();
 
   const st = STATE[b.status] ?? { text: b.status, tone: "mute" as Tone };
-  const paid = b.payments.reduce((n, p) => n + p.amount, 0);
+  // A deposit taken by a pay link is also a payment row; one recorded on the
+  // booking alone is not. Count whichever is more, never both.
+  const paid = Math.max(b.payments.reduce((n, p) => n + p.amount, 0), b.depositPaid);
   const depositOwed = Math.max(0, b.depositRequired - b.depositPaid);
   const balance = b.price !== null ? Math.max(0, b.price - paid) : null;
   const first = b.customer.name.split(/\s+/)[0];
@@ -75,7 +79,7 @@ export default async function BookingPage({ params }: { params: { id: string } }
                   <strong className="truncate font-heading text-[18px] text-ink-heading">{b.customer.name}</strong>
                   <span className="text-xs text-neutral-600">
                     {b.visitNumber === 1 ? "First visit" : `Visit ${b.visitNumber}`}
-                    {b.customer.phone ? ` · ${b.customer.phone}` : ""}
+                    {b.customer.phone ? ` · ${localPhone(b.customer.phone)}` : ""}
                   </span>
                 </span>
               </span>
