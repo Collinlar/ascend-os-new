@@ -4,6 +4,7 @@ import { currentAdmin } from "@/lib/auth/admin";
 import { supabaseServer } from "@/lib/supabase";
 import { EmptyState, PageHeader, PageShell, Panel } from "@/components/shell/Page";
 import RiskReports, { type ReportRow } from "@/components/admin/RiskReports";
+import { photoLinks } from "@/lib/shop/tracking";
 import RiskAppeals, { type AppealRow } from "@/components/admin/RiskAppeals";
 import OpenCase from "@/components/admin/OpenCase";
 import { DOMAIN_LABEL, STATE_LABEL } from "@/lib/risk/desk";
@@ -125,6 +126,27 @@ async function load(adminPersonId: string) {
   };
 }
 
+// Reports on an order carry photos and the shop's answer (R5). Read with
+// the service role, the photos through short-lived links.
+async function withOrderDetail(reports: ReportRow[]): Promise<ReportRow[]> {
+  const ids = reports.filter((r) => r.source === "order").map((r) => r.reportId);
+  if (!ids.length) return reports;
+  const { data } = await supabaseServer().from("customer_report").select("id, photos, shop_reply, escalated_why").in("id", ids);
+  const by = new Map(((data ?? []) as Array<Record<string, unknown>>).map((d) => [d.id as string, d]));
+  return Promise.all(
+    reports.map(async (r) => {
+      const d = by.get(r.reportId);
+      if (!d) return r;
+      return {
+        ...r,
+        photos: await photoLinks(((d.photos ?? []) as string[]).slice(0, 3)).catch(() => []),
+        shopReply: (d.shop_reply as string) ?? null,
+        escalatedWhy: (d.escalated_why as string) ?? null,
+      };
+    })
+  );
+}
+
 export default async function AdminRisk() {
   const admin = await currentAdmin();
   if (!admin) notFound();
@@ -229,7 +251,7 @@ export default async function AdminRisk() {
         <h2 id="reports" className="mb-3 text-base font-bold text-ink">
           Customer reports
         </h2>
-        <RiskReports reports={reports} canAct={canAct} />
+        <RiskReports reports={await withOrderDetail(reports)} canAct={canAct} />
       </section>
 
       <section aria-labelledby="signals" className="mt-8">

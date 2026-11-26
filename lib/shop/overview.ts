@@ -30,7 +30,7 @@ export interface ShopOverview {
   };
   selling: Array<{ itemId: string; name: string; price: number | null; sold: number; stock: "low" | "out" | null; left: number | null }>;
   discover: { visits30: number; clicks30: number; listed: boolean };
-  waitingFor: { confirm: number; pack: number; readyPickup: number; delivering: number; notPaid: number };
+  waitingFor: { confirm: number; pack: number; readyPickup: number; delivering: number; notPaid: number; problems: number };
 }
 
 export async function loadShopOverview(businessId: string): Promise<ShopOverview> {
@@ -57,6 +57,14 @@ export async function loadShopOverview(businessId: string): Promise<ShopOverview
     db.from("location").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("active", true),
     db.from("discover_listing").select("id, status").eq("business_id", businessId),
   ]);
+
+  // Problems customers reported on orders, waiting for the shop's answer
+  // before Ascend reads them (R5). Zero before 0145.
+  const { count: problems } = await db
+    .from("customer_report")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("status", "with_shop");
 
   const rows = orders.data ?? [];
   const recent = rows.filter((o) => (o.placed_at as string) >= since);
@@ -150,6 +158,7 @@ export async function loadShopOverview(businessId: string): Promise<ShopOverview
       readyPickup: open.filter((o) => o.status === "ready" && o.fulfilment === "pickup").length,
       delivering: open.filter((o) => o.status === "out_for_delivery" || (o.status === "ready" && o.fulfilment !== "pickup")).length,
       notPaid: open.filter((o) => o.status === "fulfilled").length,
+      problems: problems ?? 0,
     },
   };
 }

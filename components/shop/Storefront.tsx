@@ -60,7 +60,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
 
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [placed, setPlaced] = useState<{ orderId: string | null; total: number | null; deliveryFee?: number | null } | null>(
+  const [placed, setPlaced] = useState<{ orderId: string | null; total: number | null; deliveryFee?: number | null; trackPath?: string | null } | null>(
     null
   );
   // One reference for the whole visit, so a customer who taps twice or
@@ -158,6 +158,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
         total: data.total ?? null,
         // Only a fee the shop's settings set; otherwise it is still agreed on WhatsApp.
         deliveryFee: settings.deliveryAreas.length > 0 ? Number(data.deliveryFee ?? 0) : null,
+        trackPath: typeof data.trackPath === "string" ? data.trackPath : null,
       });
       setView("placed");
     } catch {
@@ -350,6 +351,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           phone={phone}
           delivering={fulfilment === "merchant_delivery"}
           deliveryFee={placed?.deliveryFee ?? null}
+          trackPath={placed?.trackPath ?? null}
           onBack={startAgain}
         />
       )}

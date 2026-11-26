@@ -8,6 +8,7 @@ import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
 import { withAuthority } from "@/lib/authority/with-authority";
 import { businessStatus } from "@/lib/authority/business-status";
+import { createOrderLink, orderPath } from "@/lib/shop/tracking";
 
 interface OrderBody {
   slug?: string;
@@ -194,8 +195,18 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // The customer's private link to follow the order (R5). Before 0145 the
+  // table is not there, and the order stands without one.
+  let trackPath: string | null = null;
+  try {
+    trackPath = orderPath(await createOrderLink(data.order_id as string, business.id));
+  } catch {
+    trackPath = null;
+  }
+
   return NextResponse.json({
     orderId: data.order_id,
+    trackPath,
     total: data.total,
     deliveryFee: data.delivery_fee ?? 0,
     businessName: business.name,

@@ -16,6 +16,7 @@ export default function OrderPlaced({
   phone,
   delivering,
   deliveryFee = null,
+  trackPath = null,
   onBack,
 }: {
   businessName: string;
@@ -25,11 +26,13 @@ export default function OrderPlaced({
   delivering: boolean;
   /** Set when the shop's settings priced the delivery (round 2, R3). */
   deliveryFee?: number | null;
+  /** The private link to follow the order (R5). */
+  trackPath?: string | null;
   onBack: () => void;
 }) {
   // The real id, shortened to something a person can read down a phone.
   const reference = orderId
-    ? orderId.replace(/-/g, "").slice(0, 6).toUpperCase()
+    ? orderId.slice(0, 8).toUpperCase()
     : null;
 
   const steps = [
@@ -116,6 +119,22 @@ export default function OrderPlaced({
           </li>
         ))}
       </ol>
+
+      {/* Their own link to this order: the steps as they happen, what was
+          paid, the receipt, and where to say if something is wrong (R5). */}
+      {trackPath && (
+        <a
+          href={trackPath}
+          className="tap mt-5 flex w-full items-center justify-center rounded-panel bg-teal font-bold text-white shadow-action"
+        >
+          Track my order
+        </a>
+      )}
+      {trackPath && (
+        <p className="mt-2 text-center text-[11.5px] font-medium text-slate-grey">
+          Keep this link. It is private to you and shows your order as it moves.
+        </p>
+      )}
 
       <button
         type="button"

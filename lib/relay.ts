@@ -123,6 +123,15 @@ export async function processOutboxBatch(limit = 50): Promise<RelayResult> {
     // Transport failure only; the next relay tick retries.
   }
 
+  // A customer's report on an order that the shop has not sorted in 48
+  // hours reaches Ascend's risk desk (round 2, R5, decision 7). The desk
+  // also lists overdue ones itself, so this tick only tidies the state.
+  try {
+    await db.rpc("escalate_customer_reports");
+  } catch {
+    // Transport failure only; the next relay tick retries.
+  }
+
   // Payments nobody has heard back about: ask the provider (0091). Only
   // where a provider key is configured, so a site without one never marks
   // anything "unknown" just because it could not ask.

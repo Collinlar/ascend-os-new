@@ -26,12 +26,19 @@ export const REASON_FOR_DESK: Record<string, string> = {
   fake_business: "Not a real business",
   unwanted_messages: "Unwanted messages",
   other: "Something else",
+  // On an order (round 2, R5)
+  damaged: "An item arrived damaged",
+  missing: "Something was missing",
+  wrong_item: "The wrong item came",
+  never_arrived: "The order never arrived",
+  return_item: "A return",
 };
 
 export const SOURCE_FOR_DESK: Record<string, string> = {
   invoice: "from an invoice or receipt",
   shop: "from the shop page",
   booking: "from the booking page",
+  order: "on an order",
 };
 
 /** The anonymous cookie that lets us count one phone's reports. */

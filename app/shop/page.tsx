@@ -48,7 +48,7 @@ export default async function ShopHome() {
   const f = o.figures;
   const change = f.salesPrev30 > 0 ? Math.round(((f.sales30 - f.salesPrev30) / f.salesPrev30) * 100) : null;
   const w = o.waitingFor;
-  const waitingTotal = w.confirm + w.pack + w.readyPickup + w.delivering + w.notPaid;
+  const waitingTotal = w.confirm + w.pack + w.readyPickup + w.delivering + w.notPaid + w.problems;
 
   return (
     <ModulePage
@@ -149,6 +149,7 @@ export default async function ShopHome() {
                 <p className="text-sm text-neutral-600">Nothing waiting. Every order is answered, handed over and paid.</p>
               ) : (
                 <div className="flex flex-col gap-2 text-[13.5px]">
+                  {w.problems > 0 && <Wait label="Customer problems to answer within 48 hours" n={w.problems} tone="bad" />}
                   {w.confirm > 0 && <Wait label="To confirm" n={w.confirm} tone="warn" />}
                   {w.pack > 0 && <Wait label="To pack" n={w.pack} tone="info" />}
                   {w.readyPickup > 0 && <Wait label="Ready for pickup" n={w.readyPickup} tone="ok" />}

@@ -16,6 +16,10 @@ export interface ReportRow {
   reason: string;
   detail: string | null;
   numberEnds: string | null;
+  /** On an order (R5): the photos, the shop's answer, and why it reached the desk. */
+  photos?: string[];
+  shopReply?: string | null;
+  escalatedWhy?: string | null;
   reportedAt: string;
   openCaseId: string | null;
   reportsOnBusiness: number;
@@ -90,6 +94,24 @@ export default function RiskReports({ reports, canAct }: { reports: ReportRow[];
               {REASON_FOR_DESK[r.reason] ?? r.reason}, {SOURCE_FOR_DESK[r.source] ?? r.source}
             </p>
             {r.detail && <p className="mt-1 whitespace-pre-line text-sm text-ink">&ldquo;{r.detail}&rdquo;</p>}
+            {r.photos && r.photos.length > 0 && (
+              <div className="mt-2 flex gap-2">
+                {r.photos.map((src, i) => (
+                  <a key={i} href={src} target="_blank" rel="noopener noreferrer" aria-label={`Open photo ${i + 1}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" width={72} height={72} className="h-[72px] w-[72px] rounded-control object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+            {r.source === "order" && (
+              <p className="mt-1 text-sm font-medium text-ink-muted">
+                {r.escalatedWhy === "customer"
+                  ? "The customer said it is still not sorted."
+                  : "The shop did not sort it within 48 hours."}
+                {r.shopReply ? ` The shop replied: "${r.shopReply}"` : " The shop has not replied."}
+              </p>
+            )}
             <p className="mt-1 text-sm font-medium text-slate-grey">
               {r.numberEnds ? `Left a WhatsApp number ending ${r.numberEnds}.` : "Left no number."}
               {r.reportsOnBusiness > 1 && ` ${r.reportsOnBusiness} open reports on this business.`}

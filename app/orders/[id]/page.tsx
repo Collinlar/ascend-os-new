@@ -7,6 +7,9 @@ import { StatusPill, Timeline, type Tone } from "@/components/shell/Parts";
 import { Icon } from "@/components/shell/icons";
 import OrderActions from "@/components/shop/OrderActions";
 import RecordPayment from "@/components/payments/RecordPayment";
+import OrderCustomerCare, { type OwnerReportView } from "@/components/shop/OrderCustomerCare";
+import { orderRef, photoLinks } from "@/lib/shop/tracking";
+import { ISSUE_BY_REASON } from "@/lib/shop/order-issues";
 import { MODULES, shopTabs } from "@/lib/nav/modules";
 import { checkPageAccess } from "@/lib/authority/page";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -63,7 +66,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
     .maybeSingle();
   if (!o) notFound();
 
-  const [pays, events, orders] = await Promise.all([
+  const [pays, events, orders, reportRows] = await Promise.all([
     db
       .from("payment")
       .select("id, amount, method, status, verification, provider_reference, occurred_at, reversal_of")
@@ -75,7 +78,27 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
     o.customer_id
       ? db.from("shop_order").select("id", { count: "exact", head: true }).eq("business_id", workspace.businessId).eq("customer_id", o.customer_id as string)
       : Promise.resolve({ count: 0 }),
+    // What the customer reported on this order (R5). Before 0145 the
+    // columns are not there and the list is empty.
+    db
+      .from("customer_report")
+      .select("id, reason, status, detail, photos, created_at, escalate_at, shop_reply")
+      .eq("business_id", workspace.businessId)
+      .eq("shop_order_id", o.id)
+      .order("created_at"),
   ]);
+  const reportViews: OwnerReportView[] = await Promise.all(
+    ((reportRows.data ?? []) as Array<Record<string, unknown>>).map(async (r) => ({
+      id: r.id as string,
+      issue: ISSUE_BY_REASON[r.reason as string] ?? "A problem",
+      status: r.status as string,
+      detail: (r.detail as string) ?? null,
+      photos: await photoLinks(((r.photos ?? []) as string[]).slice(0, 3)).catch(() => []),
+      sentAt: when(r.created_at as string),
+      escalateAt: r.escalate_at ? when(r.escalate_at as string) : null,
+      shopReply: (r.shop_reply as string) ?? null,
+    }))
+  );
 
   const customer = o.customer as unknown as { display_name: string | null; phone_e164: string | null } | null;
   const name = customer?.display_name ?? "A customer";
@@ -188,6 +211,13 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
             </span>
             {live && left > 0.005 && <RecordPayment source="shop_order" sourceId={o.id as string} left={left} customerFirst={first} />}
           </Card>
+          <OrderCustomerCare
+            orderId={o.id as string}
+            orderRef={orderRef(o.id as string)}
+            customerFirst={first}
+            customerPhone={customer?.phone_e164 ?? null}
+            reports={reportViews}
+          />
           <Card title="Move it on">
             <OrderActions orderId={o.id as string} status={o.status as string} fulfilment={o.fulfilment as string} />
             {!["pending", "confirmed", "preparing", "ready", "out_for_delivery"].includes(o.status as string) && (

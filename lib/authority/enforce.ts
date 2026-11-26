@@ -25,6 +25,7 @@ const ROUTE_GROUP: Record<string, string> = {
   "shop/catalogue-suggest": "shop",
   "shop/settings": "shop",
   "shop/orders/[id]": "shop",
+  "shop/orders/[id]/customer": "shop",
   documents: "documents",
   "documents/[id]": "documents",
   "documents/[id]/pdf": "documents",

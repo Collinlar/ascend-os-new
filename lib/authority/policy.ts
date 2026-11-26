@@ -122,6 +122,9 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "services/slots": { GET: { kind: "public", why: "A customer choosing a time" } },
   "shop/orders": { POST: { kind: "public", why: "A customer placing an order" } },
   report: { POST: { kind: "public", why: "A customer reporting a problem with a business, 3 a day" } },
+  "order-link/report": { POST: { kind: "public", why: "A customer reporting a problem with their order, from its private link, 3 a day" } },
+  "order-link/escalate": { POST: { kind: "public", why: "A customer sending their order report on to Ascend, from its private link" } },
+  "order-link/receipt": { GET: { kind: "public", why: "A customer opening the receipt for their order, from its private link" } },
   "pos/pair": { POST: { kind: "public", why: "A till pairing with a one-time code" } },
 
   // ----- machines -----
@@ -229,6 +232,15 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "payments/refund": { POST: member({ table: "payment", bodyField: "paymentId" }, { permission: ["refunds.approve"] }) },
 
   // ----- shop orders -----
+  // The customer's tracking link and replies to their reports (R5); the
+  // database asks for orders.manage again on a reply.
+  "shop/orders/[id]/customer": {
+    POST: member({ table: "shop_order", param: "id" }, {
+      permission: ["orders.manage", "orders.manage_assigned"],
+      capability: ["shop.orders"],
+      assigned: { permission: "orders.manage_assigned", column: "assigned_membership_id" },
+    }),
+  },
   "shop/orders/[id]": {
     POST: member({ table: "shop_order", param: "id" }, {
       permission: ["orders.manage", "orders.manage_assigned"],
