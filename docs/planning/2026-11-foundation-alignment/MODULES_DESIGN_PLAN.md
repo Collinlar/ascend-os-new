@@ -156,3 +156,44 @@ Tested on live with a throwaway ZZ salon (two stylists, the owner away from 17:0
 - **Not built, as decided:** tags, notes, next actions, the pipeline and opportunities, and campaigns ("Message this group").
 
 Tested on live with a throwaway ZZ business (a customer with a till sale, a finished booking, a part-paid invoice and an agreement to offers; one who came once 100 days ago; one who never came): 23 of 23, including the figures, segments, search, the profile's figures and history with its links, agreeing and opting out, and a customer of another business not found. Checked in the browser at 1440px and 375px with no horizontal scroll.
+
+---
+
+## 6. M6 Shop and the customer's phone (plan, 26 November 2026, for Collins to approve)
+
+Source: `Ascend Shop Web` (Overview, Smart Setup, Orders) and `Ascend Customer Phone` (pay an invoice, waiting for MoMo, paid; the storefront; book a service, booked). Both arrived as bundled pages; the markup was unpacked and read as text.
+
+### What Ascend has, and what it does not
+
+| Design | Ascend today | |
+|---|---|---|
+| Overview: "Your Shop is live", link, Copy and Preview | Shop page with the link and share | Restyle |
+| Figures: revenue 30 days, orders (paid, waiting), checkout to paid, repeat buyers | Revenue and orders from fulfilled orders; repeat buyers can be worked out | "Checkout to paid" needs online payment (Paystack) |
+| From visit to paid (visits, viewed a product, started checkout, paid) | Not tracked: no storefront visits or product views are recorded, only Discover's own events | Decision 3 |
+| Selling now, with low stock | Shop order lines and stock levels | Build |
+| Discover: share of visits from Discover, promote | `discover_event` visits; Promote exists | Build, from Discover's visits only |
+| Waiting for you: to pack, payment not confirmed, return requested, ready | Order statuses exist; returns go through refunds (0128) | Build from real statuses |
+| Smart Setup: products drafted from photos, prices from POS, publish locked until priced | Not built: no photo-to-product drafting, no photo storage flow | Decision 4 |
+| Orders: list by state, order detail with progress, honest payment state | Order list and statuses exist (`advance_shop_order`); payment is "pay on the day" | Restyle, plus decision 2 |
+| Customer: pay an invoice with MoMo, approve on phone, paid | The invoice link page exists (`/d/[token]`); no online payment | Restyle; paying waits for Paystack |
+| Customer: storefront with Verified label, search, categories, cart, returns line, Report | Storefront, basket and checkout exist (`/s/[slug]`); Report exists; a business has `identity_verification`; no return policy setting | Restyle; Verified only when verified |
+| Customer: book a service with a deposit, booked | Booking flow exists (`/b/[slug]`); deposits need online payment | Restyle; paying waits for Paystack |
+
+### Found while reading
+
+**A shop order paid on the day is never recorded as paid.** Checkout says "you pay nothing now", and money changes hands at pickup or delivery. But nothing records that money, and the commerce core counts a confirmed or fulfilled order as owed until a payment says otherwise. So every pay-on-the-day order stays in "Owe you" (Customers, Money, Home) after the customer has paid. This is the same gap Documents had before 0140, and bookings have it too.
+
+### Steps
+
+| Step | What | Exit gate |
+|---|---|---|
+| **M6a Shop for the business** | Shop tabs: Overview, Orders (moves in from Sell), Products. Overview with real figures, Selling now, Discover, Waiting for you. Orders as list and order page with progress and honest payment state. **Migration 0141**: record a payment against a shop order or a booking at handover (cash, MoMo to the merchant, transfer), as 0140 does for invoices | A real order taken to fulfilled and paid, leaving "Owe you" |
+| **M6b The customer's phone** | Restyle the storefront, the invoice page and the booking flow to the phone design: Verified label only for a verified business, search and categories, the cart bar, Report kept. Payment screens show what is true today (pay on the day, or how to pay the business) until Paystack | Each page at 375px against the design, with a real business |
+
+### Decisions for Collins
+
+1. **Order.** *Recommended:* M6a, then M6b.
+2. **Recording payment at handover (migration 0141).** *Recommended:* yes, for shop orders and bookings, so pay-on-the-day money stops showing as owed, with a receipt each time.
+3. **The visit-to-paid funnel.** *Recommended:* leave it off for now, and show the honest parts (orders placed, confirmed, paid). Counting storefront visits and product views needs a small new table and a tracker on the customer pages; it can be its own step if you want it.
+4. **Smart Setup from photos.** *Recommended:* not in M6. It needs photo upload and an AI step that drafts products for the owner to check (Claude API), which is a product of its own. M6 keeps the rule the design shows that Ascend already follows: nothing goes on the Shop without a price. "Use prices from POS" applies already, since Shop and the till share one catalogue.
+5. **Customer payment screens.** *Recommended:* restyle them now, but show only what works today. "Pay GHS 2,400" with MoMo and the approve-on-your-phone screen come with Paystack.
