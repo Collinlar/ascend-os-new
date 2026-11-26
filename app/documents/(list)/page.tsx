@@ -8,7 +8,7 @@ import { Icon } from "@/components/shell/icons";
 import { MODULES } from "@/lib/nav/modules";
 import type { DocumentType } from "@/lib/domains/types";
 import { formatGHS } from "@/lib/money";
-import DocumentWorkspace, { type CatalogueOption } from "@/components/documents/DocumentWorkspace";
+import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
 import BrandingPanel, { type Branding } from "@/components/documents/BrandingPanel";
 import NeedsYouToday from "@/components/documents/NeedsYouToday";
 import { loadDocumentsWorkspace, type DocFigures, type ListDoc, type NeedsYou } from "@/lib/documents/workspace";
@@ -27,7 +27,6 @@ async function load(): Promise<{
   docs: ListDoc[];
   figures: DocFigures;
   needs: NeedsYou;
-  catalogue: CatalogueOption[];
   branding: Branding | null;
 } | null> {
   try {
@@ -37,18 +36,8 @@ async function load(): Promise<{
     const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return null;
 
-    // The catalogue the merchant already keeps, loaded with the page: a
-    // Ghanaian SME's list is small enough to hold, and a picker that waits on
-    // the network every keystroke is a picker nobody uses.
-    const [ws, { data: items }, { data: brand }] = await Promise.all([
+    const [ws, { data: brand }] = await Promise.all([
       loadDocumentsWorkspace(membership.business_id),
-      db
-        .from("catalogue_item")
-        .select("id, name, kind, base_price")
-        .eq("business_id", membership.business_id)
-        .eq("active", true)
-        .order("name")
-        .limit(300),
       db
         .from("document_branding")
         .select("trading_name, address_line, phone, footer_note, accent_colour")
@@ -68,26 +57,20 @@ async function load(): Promise<{
             accentColour: brand.accent_colour,
           }
         : null,
-      catalogue: (items ?? []).map((i) => ({
-        id: i.id,
-        name: i.name,
-        kind: i.kind,
-        basePrice: i.base_price === null ? null : Number(i.base_price),
-      })),
     };
   } catch {
     return null;
   }
 }
 
-// What "New ..." in the module bar, or the Create grid, may open.
-const NEW_TYPES = new Set(["invoice", "quotation", "receipt", "purchase_order"]);
-
+// What the Create grid opens on the New document page (round 2, R1).
 const CREATE: Array<[DocumentType, string]> = [
   ["quotation", "Quotation"],
   ["invoice", "Invoice"],
+  ["proforma", "Proforma"],
   ["receipt", "Receipt"],
   ["purchase_order", "Purchase order"],
+  ["delivery_note", "Delivery note"],
 ];
 
 export default async function Documents({
@@ -115,10 +98,10 @@ export default async function Documents({
       action={
         data ? (
           <>
-            <Link href="/documents?new=quotation" className={secondaryAction}>
+            <Link href="/documents/new?type=quotation" className={secondaryAction}>
               New quotation
             </Link>
-            <Link href="/documents?new=invoice" className={primaryAction}>
+            <Link href="/documents/new?type=invoice" className={primaryAction}>
               <Icon name="plus" size={16} />
               New invoice
             </Link>
@@ -168,9 +151,7 @@ export default async function Documents({
               <DocumentWorkspace
                 businessId={data.businessId}
                 documents={data.docs}
-                catalogue={data.catalogue}
                 query={query}
-                startCreating={NEW_TYPES.has(searchParams.new ?? "") ? (searchParams.new as DocumentType) : null}
               />
             </div>
             <div className="flex flex-col gap-4">
@@ -181,7 +162,7 @@ export default async function Documents({
                   {CREATE.map(([t, label]) => (
                     <Link
                       key={t}
-                      href={`/documents?new=${t}`}
+                      href={`/documents/new?type=${t}`}
                       className="tap flex min-h-[44px] items-center justify-center rounded-control border border-neutral-200 px-2 text-center text-[13px] font-semibold text-neutral-700 hover:border-teal-brand"
                     >
                       {label}
@@ -192,6 +173,7 @@ export default async function Documents({
                   Customers, products and prices fill in from what Ascend already has. A credit note starts from its invoice.
                 </span>
               </section>
+              <div id="look" className="scroll-mt-24" />
               <BrandingPanel businessId={data.businessId} branding={data.branding} />
             </div>
           </div>

@@ -65,6 +65,8 @@ export interface PdfDocument {
   /** What the business wants said at the bottom of every document: MoMo
    *  details, terms, or thanks. */
   footerNote?: string | null;
+  /** This document's own note, written when it was made (Modules R1). */
+  note?: string | null;
   /** #RRGGBB. Used for the title and the rule under the table, never for
    *  anything that carries meaning, so a bad choice cannot make a document
    *  unreadable. */
@@ -210,6 +212,22 @@ function dateLabel(value: string | null): string {
   });
 }
 
+// Who the document is addressed to, said the way each kind says it.
+const PARTY_LABEL: Record<string, string> = {
+  purchase_order: "Ordered from",
+  delivery_note: "Deliver to",
+  quotation: "Prepared for",
+  proforma: "Prepared for",
+  receipt: "Received from",
+  credit_note: "Issued to",
+};
+
+// The two signature lines on the documents that record goods changing hands.
+const SIGN_AREAS: Record<string, [string, string]> = {
+  delivery_note: ["Delivered by", "Received by customer"],
+  purchase_order: ["Authorised by", "Received by supplier"],
+};
+
 const TYPE_TITLE: Record<string, string> = {
   quotation: "QUOTATION",
   proforma: "PROFORMA INVOICE",
@@ -302,7 +320,7 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       }
       const due = dateLabel(doc.dueDate);
       if (due) {
-        const label = `Due ${due}`;
+        const label = doc.type === "purchase_order" ? `Deliver by ${due}` : `Due ${due}`;
         c.text(
           PAGE_WIDTH - MARGIN - label.length * 9 * HELVETICA_RATIO,
           ry,
@@ -321,7 +339,7 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
         c.text(
           MARGIN,
           y,
-          doc.type === "purchase_order" ? "Ordered from" : "Billed to",
+          PARTY_LABEL[doc.type] ?? "Billed to",
           "F1",
           8.5
         );
@@ -339,6 +357,10 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       y -= 24;
     }
 
+    // A delivery note records what changed hands, not what it cost
+    // (Modules R1): quantities only, no prices and no totals.
+    const hidePrices = doc.type === "delivery_note";
+
     // Column geometry. Amounts are right-aligned to these edges.
     const qtyRight = MARGIN + CONTENT_WIDTH * 0.6;
     const priceRight = MARGIN + CONTENT_WIDTH * 0.79;
@@ -346,18 +368,28 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
     const descWidth = qtyRight - MARGIN - 60;
 
     c.text(MARGIN, y, "Description", "F2", 8.5);
-    c.right(qtyRight, y, "Qty", "F3", 8.5);
-    c.right(priceRight, y, "Price", "F3", 8.5);
-    c.right(totalRight, y, `Amount ${doc.currencyCode}`, "F3", 8.5);
+    if (hidePrices) {
+      c.right(priceRight, y, "Ordered", "F3", 8.5);
+      c.right(totalRight, y, "Delivered", "F3", 8.5);
+    } else {
+      c.right(qtyRight, y, "Qty", "F3", 8.5);
+      c.right(priceRight, y, "Price", "F3", 8.5);
+      c.right(totalRight, y, `Amount ${doc.currencyCode}`, "F3", 8.5);
+    }
     y -= 6;
     c.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y, 0.8, 0.75);
     y -= 14;
 
     for (const line of linesOnPage) {
       c.text(MARGIN, y, truncate(line.description, descWidth, 9.5), "F1", 9.5);
-      c.right(qtyRight, y, String(line.quantity), "F3", 9.5);
-      c.right(priceRight, y, amount(line.unitPrice), "F3", 9.5);
-      c.right(totalRight, y, amount(line.lineTotal), "F3", 9.5);
+      if (hidePrices) {
+        c.right(priceRight, y, String(line.quantity), "F3", 9.5);
+        c.right(totalRight, y, String(line.quantity), "F3", 9.5);
+      } else {
+        c.right(qtyRight, y, String(line.quantity), "F3", 9.5);
+        c.right(priceRight, y, amount(line.unitPrice), "F3", 9.5);
+        c.right(totalRight, y, amount(line.lineTotal), "F3", 9.5);
+      }
       y -= 15;
     }
 
@@ -379,9 +411,11 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
         y -= bold ? 17 : 14;
       };
 
-      totalRow("Subtotal", doc.subtotal);
-      if ((doc.taxTotal ?? 0) !== 0) totalRow("Tax", doc.taxTotal);
-      totalRow("Total", doc.total, true);
+      if (!hidePrices) {
+        totalRow("Subtotal", doc.subtotal);
+        if ((doc.taxTotal ?? 0) !== 0) totalRow("Tax", doc.taxTotal);
+        totalRow("Total", doc.total, true);
+      }
 
       if (doc.amountPaid !== null && doc.amountPaid !== undefined) {
         totalRow("Paid", doc.amountPaid);
@@ -394,6 +428,25 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
         c.text(MARGIN, y, "Reason", "F1", 8.5);
         y -= 12;
         c.text(MARGIN, y, truncate(doc.reason, CONTENT_WIDTH * 0.55, 9.5), "F2", 9.5);
+        y -= 14;
+      }
+
+      if (doc.note) {
+        y -= 4;
+        c.text(MARGIN, y, "Note", "F1", 8.5);
+        y -= 12;
+        c.text(MARGIN, y, truncate(doc.note, CONTENT_WIDTH, 9.5), "F1", 9.5);
+        y -= 14;
+      }
+      const signs = SIGN_AREAS[doc.type];
+      if (signs) {
+        // Somewhere for both sides to sign for what changed hands.
+        y -= 18;
+        c.line(MARGIN, y, MARGIN + CONTENT_WIDTH * 0.4, y, 0.6, 0.6);
+        c.line(MARGIN + CONTENT_WIDTH * 0.55, y, MARGIN + CONTENT_WIDTH, y, 0.6, 0.6);
+        y -= 11;
+        c.text(MARGIN, y, signs[0], "F1", 8.5);
+        c.text(MARGIN + CONTENT_WIDTH * 0.55, y, signs[1], "F1", 8.5);
         y -= 14;
       }
 

@@ -14,7 +14,19 @@ const CREATABLE: DocumentType[] = [
   "invoice",
   "receipt",
   "purchase_order",
+  // Made from an invoice or a Shop order, never from nothing (round 2,
+  // decision 3): it says what left the shop against what was agreed.
+  "delivery_note",
 ];
+
+/** What a new document can be started from (round 2, R1). */
+type SourceKind = "sale" | "shop_order" | "service_booking" | "invoice" | "copy";
+const SOURCE_TABLE: Record<"sale" | "shop_order" | "service_booking", string> = {
+  sale: "sale",
+  shop_order: "shop_order",
+  service_booking: "service_booking",
+};
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 interface Body {
   businessId?: string;
@@ -32,7 +44,17 @@ interface Body {
     unitPrice?: number;
   }>;
   dueDate?: string;
+  /** Quotations: the date the price stops standing. */
+  validUntil?: string;
+  /** A customer picked from the customer list, used as it is. */
+  customerId?: string;
+  /** A note printed on the document (terms, delivery, thanks). */
+  note?: string;
+  /** What this document was started from. */
+  source?: { type?: SourceKind; id?: string } | null;
   issueNow?: boolean;
+  /** How Ascend sends it when issued; empty is "PDF only". Default: every channel the customer has. */
+  sendBy?: Array<"whatsapp" | "email">;
 }
 
 async function handlePOST(request: NextRequest) {
@@ -142,6 +164,55 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // Where it was started from. Every id is checked against this business,
+  // because the service-role client trusts whatever it is handed.
+  let source: { type: "sale" | "shop_order" | "service_booking"; id: string } | null = null;
+  let convertedFrom: string | null = null;
+  const sourceType = body.source?.type;
+  const sourceId = typeof body.source?.id === "string" ? body.source.id : "";
+  if (sourceType && sourceId) {
+    if (sourceType === "sale" || sourceType === "shop_order" || sourceType === "service_booking") {
+      const { data: row } = await db
+        .from(SOURCE_TABLE[sourceType])
+        .select("id")
+        .eq("business_id", body.businessId)
+        .eq("id", sourceId)
+        .maybeSingle();
+      if (!row) {
+        return NextResponse.json({ error: "We could not find what you started this from. Pick it again." }, { status: 422 });
+      }
+      // Quotations and purchase orders are not part of a sale; only the
+      // documents that settle or describe one join it.
+      if (type !== "quotation" && type !== "purchase_order") source = { type: sourceType, id: sourceId };
+    } else if (sourceType === "invoice" || sourceType === "copy") {
+      const { data: row } = await db
+        .from("document")
+        .select("id, type, status")
+        .eq("business_id", body.businessId)
+        .eq("id", sourceId)
+        .maybeSingle();
+      if (!row) {
+        return NextResponse.json({ error: "We could not find that document. Pick it again." }, { status: 422 });
+      }
+      // A copy borrows the lines and the customer; it carries no link.
+      if (sourceType === "invoice") {
+        if (row.type !== "invoice" || row.status === "draft") {
+          return NextResponse.json({ error: "Pick an invoice that has been sent." }, { status: 422 });
+        }
+        if (type === "delivery_note") convertedFrom = row.id;
+      }
+    }
+  }
+  if (type === "delivery_note" && !convertedFrom && source?.type !== "shop_order") {
+    return NextResponse.json(
+      { error: "A delivery note is made from an invoice or a Shop order. Pick one to start from." },
+      { status: 422 }
+    );
+  }
+
+  const validUntil = body.validUntil && DAY.test(body.validUntil) ? body.validUntil : undefined;
+  const dueDate = body.dueDate && DAY.test(body.dueDate) ? body.dueDate : undefined;
+
   // A purchase order faces the other way: it is addressed to a supplier
   // and never to a customer, which the schema enforces (0054).
   let supplierId: string | undefined;
@@ -189,10 +260,22 @@ async function handlePOST(request: NextRequest) {
   // Reuse the shared customer record rather than creating a parallel one
   // (CAP-003).
   let customerId: string | undefined;
+  if (body.customerId && type !== "purchase_order") {
+    const { data: known } = await db
+      .from("customer")
+      .select("id")
+      .eq("business_id", body.businessId)
+      .eq("id", body.customerId)
+      .maybeSingle();
+    if (!known) {
+      return NextResponse.json({ error: "We could not find that customer. Pick them again." }, { status: 422 });
+    }
+    customerId = known.id;
+  }
   const phone = body.customerPhone?.trim();
   const email = body.customerEmail?.trim() || null;
   const name = body.customerName?.trim();
-  if (name && type !== "purchase_order") {
+  if (!customerId && name && type !== "purchase_order") {
     // One way in, shared with Shop and Services (0064). Documents used to
     // do its own lookup here on the raw phone string, which is how the same
     // person ended up as two customer records on one business.
@@ -224,14 +307,23 @@ async function handlePOST(request: NextRequest) {
       customerId,
       supplierId,
       type,
-      lines,
-      dueDate: body.dueDate,
+      // A delivery note carries quantities only; it never prices anything.
+      lines: type === "delivery_note" ? lines.map((l) => ({ ...l, unitPrice: 0, lineTotal: 0 })) : lines,
+      // On a purchase order the date is when it should be delivered.
+      dueDate: type === "invoice" || type === "purchase_order" ? dueDate : undefined,
+      validUntil: type === "quotation" || type === "proforma" ? validUntil : undefined,
+      source,
+      convertedFrom,
+      note: body.note ?? null,
       createdBy: membership.id,
     });
 
     if (body.issueNow) {
-      const issued = await issueDocument(documentId, membership.id);
-      return NextResponse.json({ documentId, number: issued.number, issued: true });
+      const channels = Array.isArray(body.sendBy)
+        ? body.sendBy.filter((c): c is "whatsapp" | "email" => c === "whatsapp" || c === "email")
+        : undefined;
+      const issued = await issueDocument(documentId, membership.id, channels);
+      return NextResponse.json({ documentId, number: issued.number, issued: true, delivery: issued.delivery });
     }
 
     return NextResponse.json({ documentId, issued: false });

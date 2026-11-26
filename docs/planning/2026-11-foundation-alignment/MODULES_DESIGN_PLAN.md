@@ -293,3 +293,15 @@ Paystack stays on hold, so every screen that takes money online (pay link, depos
 6. **Sizes on the product page.** The catalogue has variants underneath, but the storefront does not sell them. *Recommended:* add choosing a variant (size) to the product page, cart and order, since a shop with sizes cannot sell properly without it.
 7. **Report with photos and the 48-hour rule.** *Recommended:* yes. Photos through the same upload as product photos; the shop is told first, and the report reaches Ascend's risk desk if it is still open after 48 hours.
 8. **Order.** *Recommended:* R1, R2, R3, R4, R5.
+
+Approved by Collins on 26 November 2026, all eight as recommended.
+
+### R1 New document (done, 26 November 2026; no migration)
+
+- `/documents/new` (`components/documents/NewDocument.tsx`, `lib/documents/new.ts`): the seven kinds; start from a till sale, a booking, a Shop order or a copy of a past document, which fills in the customer and lines; a customer picker over the customer list with add new (suppliers for a purchase order); catalogue lines with quantity steps, editable prices and "Often added"; dates and a note; "Getting paid" with reminders on and the pay link and deposit marked as coming with online payments; a live preview in the Classic look; send by WhatsApp, email or PDF only.
+- What a start links: an invoice, proforma or receipt started from a sale, order or booking joins that transaction (no second debt); a quotation or purchase order does not; a copy carries no link. Every id is checked against the business.
+- Delivery notes (decision 3): made from a sent invoice or a Shop order only; quantities, no prices; PDF prints "Deliver to", ordered and delivered, and "Delivered by" and "Received by customer" lines. Purchase orders print "Deliver by" and "Authorised by" and "Received by supplier".
+- Credit notes still start from their invoice ("Give money back"); the page lists sent invoices to open.
+- "PDF only" issues without sending anything (`issueDocument` takes the channels).
+- Old `/documents?new=` links redirect in `next.config.mjs` (a redirect inside the streamed list page would arrive as a 200). The inline create form on the documents list is gone.
+- Tested on live with throwaway ZZ businesses (25 checks), at 1440 and 375, then removed.

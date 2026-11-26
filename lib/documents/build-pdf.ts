@@ -130,6 +130,7 @@ export async function buildDocumentPdf(
     status: doc.status,
     reason: doc.reason,
     footerNote: (branding?.footer_note as string) ?? null,
+    note: (branding?.note as string) ?? null,
     accentColour: (branding?.accent_colour as string) ?? null,
     verifyUrl: options.verifyUrl ?? null,
   };

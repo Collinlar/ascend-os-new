@@ -29,6 +29,14 @@ export interface DraftInput {
   lines: DocumentLine[];
   dueDate?: string;
   createdBy?: UUID;
+  /** Quotations: until when the price stands. */
+  validUntil?: string;
+  /** What it was made from: a till sale, a Shop order or a booking (Modules R1). */
+  source?: { type: "sale" | "shop_order" | "service_booking"; id: UUID } | null;
+  /** The document it was made from, for a delivery note from an invoice. */
+  convertedFrom?: UUID | null;
+  /** This document's own note, printed on it. */
+  note?: string | null;
 }
 
 export function totalsFor(lines: DocumentLine[]): {
@@ -43,6 +51,17 @@ export function totalsFor(lines: DocumentLine[]): {
 export async function createDraft(input: DraftInput): Promise<UUID> {
   const db = supabaseServer();
   const { subtotal, total } = totalsFor(input.lines);
+
+  // The business's look as it is today, with this document's note, kept on
+  // the document. Issuing freezes it into the snapshot, so a later rebrand
+  // never repaints what was sent (DOC-004).
+  const { data: look } = await db
+    .from("document_branding")
+    .select("trading_name, address_line, phone, footer_note, accent_colour")
+    .eq("business_id", input.businessId)
+    .maybeSingle();
+  const note = (input.note ?? "").trim();
+  const branding = { ...(look ?? {}), ...(note ? { note: note.slice(0, 400) } : {}) };
 
   const { data, error } = await db
     .from("document")
@@ -64,7 +83,12 @@ export async function createDraft(input: DraftInput): Promise<UUID> {
         line_total: l.lineTotal,
       })),
       due_date: input.dueDate ?? null,
+      valid_until: input.validUntil ?? null,
       created_by: input.createdBy ?? null,
+      branding,
+      source_entity_type: input.source?.type ?? null,
+      source_entity_id: input.source?.id ?? null,
+      converted_from: input.convertedFrom ?? null,
     })
     .select("id")
     .single();
@@ -93,7 +117,8 @@ const DELIVERABLE: DocumentType[] = ["invoice", "proforma", "quotation", "receip
 // simply never saw it. One secure link serves both, so there is one thing
 // to revoke.
 async function deliverIssuedDocument(
-  documentId: UUID
+  documentId: UUID,
+  channels: Array<"whatsapp" | "email"> = ["whatsapp", "email"]
 ): Promise<IssueResult["delivery"]> {
   const db = supabaseServer();
   const { data: doc } = await db
@@ -109,8 +134,10 @@ async function deliverIssuedDocument(
     phone_e164: string | null;
     email: string | null;
   } | null;
-  const phone = customer?.phone_e164;
-  const email = customer?.email;
+  // The merchant may choose how it goes out (New document, round 2 R1).
+  const phone = channels.includes("whatsapp") ? customer?.phone_e164 : null;
+  const email = channels.includes("email") ? customer?.email : null;
+  if (channels.length === 0) return "skipped";
   if (!doc.customer_id || (!phone && !email)) return "no_customer";
 
   const token = await createDocumentLink(doc.id, doc.business_id);
@@ -159,7 +186,9 @@ async function deliverIssuedDocument(
 
 export async function issueDocument(
   documentId: UUID,
-  actorMembershipId?: UUID
+  actorMembershipId?: UUID,
+  /** Which channels Ascend sends it on; empty means "PDF only", nothing sent. */
+  channels?: Array<"whatsapp" | "email">
 ): Promise<IssueResult> {
   const db = supabaseServer();
   const { data, error } = await db.rpc("issue_document", {
@@ -167,7 +196,7 @@ export async function issueDocument(
   });
   if (error) throw new Error(error.message);
 
-  const delivery = await deliverIssuedDocument(data.document_id as UUID).catch(
+  const delivery = await deliverIssuedDocument(data.document_id as UUID, channels).catch(
     () => "skipped" as const
   );
 

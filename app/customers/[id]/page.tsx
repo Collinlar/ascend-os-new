@@ -112,7 +112,7 @@ export default async function CustomerProfilePage({ params }: { params: { id: st
                   </a>
                 )}
                 {caps.has("documents.issue") && (
-                  <Link href="/documents?new=invoice" className={`${secondaryAction} min-h-[40px]`}>
+                  <Link href={`/documents/new?type=invoice&customer=${params.id}`} className={`${secondaryAction} min-h-[40px]`}>
                     New invoice
                   </Link>
                 )}
