@@ -11,9 +11,19 @@ import {
 } from "@/lib/domains/documents";
 import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
 import { withAuthority } from "@/lib/authority/with-authority";
+import { deniedByDatabase } from "@/lib/authority/denied";
+import { createDocumentLink, documentUrl } from "@/lib/messaging/send";
+import { whatsappLink } from "@/lib/inventory/order-message";
+import { formatGHS } from "@/lib/money";
 
 interface Body {
-  action?: "issue" | "convert" | "credit";
+  action?: "issue" | "convert" | "credit" | "record_payment" | "remind";
+  /** record_payment: how it was paid, and the MoMo or bank reference. */
+  method?: "cash" | "mobile_money" | "bank_transfer" | "card";
+  reference?: string;
+  paidOn?: string;
+  /** record_payment: the same key on a retry is the same payment. */
+  clientRef?: string;
   toType?: DocumentType;
   /** Credit notes only: why the merchant is giving money back. */
   reason?: string;
@@ -179,6 +189,111 @@ async function handlePOST(
         { status: 500 }
       );
     }
+  }
+
+  // Money the customer paid outside a pay link: cash at the counter, MoMo
+  // straight to the merchant's number, a bank transfer (Modules M3, 0140).
+  if (body.action === "record_payment") {
+    const amount = Number(body.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({ error: "Enter how much they paid, in GHS." }, { status: 422 });
+    }
+    if (!body.method || !["cash", "mobile_money", "bank_transfer", "card"].includes(body.method)) {
+      return NextResponse.json({ error: "Say how they paid: cash, MoMo, bank transfer or card." }, { status: 422 });
+    }
+    if (!body.clientRef) {
+      return NextResponse.json({ error: "That did not go through. Tap again." }, { status: 400 });
+    }
+    const paidAt = body.paidOn && /^\d{4}-\d{2}-\d{2}$/.test(body.paidOn)
+      // A day with no time: midday in Accra, so the day never slips.
+      ? new Date(`${body.paidOn}T12:00:00Z`).toISOString()
+      : undefined;
+    const { data, error } = await db.rpc("record_document_payment", {
+      p: {
+        business_id: doc.business_id,
+        document_id: doc.id,
+        amount,
+        method: body.method,
+        reference: (body.reference ?? "").trim().slice(0, 80),
+        paid_at: paidAt && new Date(paidAt) > new Date() ? new Date().toISOString() : paidAt,
+        client_ref: `docpay:${body.clientRef}`,
+        actor_membership_id: membership.id,
+      },
+    });
+    if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
+      const m = error.message;
+      if (/payment_over_balance/.test(m)) {
+        const left = Number(m.match(/payment_over_balance: ([0-9.]+)/)?.[1] ?? NaN);
+        return NextResponse.json(
+          { error: Number.isFinite(left) ? `That is more than is left. ${formatGHS(left)} is still owed.` : "That is more than is left on this invoice." },
+          { status: 422 }
+        );
+      }
+      if (/nothing_owed/.test(m)) return NextResponse.json({ error: "Nothing is owed on this invoice now." }, { status: 409 });
+      if (/not_an_invoice/.test(m)) return NextResponse.json({ error: "Only an invoice takes payments." }, { status: 422 });
+      if (/invoice_not_open/.test(m)) return NextResponse.json({ error: "Send the invoice out first. A draft is not owed yet." }, { status: 409 });
+      if (/paid_at_in_future/.test(m)) return NextResponse.json({ error: "That date has not come yet. Pick today or earlier." }, { status: 422 });
+      console.error("record_document_payment failed:", m);
+      return NextResponse.json({ error: "We could not record that payment just now. Tap again in a moment." }, { status: 500 });
+    }
+    // The receipt is made as the payment commits (0052), so it can be read now.
+    const { data: receipt } = await db.from("document").select("id, number").eq("payment_id", data.payment_id).maybeSingle();
+    return NextResponse.json({
+      paymentId: data.payment_id,
+      duplicate: Boolean(data.duplicate),
+      outstanding: data.outstanding === undefined ? null : Number(data.outstanding),
+      receipt: receipt ? { id: receipt.id, number: receipt.number } : null,
+    });
+  }
+
+  // A reminder now, counted with the weekly ones (0140).
+  if (body.action === "remind") {
+    let link = "";
+    try {
+      link = documentUrl(await createDocumentLink(doc.id, doc.business_id));
+    } catch {
+      // A reminder without a link still says what is owed.
+    }
+    const { data, error } = await db.rpc("send_invoice_reminder", {
+      p: { business_id: doc.business_id, document_id: doc.id, actor_membership_id: membership.id, link },
+    });
+    if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
+      const m = error.message;
+      if (/reminded_recently/.test(m)) return NextResponse.json({ error: "A reminder went in the last day. Give them a little time." }, { status: 409 });
+      if (/reminders_used_up/.test(m)) return NextResponse.json({ error: "Six reminders have gone. Time to call them yourself." }, { status: 409 });
+      if (/no_way_to_reach/.test(m)) return NextResponse.json({ error: "There is no WhatsApp number or email for this customer." }, { status: 422 });
+      if (/nothing_owed|invoice_not_open/.test(m)) return NextResponse.json({ error: "Nothing is owed on this invoice now." }, { status: 409 });
+      console.error("send_invoice_reminder failed:", m);
+      return NextResponse.json({ error: "We could not send that reminder just now. Tap again in a moment." }, { status: 500 });
+    }
+    if (data.status === "queued") return NextResponse.json({ sent: true, sequence: data.sequence });
+
+    // Held back: no Ascend Balance, no consent, or WhatsApp has not approved
+    // the reminder message yet. Offer the merchant their own WhatsApp, with
+    // the same words, rather than a dead end.
+    const { data: full } = await db
+      .from("document")
+      .select("number, due_date, customer:customer_id(display_name, phone_e164), business:business_id(name)")
+      .eq("id", doc.id)
+      .maybeSingle();
+    const customer = full?.customer as unknown as { display_name: string | null; phone_e164: string | null } | null;
+    const businessName = (full?.business as unknown as { name: string } | null)?.name ?? "us";
+    const text = `Hello ${customer?.display_name ?? "there"}, a reminder that invoice ${full?.number ?? ""} from ${businessName} has ${formatGHS(Number(data.outstanding ?? 0))} still to pay.${link ? ` You can see it and pay here: ${link}` : ""}`;
+    const why =
+      data.status === "blocked_no_balance"
+        ? "Your Ascend Balance is too low to send it."
+        : data.status === "blocked_no_consent"
+          ? "This customer has not agreed to messages from Ascend."
+          : "WhatsApp has not approved Ascend's reminder message yet.";
+    return NextResponse.json({
+      sent: false,
+      why,
+      ownWhatsApp: customer?.phone_e164 ? whatsappLink(customer.phone_e164, text) : null,
+    });
   }
 
   return NextResponse.json({ error: "That is not a document action." }, { status: 422 });

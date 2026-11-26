@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
-import { DOCUMENT_CONVERSIONS, type DocumentType } from "@/lib/domains/types";
-import { EmptyState, FigureRow, Panel as Surface, primaryAction, secondaryAction } from "@/components/shell/Page";
+import type { DocumentType } from "@/lib/domains/types";
+import { EmptyState, Panel as Surface, primaryAction, secondaryAction } from "@/components/shell/Page";
+import { StatusPill, Tag, type Tone } from "@/components/shell/Parts";
 import Pills from "@/components/shell/Pills";
 import { Icon } from "@/components/shell/icons";
 
@@ -20,6 +22,8 @@ export interface DocumentRow {
   /** Still owed after payments and credits (Financial Foundation); null when nothing is. */
   outstanding: number | null;
   customerName: string | null;
+  /** Where it came from: "Booking", "Shop order", "From QUO-0012". */
+  cameFrom: string;
 }
 
 /** What is owed on invoices, from the Financial Foundation (receivables_aging). */
@@ -62,25 +66,16 @@ const TYPE_LABEL: Record<string, string> = {
   purchase_order: "Purchase order",
 };
 
-const CONVERT_LABEL: Record<string, string> = {
-  proforma: "Make a proforma",
-  invoice: "Turn into an invoice",
-  receipt: "Mark paid, make a receipt",
-  credit_note: "Issue a credit note",
-};
-
 export default function DocumentWorkspace({
   businessId,
   documents,
   catalogue,
-  owed,
   query = "",
   startCreating: startWith = null,
 }: {
   businessId: string;
   documents: DocumentRow[];
   catalogue: CatalogueOption[];
-  owed: OwedSummary;
   /** What the module bar's search asked for (?q=). */
   query?: string;
   /** Opened from "New invoice" or "New quotation" in the module bar (?new=). */
@@ -96,14 +91,10 @@ export default function DocumentWorkspace({
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Which invoice is being credited, and on what grounds.
-  const [crediting, setCrediting] = useState<string | null>(null);
-  const [creditReason, setCreditReason] = useState("");
-  const [creditAmount, setCreditAmount] = useState("");
   const [note, setNote] = useState<string | null>(null);
   // Finding one document among hundreds. A filing cabinet nobody can search
   // is a pile.
-  const [shelf, setShelf] = useState<"all" | "owed" | "invoice" | "receipt" | "quotation" | "purchase_order">("all");
+  const [shelf, setShelf] = useState<"all" | "owed" | "invoice" | "receipt" | "quotation" | "purchase_order" | "credit_note">("all");
 
   const total = useMemo(
     () =>
@@ -175,66 +166,9 @@ export default function DocumentWorkspace({
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
-      router.refresh();
-    } catch {
-      setError("We could not reach the network just now. Tap again in a moment.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function credit(documentId: string) {
-    setBusy(documentId);
-    setError(null);
-    setNote(null);
-    try {
-      const res = await fetch(`/api/documents/${documentId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "credit",
-          reason: creditReason,
-          // Blank means the whole of what is still owed, which is what a
-          // merchant means when they do not stop to work out a figure.
-          ...(creditAmount.trim() === "" ? {} : { amount: parseFloat(creditAmount) }),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "We could not issue that credit note. Tap again.");
-        return;
-      }
-      setNote(
-        data.remaining > 0
-          ? `${data.number} issued for ${formatGHS(data.credited)}. ${formatGHS(data.remaining)} of this invoice can still be credited.`
-          : `${data.number} issued for ${formatGHS(data.credited)}. This invoice is now fully credited.`
-      );
-      setCrediting(null);
-      setCreditReason("");
-      setCreditAmount("");
-      router.refresh();
-    } catch {
-      setError("We could not reach the network just now. Tap again in a moment.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function act(documentId: string, action: "issue" | "convert", toType?: DocumentType) {
-    setBusy(documentId);
-    setError(null);
-    try {
-      const res = await fetch(`/api/documents/${documentId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, toType }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "We could not do that. Tap again.");
-        return;
-      }
-      router.refresh();
+      // Straight to the document, where it can be sent, paid and followed.
+      if (data.documentId) router.push(`/documents/${data.documentId}`);
+      else router.refresh();
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
     } finally {
@@ -256,12 +190,11 @@ export default function DocumentWorkspace({
       return (
         (d.number ?? "").toLowerCase().includes(q) ||
         (d.customerName ?? "").toLowerCase().includes(q) ||
-        (TYPE_LABEL[d.type] ?? d.type).toLowerCase().includes(q)
+        (TYPE_LABEL[d.type] ?? d.type).toLowerCase().includes(q) ||
+        d.cameFrom.toLowerCase().includes(q)
       );
     });
   }, [documents, query, shelf]);
-
-  const drafts = useMemo(() => documents.filter((d) => !d.number).length, [documents]);
 
   const SHELVES: Array<[typeof shelf, string]> = [
     ["all", "Everything"],
@@ -270,6 +203,7 @@ export default function DocumentWorkspace({
     ["quotation", "Quotations"],
     ["receipt", "Receipts"],
     ["purchase_order", "Purchase orders"],
+    ["credit_note", "Credit notes"],
   ];
   const shelfCount = (key: typeof shelf) =>
     key === "all"
@@ -296,27 +230,6 @@ export default function DocumentWorkspace({
         <p className="rounded-panel bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700" role="alert">
           {error}
         </p>
-      )}
-
-      {/* What is owed, from the Financial Foundation: after payments and
-          credits, not the face value of the invoices. */}
-      {(owed.total > 0 || drafts > 0) && (
-        <FigureRow
-          figures={[
-            {
-              label: "Owed on invoices",
-              value: formatGHS(owed.total),
-              sub: owed.count > 0 ? `${owed.count} invoice${owed.count === 1 ? "" : "s"} still to be paid` : "Nothing outstanding",
-            },
-            {
-              label: "Overdue",
-              value: formatGHS(owed.overdueTotal),
-              sub: owed.overdueCount > 0 ? `${owed.overdueCount} past the due date` : "None past the due date",
-              tone: owed.overdueCount > 0 ? "warn" : undefined,
-            },
-            { label: "Drafts", value: String(drafts), sub: drafts > 0 ? "Not sent out yet" : "None waiting" },
-          ]}
-        />
       )}
 
       {creating && (
@@ -509,17 +422,13 @@ export default function DocumentWorkspace({
             aria-hidden
             className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${DOC_COLS}`}
           >
-            <span>Number</span>
-            <span>Who</span>
-            <span>Issued</span>
-            <span>Due</span>
-            <span>Status</span>
+            <span>Document</span>
+            <span>Customer or supplier, and where it came from</span>
             <span className="text-right">Amount</span>
+            <span className="text-right">Balance</span>
+            <span>Status</span>
           </div>
           {visible.map((doc, i) => {
-            const conversions = doc.number
-              ? (DOCUMENT_CONVERSIONS[doc.type as DocumentType] ?? [])
-              : [];
             const sent = Boolean(doc.number);
             // The relay marks these on a tick, so the stored status is the
             // answer. The date comparison stays as a fallback for the few
@@ -530,129 +439,50 @@ export default function DocumentWorkspace({
                 doc.dueDate !== null &&
                 !["paid", "cancelled", "credited", "expired"].includes(doc.status) &&
                 new Date(doc.dueDate) < new Date());
-
             const status = statusChip(doc, overdue);
-
+            const balance = doc.type === "invoice" && sent ? doc.outstanding ?? 0 : null;
             return (
-              <div key={doc.id} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
-                <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-5 pt-3 text-[13.5px] ${DOC_COLS}`}>
-                  <span className={`min-w-0 truncate font-semibold text-ink lg:text-[13px] ${doc.number ? "mono" : ""}`}>
-                    <span className="sr-only">Number: </span>
-                    {doc.number ?? `${TYPE_LABEL[doc.type] ?? doc.type} draft`}
-                    <span className="font-sans font-normal text-neutral-500 lg:hidden"> · {TYPE_LABEL[doc.type] ?? doc.type}</span>
+              <Link
+                key={doc.id}
+                href={`/documents/${doc.id}`}
+                className={`tap flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-[13.5px] hover:bg-teal-50 ${DOC_COLS} ${i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}`}
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span className={`truncate font-semibold text-ink ${doc.number ? "mono text-[13px]" : ""}`}>
+                    {doc.number ?? "Draft"}
                   </span>
-                  <span className="min-w-0 basis-full truncate text-ink lg:basis-auto">
+                  <span className="text-xs text-neutral-500">
+                    {TYPE_LABEL[doc.type] ?? doc.type} ·{" "}
+                    {doc.dueDate && doc.type === "invoice" && !["paid", "credited"].includes(doc.status)
+                      ? `due ${shortDay(doc.dueDate)}`
+                      : doc.issuedAt
+                        ? shortDay(doc.issuedAt)
+                        : `started ${shortDay(doc.createdAt)}`}
+                  </span>
+                </span>
+                <span className="order-last flex min-w-0 basis-full flex-col items-start gap-1 lg:order-none lg:basis-auto">
+                  <span className="max-w-full truncate text-ink">
                     <span className="sr-only">Who: </span>
                     {doc.customerName ?? "No name given"}
-                    <span className="block text-xs text-neutral-500 lg:hidden">
-                      {[
-                        doc.issuedAt ? `Issued ${shortDay(doc.issuedAt)}` : "Not sent yet",
-                        doc.dueDate ? `due ${shortDay(doc.dueDate)}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </span>
                   </span>
-                  <span className="hidden text-neutral-600 lg:block">
-                    <span className="sr-only">Issued: </span>
-                    {doc.issuedAt ? shortDay(doc.issuedAt) : "Not yet"}
+                  <span className="max-w-full truncate">
+                    <span className="sr-only">Came from: </span>
+                    <Tag>{doc.cameFrom}</Tag>
                   </span>
-                  <span className="hidden text-neutral-600 lg:block">
-                    <span className="sr-only">Due: </span>
-                    {doc.dueDate ? shortDay(doc.dueDate) : "None set"}
-                  </span>
-                  <span className="flex-none">
-                    <span className="sr-only">Status: </span>
-                    <span className={`whitespace-nowrap rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${status.cls}`}>{status.text}</span>
-                  </span>
-                  <span className="num ml-auto flex-none text-right font-bold text-ink lg:ml-0">
-                    <span className="sr-only">Amount: </span>
-                    {doc.total !== null ? formatGHS(doc.total) : "None"}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap justify-end gap-2 px-5 pb-3 pt-2">
-                  {!doc.number && (
-                    <button
-                      onClick={() => act(doc.id, "issue")}
-                      disabled={busy === doc.id}
-                      className="tap flex items-center rounded-control bg-teal-50 px-3.5 text-[13px] font-bold text-teal-800 hover:bg-teal-100 disabled:opacity-60"
-                    >
-                      {busy === doc.id ? "Sending it out..." : "Send it out"}
-                    </button>
-                  )}
-                  {/* Only an issued document has a number and a frozen
-                      version, which is what a PDF is a copy of. A draft
-                      would produce a file that changes under the customer. */}
-                  {doc.number && (
-                    <a
-                      href={`/api/documents/${doc.id}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
-                    >
-                      Open the PDF
-                    </a>
-                  )}
-                  {conversions.map((target) => (
-                    <button
-                      key={target}
-                      onClick={() => act(doc.id, "convert", target)}
-                      disabled={busy === doc.id}
-                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
-                    >
-                      {CONVERT_LABEL[target] ?? `Convert to ${target}`}
-                    </button>
-                  ))}
-                  {/* Crediting an issued invoice is giving money back, so
-                      it asks for a reason before it will do anything. */}
-                  {doc.type === "invoice" && doc.number && (
-                    <button
-                      onClick={() => {
-                        setCrediting(crediting === doc.id ? null : doc.id);
-                        setCreditReason("");
-                        setCreditAmount("");
-                      }}
-                      className="tap flex items-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand"
-                    >
-                      Give money back
-                    </button>
-                  )}
-                </div>
-
-                {crediting === doc.id && (
-                  <div className="mx-5 mb-4 border-t border-neutral-100 pt-4">
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-                      <input
-                        value={creditReason}
-                        onChange={(e) => setCreditReason(e.target.value)}
-                        placeholder="Why are you giving this back?"
-                        aria-label="Reason for the credit note"
-                        className="w-full border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none"
-                      />
-                      <input
-                        value={creditAmount}
-                        onChange={(e) => setCreditAmount(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="Whole invoice"
-                        aria-label="Amount to credit, or blank for the whole invoice"
-                        className="w-full border border-line px-3 py-2.5 text-sm text-ink placeholder:text-slate-grey focus:border-teal focus:outline-none sm:w-36"
-                      />
-                      <button
-                        onClick={() => credit(doc.id)}
-                        disabled={busy === doc.id || creditReason.trim().length < 4}
-                        className={`${primaryAction} justify-center disabled:opacity-60`}
-                      >
-                        {busy === doc.id ? "Issuing the credit note..." : "Issue the credit note"}
-                      </button>
-                    </div>
-                    <p className="mt-2 text-[12.5px] font-medium text-slate-grey">
-                      Leave the amount blank to credit the whole invoice. The
-                      reason is kept on the record and shows on the credit note.
-                    </p>
-                  </div>
-                )}
-              </div>
+                </span>
+                <span className="num ml-auto flex-none text-right font-bold text-ink lg:ml-0">
+                  <span className="sr-only">Amount: </span>
+                  {doc.total !== null ? formatGHS(doc.total) : "None"}
+                </span>
+                <span className="num hidden text-right text-neutral-600 lg:block">
+                  <span className="sr-only">Balance: </span>
+                  {balance === null ? "" : balance > 0.005 ? formatGHS(balance) : "Nothing"}
+                </span>
+                <span className="flex-none">
+                  <span className="sr-only">Status: </span>
+                  <StatusPill tone={status.tone}>{status.text}</StatusPill>
+                </span>
+              </Link>
             );
           })}
         </Surface>
@@ -661,42 +491,39 @@ export default function DocumentWorkspace({
   );
 }
 
-// The design's table, from 1024px: number, who, issued, due, status, amount.
-const DOC_COLS = "lg:grid lg:grid-cols-[130px_minmax(0,1fr)_100px_100px_170px_120px] lg:items-center lg:gap-4";
+// The design's table, from 1024px: the document and its date; who, with
+// where it came from beneath; amount; balance; status (Modules M3).
+const DOC_COLS = "lg:grid lg:grid-cols-[140px_minmax(0,1fr)_100px_100px_130px] lg:items-center lg:gap-3";
 
 // What the customer still owes, and whether it is late, said the way the
 // design says it: "12 days overdue", "Part paid", "Paid".
-function statusChip(doc: DocumentRow, overdue: boolean): { text: string; cls: string } {
-  if (!doc.number) return { text: "Draft", cls: "bg-neutral-100 text-neutral-700" };
+function statusChip(doc: DocumentRow, overdue: boolean): { text: string; tone: Tone } {
+  if (!doc.number) return { text: "Draft", tone: "mute" };
   const late = doc.dueDate ? Math.floor((Date.now() - new Date(`${doc.dueDate}T23:59:59`).getTime()) / 86400000) + 1 : 0;
   switch (doc.status) {
     case "paid":
-      return { text: "Paid", cls: "bg-success-tint text-success-ink" };
+      return { text: "Paid", tone: "ok" };
     case "credited":
-      return { text: "Credited", cls: "bg-neutral-100 text-neutral-700" };
+      return { text: "Credited", tone: "mute" };
     case "refunded":
-      return { text: "Refunded", cls: "bg-neutral-100 text-neutral-700" };
+      return { text: "Refunded", tone: "mute" };
     case "cancelled":
-      return { text: "Cancelled", cls: "bg-neutral-100 text-neutral-700" };
+      return { text: "Cancelled", tone: "mute" };
     case "expired":
-      return { text: "Expired", cls: "bg-neutral-100 text-neutral-700" };
+      return { text: "Expired", tone: "mute" };
     case "accepted":
     case "approved":
-      return { text: "Accepted", cls: "bg-success-tint text-success-ink" };
+      return { text: "Accepted", tone: "ok" };
     case "pending_approval":
-      return { text: "Waiting for approval", cls: "bg-gold-100 text-gold-700" };
+      return { text: "Waiting for approval", tone: "warn" };
     case "change_requested":
-      return { text: "Change asked for", cls: "bg-gold-100 text-gold-700" };
+      return { text: "Change asked for", tone: "warn" };
   }
-  if (overdue && late > 0) {
-    return { text: `${late} day${late === 1 ? "" : "s"} overdue`, cls: late > 30 ? "bg-danger-tint text-danger-ink" : "bg-gold-100 text-gold-700" };
-  }
-  if (doc.status === "partially_paid") {
-    return { text: doc.outstanding ? `Part paid, ${formatGHS(doc.outstanding)} to go` : "Part paid", cls: "bg-teal-50 text-teal-800" };
-  }
-  if (doc.status === "viewed") return { text: "Seen by them", cls: "bg-info-light text-info-ink" };
-  if (doc.type === "receipt") return { text: "Issued", cls: "bg-neutral-100 text-neutral-700" };
-  return { text: "Sent", cls: "bg-info-light text-info-ink" };
+  if (overdue && late > 0) return { text: `${late} day${late === 1 ? "" : "s"} overdue`, tone: late > 30 ? "bad" : "warn" };
+  if (doc.status === "partially_paid") return { text: "Part paid", tone: "info" };
+  if (doc.status === "viewed") return { text: "Seen by them", tone: "info" };
+  if (doc.type === "receipt" || doc.type === "credit_note") return { text: "Issued", tone: "mute" };
+  return { text: "Sent", tone: "info" };
 }
 
 function shortDay(iso: string): string {
