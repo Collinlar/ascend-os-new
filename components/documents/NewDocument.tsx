@@ -12,6 +12,7 @@ import { Avatar } from "@/components/shell/Parts";
 import { Icon } from "@/components/shell/icons";
 import { primaryAction, secondaryAction } from "@/components/shell/Page";
 import type { NewDocumentData, StartOption } from "@/lib/documents/new";
+import DocumentPreview from "@/components/documents/DocumentPreview";
 
 export type NewType =
   | "quotation"
@@ -283,7 +284,6 @@ export default function NewDocument({
     }
   }
 
-  const accent = data.look?.accentColour || "#007A6F";
   const startList = picking
     ? data.starts[picking].filter((o) => {
         const q = startQuery.trim().toLowerCase();
@@ -641,28 +641,29 @@ export default function NewDocument({
           <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-[88px]">
             <div className="flex items-center justify-between gap-2">
               <Label>Preview · what {first} receives</Label>
-              <Link href="/documents#look" className="tap inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700">
+              <Link href="/documents/look" className="tap inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700">
                 Change the look
               </Link>
             </div>
             <div className="rounded-[20px] bg-[#e6ebea] p-3 sm:p-[18px]">
-              <Preview
-                kind={kind}
-                accent={accent}
-                business={{
-                  name: data.look?.tradingName || data.businessName,
-                  line: [data.look?.addressLine, data.look?.phone].filter(Boolean).join(" · "),
+              <DocumentPreview
+                look={data.look}
+                doc={{
+                  title: kind.title,
+                  number: null,
+                  partyLabel: kind.party,
+                  party: { name: partyName || (isPO ? "Your supplier" : "Your customer"), sub: partyPhone ? localPhone(partyPhone) : partyEmail ?? "" },
+                  meta: [
+                    { k: kind.d1, v: longDay(todayISO()) },
+                    ...(kind.d2 ? [{ k: kind.d2, v: longDay(isPO ? deliverBy : due) }] : []),
+                    ...(type === "delivery_note" && start ? [{ k: "Against", v: start.option.label }] : []),
+                  ],
+                  lines: priced.map((l) => ({ d: l.description, sub: itemSub(l), q: l.quantity, u: parseFloat(l.unitPrice) || 0 })),
+                  prices: kind.prices,
+                  sign: kind.sign,
+                  note,
+                  totalLabel: type === "receipt" ? "Total paid" : undefined,
                 }}
-                party={{ name: partyName || (isPO ? "Your supplier" : "Your customer"), sub: partyPhone ? localPhone(partyPhone) : partyEmail ?? "" }}
-                meta={[
-                  { k: kind.d1, v: longDay(todayISO()) },
-                  ...(kind.d2 ? [{ k: kind.d2, v: longDay(isPO ? deliverBy : due) }] : []),
-                  ...(type === "delivery_note" && start ? [{ k: "Against", v: start.option.label }] : []),
-                ]}
-                lines={priced.map((l) => ({ d: l.description, sub: itemSub(l), q: l.quantity, u: parseFloat(l.unitPrice) || 0 }))}
-                total={total}
-                note={note}
-                footer={data.look?.footerNote ?? null}
               />
             </div>
 
@@ -713,131 +714,6 @@ export default function NewDocument({
             </Card>
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-// What the customer receives, in the Classic look the PDF uses. The other
-// looks arrive with "How documents look" (R2).
-function Preview({
-  kind,
-  accent,
-  business,
-  party,
-  meta,
-  lines,
-  total,
-  note,
-  footer,
-}: {
-  kind: Kind;
-  accent: string;
-  business: { name: string; line: string };
-  party: { name: string; sub: string };
-  meta: Array<{ k: string; v: string }>;
-  lines: Array<{ d: string; sub: string; q: number; u: number }>;
-  total: number;
-  note: string;
-  footer: string | null;
-}) {
-  const initials = business.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
-  return (
-    <div className="flex flex-col gap-4 rounded-[6px] bg-white px-5 py-6 text-[12px] text-ink shadow-[0_1px_3px_rgba(0,95,87,0.12)] sm:px-7">
-      <div className="flex items-start justify-between gap-4">
-        <span className="flex min-w-0 items-start gap-3">
-          {/* @contrast-ignore the brand colour the business chose, white initials on it */}
-          <span aria-hidden className="flex h-10 w-10 flex-none items-center justify-center rounded-[10px] font-heading text-[13px] font-extrabold text-white" style={{ background: accent }}>
-            {initials || "A"}
-          </span>
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <strong className="truncate font-heading text-[14px]">{business.name}</strong>
-            {business.line && <span className="text-[11px] text-neutral-600">{business.line}</span>}
-          </span>
-        </span>
-        <span className="flex flex-none flex-col items-end gap-0.5">
-          <span className="font-heading text-[15px] font-extrabold tracking-[0.05em] sm:text-[18px]" style={{ color: accent }}>
-            {kind.title}
-          </span>
-          <span className="text-[11px] text-neutral-600">Numbered when sent</span>
-        </span>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 rounded-[10px] bg-neutral-50 px-3.5 py-3 sm:grid-cols-3">
-        <span className="col-span-2 flex min-w-0 flex-col gap-0.5 sm:col-span-1">
-          <span className="text-[10.5px] text-neutral-600">{kind.party}</span>
-          <strong className="truncate">{party.name}</strong>
-          {party.sub && <span className="truncate text-[11px] text-neutral-600">{party.sub}</span>}
-        </span>
-        {meta.map((m) => (
-          <span key={m.k} className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-[10.5px] text-neutral-600">{m.k}</span>
-            <strong className="truncate">{m.v}</strong>
-          </span>
-        ))}
-      </div>
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="text-[10.5px] text-neutral-600">
-            <th className="pb-1.5 text-left font-semibold" style={{ borderBottom: `1.5px solid ${accent}` }}>{kind.prices ? "DESCRIPTION" : "ITEM"}</th>
-            <th className="pb-1.5 text-center font-semibold" style={{ borderBottom: `1.5px solid ${accent}` }}>{kind.prices ? "QTY" : "ORDERED"}</th>
-            <th className="pb-1.5 text-right font-semibold" style={{ borderBottom: `1.5px solid ${accent}` }}>{kind.prices ? "AMOUNT" : "DELIVERED"}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.length === 0 ? (
-            <tr>
-              <td colSpan={3} className="py-4 text-center text-[11.5px] text-neutral-500">Items you add show here</td>
-            </tr>
-          ) : (
-            lines.map((l, i) => (
-              <tr key={i}>
-                <td className="border-b border-[#EEF0F2] py-2 pr-2">
-                  <span className="flex flex-col gap-px">
-                    <span className="font-semibold">{l.d}</span>
-                    {kind.prices && <span className="num text-[10.5px] text-neutral-600">{amount(l.u)} each</span>}
-                  </span>
-                </td>
-                <td className="num border-b border-[#EEF0F2] py-2 text-center">{l.q}</td>
-                <td className="num border-b border-[#EEF0F2] py-2 text-right">{kind.prices ? amount(l.q * l.u) : l.q}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      <div className="flex items-end justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          {kind.sign && (
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              {kind.sign.map((s) => (
-                <span key={s} className="flex flex-col gap-1">
-                  <span className="border-t border-neutral-400" />
-                  <span className="text-[10.5px] text-neutral-600">{s}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        {kind.prices && (
-          <div className="flex min-w-[150px] flex-col gap-1">
-            <span className="flex justify-between gap-3 text-neutral-600">
-              <span>Subtotal</span>
-              <span className="num">{amount(total)}</span>
-            </span>
-            <span className="num flex justify-between gap-3 pt-1.5 font-heading text-[14px] font-extrabold" style={{ borderTop: `1.5px solid ${accent}` }}>
-              <span>{kind.title === "RECEIPT" ? "Total paid" : "Total"}</span>
-              <span>GHS {amount(total)}</span>
-            </span>
-          </div>
-        )}
-      </div>
-
-      {(note.trim() || footer) && (
-        <span className="border-t border-[#EEF0F2] pt-2 text-[10.5px] leading-normal text-neutral-600">
-          {[note.trim(), footer].filter(Boolean).join(" ")}
-        </span>
       )}
     </div>
   );

@@ -148,6 +148,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   // ----- business setup -----
   "business/product-sets": { POST: member("body", { permission: ["business.settings"] }) },
   "documents/branding": { POST: member("body", { permission: ["business.settings"] }) },
+  "documents/sample": { GET: member("query", { permission: ["documents.view"], location: "query" }) },
   "devices/pairing-code": {
     POST: member("body", { permission: ["staff.manage"], capability: ["pos.tills"], location: "body" }),
     DELETE: member({ table: "device_registration", bodyField: "deviceId" }, { permission: ["staff.manage"], capability: ["pos.tills"] }),

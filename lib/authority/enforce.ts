@@ -28,6 +28,7 @@ const ROUTE_GROUP: Record<string, string> = {
   "documents/[id]": "documents",
   "documents/[id]/pdf": "documents",
   "documents/branding": "documents",
+  "documents/sample": "documents",
   "catalogue/items": "catalogue",
   "catalogue/photo": "catalogue",
   "catalogue/stock": "catalogue",

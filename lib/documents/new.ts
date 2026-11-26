@@ -4,6 +4,8 @@
 // its customer and lines so picking one fills the form in.
 
 import { supabaseServer } from "@/lib/supabase";
+import { liveLook, lookTemplate } from "@/lib/documents/build-pdf";
+import type { PreviewLook } from "@/components/documents/DocumentPreview";
 
 export interface PartyOption {
   id: string;
@@ -47,13 +49,8 @@ export interface StartOption {
 export interface NewDocumentData {
   businessId: string;
   businessName: string;
-  look: {
-    tradingName: string | null;
-    addressLine: string | null;
-    phone: string | null;
-    footerNote: string | null;
-    accentColour: string | null;
-  } | null;
+  /** The saved look, for the preview (Modules R2). */
+  look: PreviewLook;
   customers: PartyOption[];
   suppliers: Array<{ id: string; name: string; phone: string | null; sub: string }>;
   catalogue: CatalogueChoice[];
@@ -87,11 +84,7 @@ export async function loadNewDocument(businessId: string): Promise<NewDocumentDa
 
   const [biz, look, people, suppliers, items, stock, sales, orders, bookings, docs, saleLines] = await Promise.all([
     db.from("business").select("name").eq("id", businessId).maybeSingle(),
-    db
-      .from("document_branding")
-      .select("trading_name, address_line, phone, footer_note, accent_colour")
-      .eq("business_id", businessId)
-      .maybeSingle(),
+    liveLook(businessId),
     db.rpc("business_customers", { p_business: businessId, p_query: null }),
     db
       .from("supplier")
@@ -255,15 +248,18 @@ export async function loadNewDocument(businessId: string): Promise<NewDocumentDa
   return {
     businessId,
     businessName: (biz.data?.name as string) ?? "Your business",
-    look: look.data
-      ? {
-          tradingName: look.data.trading_name,
-          addressLine: look.data.address_line,
-          phone: look.data.phone,
-          footerNote: look.data.footer_note,
-          accentColour: look.data.accent_colour,
-        }
-      : null,
+    look: {
+      template: lookTemplate(look?.template),
+      accent: (look?.accent_colour as string) ?? null,
+      logoUrl: (look?.logo_url as string) ?? null,
+      name: (look?.trading_name as string) || ((biz.data?.name as string) ?? "Your business"),
+      address: (look?.address_line as string) ?? "",
+      phone: (look?.phone as string) ?? "",
+      email: (look?.email as string) ?? "",
+      tin: (look?.tin as string) ?? "",
+      footer: (look?.footer_note as string) ?? "",
+      signatures: look?.signature_areas === false ? false : true,
+    },
     customers,
     suppliers: ((suppliers.data ?? []) as Row[]).map((s) => ({
       id: s.id as string,

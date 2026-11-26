@@ -22,6 +22,8 @@
 //   heading avoids the cedi sign, which is not in the encoding the base
 //   fonts use. "GHS 400.00" is what a bank wants to see anyway.
 
+import { jpegInfo } from "./jpeg";
+
 const PAGE_WIDTH = 595.28; // A4, the paper Ghana actually uses
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 48;
@@ -71,6 +73,15 @@ export interface PdfDocument {
    *  anything that carries meaning, so a bad choice cannot make a document
    *  unreadable. */
   accentColour?: string | null;
+  /** The look the business chose (Modules R2). Classic when not set. */
+  template?: "classic" | "modern" | "compact" | null;
+  businessEmail?: string | null;
+  /** Ghana Revenue Authority TIN, or the Ghana Card PIN used as one. */
+  tin?: string | null;
+  /** The logo as JPEG bytes. Anything else is left off rather than broken. */
+  logo?: Uint8Array | null;
+  /** Signature lines on purchase orders and delivery notes. On by default. */
+  signatureAreas?: boolean | null;
 }
 
 // PDF wants 0-1 floats per channel, not hex.
@@ -183,9 +194,40 @@ class Content {
     return this;
   }
 
+  rect(x: number, y: number, w: number, h: number, colour: [number, number, number]) {
+    this.ops.push(`${colour.map((v) => v.toFixed(3)).join(" ")} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+    return this;
+  }
+
+  rule(x1: number, y: number, x2: number, width: number, colour: [number, number, number]) {
+    this.ops.push(`${colour.map((v) => v.toFixed(3)).join(" ")} RG ${width} w ${x1.toFixed(2)} ${y.toFixed(2)} m ${x2.toFixed(2)} ${y.toFixed(2)} l S`);
+    return this;
+  }
+
+  image(name: string, x: number, y: number, w: number, h: number) {
+    this.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /${name} Do Q`);
+    return this;
+  }
+
   toString(): string {
     return this.ops.join("\n");
   }
+}
+
+const WHITE: [number, number, number] = [1, 1, 1];
+const GREY: [number, number, number] = [0.29, 0.33, 0.39];
+// Without a chosen colour: the action teal, or a neutral ink for Classic.
+const DEFAULT_ACCENT: [number, number, number] = [0, 0.478, 0.435];
+
+// Bold capitals run wide; an estimate per font keeps right-aligned text
+// inside the margin. Only used for placing, never for measuring a column.
+function textWidth(value: string, font: "F1" | "F2", size: number): number {
+  const ratio = font === "F1" ? HELVETICA_RATIO : value === value.toUpperCase() ? 0.7 : 0.57;
+  return value.length * size * ratio;
+}
+
+function rightText(c: Content, xRight: number, y: number, value: string, font: "F1" | "F2", size: number, colour?: [number, number, number] | null) {
+  c.text(xRight - textWidth(value, font, size), y, value, font, size, colour);
 }
 
 function truncate(value: string, maxWidth: number, size: number): string {
@@ -261,7 +303,9 @@ const ROWS_FIRST_PAGE = 22;
 const ROWS_LATER_PAGE = 34;
 
 export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
-  const accent = rgb(doc.accentColour);
+  const template = doc.template ?? "classic";
+  const accent = rgb(doc.accentColour) ?? (template === "classic" ? null : DEFAULT_ACCENT);
+  const logoInfo = doc.logo ? jpegInfo(doc.logo) : null;
   const pdf = new Pdf();
   const catalogId = pdf.reserve(); // object 1, per the trailer
   const pagesId = pdf.reserve();
@@ -282,56 +326,8 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
     let y = PAGE_HEIGHT - MARGIN;
 
     if (isFirst) {
-      // Issuer, left. The business is the one selling; that is the whole
-      // point of the seller line on Discover and it holds here too.
-      c.text(MARGIN, y, doc.businessName, "F2", 16);
-      y -= 15;
-      if (doc.businessAddress) {
-        c.text(MARGIN, y, truncate(doc.businessAddress, 260, 9), "F1", 9);
-        y -= 11;
-      }
-      if (doc.businessPhone) {
-        c.text(MARGIN, y, doc.businessPhone, "F1", 9);
-        y -= 11;
-      }
+      y = letterhead(c, doc, template, accent, logoInfo);
 
-      // Document identity, right.
-      const titleY = PAGE_HEIGHT - MARGIN;
-      const title = TYPE_TITLE[doc.type] ?? doc.type.toUpperCase();
-      const titleWidth = title.length * 14 * HELVETICA_RATIO;
-      c.text(PAGE_WIDTH - MARGIN - titleWidth, titleY, title, "F2", 14, accent);
-
-      let ry = titleY - 16;
-      if (doc.number) {
-        c.right(PAGE_WIDTH - MARGIN, ry, doc.number, "F3", 10);
-        ry -= 12;
-      }
-      const issued = dateLabel(doc.issuedAt);
-      if (issued) {
-        const label = `Issued ${issued}`;
-        c.text(
-          PAGE_WIDTH - MARGIN - label.length * 9 * HELVETICA_RATIO,
-          ry,
-          label,
-          "F1",
-          9
-        );
-        ry -= 11;
-      }
-      const due = dateLabel(doc.dueDate);
-      if (due) {
-        const label = doc.type === "purchase_order" ? `Deliver by ${due}` : `Due ${due}`;
-        c.text(
-          PAGE_WIDTH - MARGIN - label.length * 9 * HELVETICA_RATIO,
-          ry,
-          label,
-          "F1",
-          9
-        );
-        ry -= 11;
-      }
-
-      y = Math.min(y, ry) - 18;
 
       if (doc.customerName) {
         // A purchase order is addressed to whoever is being ordered from,
@@ -367,7 +363,7 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
     const totalRight = MARGIN + CONTENT_WIDTH;
     const descWidth = qtyRight - MARGIN - 60;
 
-    c.text(MARGIN, y, "Description", "F2", 8.5);
+    c.text(MARGIN, y, hidePrices ? "Item" : "Description", "F2", 8.5);
     if (hidePrices) {
       c.right(priceRight, y, "Ordered", "F3", 8.5);
       c.right(totalRight, y, "Delivered", "F3", 8.5);
@@ -377,7 +373,8 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
       c.right(totalRight, y, `Amount ${doc.currencyCode}`, "F3", 8.5);
     }
     y -= 6;
-    c.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y, 0.8, 0.75);
+    if (accent) c.rule(MARGIN, y, MARGIN + CONTENT_WIDTH, 1.2, accent);
+    else c.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y, 0.8, 0.75);
     y -= 14;
 
     for (const line of linesOnPage) {
@@ -438,7 +435,7 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
         c.text(MARGIN, y, truncate(doc.note, CONTENT_WIDTH, 9.5), "F1", 9.5);
         y -= 14;
       }
-      const signs = SIGN_AREAS[doc.type];
+      const signs = doc.signatureAreas === false ? undefined : SIGN_AREAS[doc.type];
       if (signs) {
         // Somewhere for both sides to sign for what changed hands.
         y -= 18;
@@ -512,10 +509,22 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
     "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>"
   );
 
+  let xobjects = "";
+  if (doc.logo && logoInfo) {
+    let raw = "";
+    for (let i = 0; i < doc.logo.length; i += 1) raw += String.fromCharCode(doc.logo[i]);
+    const space = logoInfo.components === 1 ? "/DeviceGray" : logoInfo.components === 4 ? "/DeviceCMYK" : "/DeviceRGB";
+    const im = pdf.add(
+      `<< /Type /XObject /Subtype /Image /Width ${logoInfo.width} /Height ${logoInfo.height} /ColorSpace ${space} ` +
+        `/BitsPerComponent 8 /Filter /DCTDecode /Length ${doc.logo.length} >>\nstream\n${raw}\nendstream`
+    );
+    xobjects = ` /XObject << /Logo ${im} 0 R >>`;
+  }
+
   const pageIds = contentIds.map((contentId) =>
     pdf.add(
       `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] ` +
-        `/Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R /F3 ${f3} 0 R >> >> ` +
+        `/Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R /F3 ${f3} 0 R >>${xobjects} >> ` +
         `/Contents ${contentId} 0 R >>`
     )
   );
@@ -527,6 +536,104 @@ export function renderDocumentPdf(doc: PdfDocument): Uint8Array {
   pdf.set(catalogId, `<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
 
   return pdf.build();
+}
+
+// The top of the first page, in the business's template. Returns where the
+// party block starts.
+function letterhead(
+  c: Content,
+  doc: PdfDocument,
+  template: "classic" | "modern" | "compact",
+  accent: [number, number, number] | null,
+  logo: ReturnType<typeof jpegInfo>
+): number {
+  const title = TYPE_TITLE[doc.type] ?? doc.type.toUpperCase();
+  const right = PAGE_WIDTH - MARGIN;
+  const issued = dateLabel(doc.issuedAt);
+  const due = dateLabel(doc.dueDate);
+  const dates = [
+    issued ? `Issued ${issued}` : null,
+    due ? (doc.type === "purchase_order" ? `Deliver by ${due}` : `Due ${due}`) : null,
+  ].filter((d): d is string => Boolean(d));
+  const contact = [doc.businessPhone, doc.businessEmail].filter(Boolean).join("  ·  ");
+  const tin = doc.tin ? `TIN ${doc.tin}` : "";
+
+  // A logo fits a square, keeping its shape.
+  const drawLogo = (x: number, top: number, box: number): number => {
+    if (!logo) return 0;
+    const scale = Math.min(box / logo.width, box / logo.height);
+    const w = logo.width * scale;
+    const h = logo.height * scale;
+    c.image("Logo", x, top - h, w, h);
+    return w + 10;
+  };
+
+  let y = PAGE_HEIGHT - MARGIN;
+
+  if (template === "modern") {
+    // A band of the brand colour across the top, the name and the title
+    // in white on it, and the contact line under it.
+    const band = 104;
+    const ink = accent ?? DEFAULT_ACCENT;
+    c.rect(0, PAGE_HEIGHT - band, PAGE_WIDTH, band, ink);
+    const top = PAGE_HEIGHT - 30;
+    const shift = drawLogo(MARGIN, top + 4, 40);
+    c.text(MARGIN + shift, top - 12, doc.businessName, "F2", 16, WHITE);
+    if (doc.businessAddress) c.text(MARGIN + shift, top - 27, truncate(doc.businessAddress, 250, 9), "F1", 9, WHITE);
+    rightText(c, right, top - 10, title, "F2", 16, WHITE);
+    if (doc.number) rightText(c, right, top - 27, doc.number, "F2", 10, WHITE);
+    y = PAGE_HEIGHT - band - 22;
+    const line = [contact, tin].filter(Boolean).join("  ·  ");
+    if (line) c.text(MARGIN, y, truncate(line, CONTENT_WIDTH * 0.6, 9), "F1", 9, GREY);
+    dates.forEach((d, i) => rightText(c, right, y - i * 11, d, "F1", 9));
+    return y - Math.max(1, dates.length) * 11 - 16;
+  }
+
+  if (template === "compact") {
+    // One line: the title and number on the left, the business on the
+    // right, a rule in the brand colour under both.
+    rightText(c, right, y, doc.businessName, "F2", 11);
+    c.text(MARGIN, y, title, "F2", 13, accent);
+    if (doc.number) c.text(MARGIN + textWidth(title, "F2", 13) + 10, y, doc.number, "F3", 10);
+    if (logo) drawLogo(right - textWidth(doc.businessName, "F2", 11) - 28, y + 12, 20);
+    y -= 10;
+    c.rule(MARGIN, y, right, 2, accent ?? [0.2, 0.2, 0.2]);
+    y -= 14;
+    const details = [doc.businessAddress, contact, tin].filter(Boolean).join("  ·  ");
+    if (details) {
+      c.text(MARGIN, y, truncate(details, CONTENT_WIDTH, 8.5), "F1", 8.5, GREY);
+      y -= 11;
+    }
+    if (dates.length) {
+      c.text(MARGIN, y, dates.join("  ·  "), "F1", 8.5);
+      y -= 11;
+    }
+    return y - 14;
+  }
+
+  // Classic: the business on the left under its logo, the title in the
+  // brand colour on the right.
+  const shift = drawLogo(MARGIN, y + 6, 44);
+  let ly = y;
+  c.text(MARGIN + shift, ly, doc.businessName, "F2", 16);
+  ly -= 15;
+  for (const part of [doc.businessAddress, contact, tin]) {
+    if (!part) continue;
+    c.text(MARGIN + shift, ly, truncate(part, 260, 9), "F1", 9);
+    ly -= 11;
+  }
+  if (logo) ly = Math.min(ly, y - 44);
+  rightText(c, right, y, title, "F2", 14, accent);
+  let ry = y - 16;
+  if (doc.number) {
+    c.right(right, ry, doc.number, "F3", 10);
+    ry -= 12;
+  }
+  for (const d of dates) {
+    rightText(c, right, ry, d, "F1", 9);
+    ry -= 11;
+  }
+  return Math.min(ly, ry) - 18;
 }
 
 export function documentFilename(doc: PdfDocument): string {

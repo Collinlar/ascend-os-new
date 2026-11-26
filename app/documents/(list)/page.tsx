@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
 import { EmptyState, primaryAction, secondaryAction } from "@/components/shell/Page";
@@ -9,8 +8,8 @@ import { MODULES } from "@/lib/nav/modules";
 import type { DocumentType } from "@/lib/domains/types";
 import { formatGHS } from "@/lib/money";
 import DocumentWorkspace from "@/components/documents/DocumentWorkspace";
-import BrandingPanel, { type Branding } from "@/components/documents/BrandingPanel";
 import NeedsYouToday from "@/components/documents/NeedsYouToday";
+import { liveLook } from "@/lib/documents/build-pdf";
 import { loadDocumentsWorkspace, type DocFigures, type ListDoc, type NeedsYou } from "@/lib/documents/workspace";
 import { checkPageAccess } from "@/lib/authority/page";
 
@@ -27,34 +26,27 @@ async function load(): Promise<{
   docs: ListDoc[];
   figures: DocFigures;
   needs: NeedsYou;
-  branding: Branding | null;
+  look: { name: string; template: string; accent: string | null } | null;
 } | null> {
   try {
     const personId = await currentPersonId();
     if (!personId) return null;
-    const db = supabaseServer();
     const membership = await activeMembership<{ business_id: string }>(personId);
     if (!membership) return null;
 
-    const [ws, { data: brand }] = await Promise.all([
+    const [ws, look] = await Promise.all([
       loadDocumentsWorkspace(membership.business_id),
-      db
-        .from("document_branding")
-        .select("trading_name, address_line, phone, footer_note, accent_colour")
-        .eq("business_id", membership.business_id)
-        .maybeSingle(),
+      liveLook(membership.business_id),
     ]);
 
     return {
       businessId: membership.business_id,
       ...ws,
-      branding: brand
+      look: look
         ? {
-            tradingName: brand.trading_name,
-            addressLine: brand.address_line,
-            phone: brand.phone,
-            footerNote: brand.footer_note,
-            accentColour: brand.accent_colour,
+            name: (look.trading_name as string) ?? "",
+            template: (look.template as string) ?? "classic",
+            accent: (look.accent_colour as string) ?? null,
           }
         : null,
     };
@@ -173,8 +165,20 @@ export default async function Documents({
                   Customers, products and prices fill in from what Ascend already has. A credit note starts from its invoice.
                 </span>
               </section>
-              <div id="look" className="scroll-mt-24" />
-              <BrandingPanel businessId={data.businessId} branding={data.branding} />
+              <Link
+                href="/documents/look"
+                className="tap flex items-center gap-3 rounded-[20px] border border-line-brand bg-white px-[18px] py-4 hover:border-teal-brand"
+              >
+                {/* @contrast-ignore a colour swatch, no text on it */}
+                <span aria-hidden className="h-9 w-9 flex-none rounded-[10px]" style={{ background: data.look?.accent ?? "#E5E7EB" }} />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-heading text-base font-bold text-ink-heading">How your documents look</span>
+                  <span className="text-xs text-neutral-600">
+                    {data.look ? `${data.look.template.charAt(0).toUpperCase()}${data.look.template.slice(1)} template. Logo, TIN, numbering and terms.` : "Add your logo, colour, TIN and terms."}
+                  </span>
+                </span>
+                <Icon name="chev" size={16} />
+              </Link>
             </div>
           </div>
         </div>

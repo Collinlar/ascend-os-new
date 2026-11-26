@@ -305,3 +305,13 @@ Approved by Collins on 26 November 2026, all eight as recommended.
 - "PDF only" issues without sending anything (`issueDocument` takes the channels).
 - Old `/documents?new=` links redirect in `next.config.mjs` (a redirect inside the streamed list page would arrive as a 200). The inline create form on the documents list is gone.
 - Tested on live with throwaway ZZ businesses (25 checks), at 1440 and 375, then removed.
+
+### R2 How documents look (built 26 November 2026; needs 0142)
+
+- `/documents/look` (`components/documents/LookEditor.tsx`, `lib/documents/look.ts`): Classic, Modern and Compact; a logo (turned into a JPEG on white in the browser, so the PDF carries it as it is); five colours that each carry white text, or none; name, address, phone, email and TIN on the letterhead; a prefix per kind and whether the year shows, with the next number beside each; default terms; signature areas on or off. A live preview of six kinds of document in the business's own look and catalogue, and a sample PDF (`/api/documents/sample`).
+- The PDF draws all three templates (`lib/documents/pdf.ts`), and the New document preview uses the same component (`components/documents/DocumentPreview.tsx`).
+- Decision 2: built for everyone, nothing locked. Documents Plus is marked once it has a price.
+- **0142**: the settings on `document_branding`; `next_document_number` takes the business's prefix (2 to 6 capitals only) and year choice, never repeating (without the year the count runs on in a series of its own) and never asking for a number by hand; the stamp at issue now keeps the note written on the document. Before 0142 the stamp replaced it, which dropped R1's note on businesses with a saved look (seen on live).
+- Until 0142 runs, the page says so and saves only name, address, phone, email, colour and terms.
+- The small "How your documents look" panel on the documents list is replaced by a card that opens the page.
+- Tested: PGlite 16/16 (0142 applied twice); the three templates rendered and checked by eye; live before 0142, 13 checks; `scratchpad/liveR2c.mjs` is ready for after 0142.
