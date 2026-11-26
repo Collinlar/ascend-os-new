@@ -1,17 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
 import { EmptyState, Panel, primaryAction } from "@/components/shell/Page";
 import Pills from "@/components/shell/Pills";
-import { Icon } from "@/components/shell/icons";
+import { Avatar, Tag } from "@/components/shell/Parts";
+import { visitsOf } from "@/lib/customers/visits";
 
 // Customers (v3 design). One person however they bought: a till sale, an
 // online order, a booking and an invoice all sit under the same record.
-// From 1024px the design's table (customer, phone, visits, spent, owed, last
-// seen); below that, one card each. Opening a row shows their history and
-// whether they agreed to offers.
+// From 1024px the design's table (customer, came from, last visit, visits,
+// lifetime, owes, can message); below that, one card each. A row opens the
+// customer's profile with their whole history (Modules M5).
 
 export interface CustomerRow {
   id: string;
@@ -49,7 +51,6 @@ const VIA: Record<string, string> = {
   manual: "Added by hand",
 };
 
-const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_150px_80px_120px_110px_120px_104px] lg:items-center lg:gap-4";
 
 export default function CustomerList({
   customers,
@@ -59,19 +60,12 @@ export default function CustomerList({
 }: {
   customers: CustomerRow[];
   query: string;
-  /** customers.manage (0088): only then is the consent switch, or adding someone, offered. */
+  /** customers.manage (0088): only then is adding someone offered. */
   canRecordConsent: boolean;
   /** Opened from "Add customer" in the module bar (?add=1). */
   startAdding?: boolean;
 }) {
   const router = useRouter();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [history, setHistory] = useState<Record<string, HistoryRow[]>>({});
-  const [loading, setLoading] = useState<string | null>(null);
-  // Held here so the switch answers immediately. The record behind it is
-  // what counts, and the server writes that.
-  const [consent, setConsent] = useState<Record<string, boolean>>({});
-  const [saving, setSaving] = useState<string | null>(null);
   const [filter, setFilter] = useState("Everyone");
   const [adding, setAdding] = useState(startAdding);
   // "Add customer" lives in the top bar, so it arrives as ?add=1. Open the
@@ -85,53 +79,14 @@ export default function CustomerList({
   const groups = useMemo(
     () =>
       ({
+        "Came back": customers.filter((c) => visitsOf(c) > 1),
         "Owe you": customers.filter((c) => c.owed > 0),
-        "Agreed to offers": customers.filter((c) => consent[c.id] ?? c.marketingConsent),
+        "Agreed to offers": customers.filter((c) => c.marketingConsent),
         "Not seen in 90 days": customers.filter((c) => c.lastSeen && Date.now() - new Date(c.lastSeen).getTime() > 90 * 86400000),
       }) as Record<string, CustomerRow[]>,
-    [customers, consent]
+    [customers]
   );
   const shown = filter === "Everyone" ? customers : groups[filter] ?? customers;
-
-  async function setMarketing(id: string, granted: boolean) {
-    setSaving(id);
-    setConsent((prev) => ({ ...prev, [id]: granted }));
-    try {
-      const res = await fetch(`/api/customers/${id}/consent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ granted }),
-      });
-      if (!res.ok) {
-        // Put the switch back where it was rather than showing a state the
-        // database does not agree with.
-        setConsent((prev) => ({ ...prev, [id]: !granted }));
-      }
-    } catch {
-      setConsent((prev) => ({ ...prev, [id]: !granted }));
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  async function open(id: string) {
-    if (openId === id) {
-      setOpenId(null);
-      return;
-    }
-    setOpenId(id);
-    if (history[id]) return;
-    setLoading(id);
-    try {
-      const res = await fetch(`/api/customers/${id}/history`);
-      const data = await res.json();
-      if (res.ok) setHistory((prev) => ({ ...prev, [id]: data.history ?? [] }));
-    } catch {
-      // The list still works without the history; opening again retries.
-    } finally {
-      setLoading(null);
-    }
-  }
 
   return (
     <div>
@@ -141,6 +96,7 @@ export default function CustomerList({
         <Pills
           pills={[
             { label: "Everyone" },
+            { label: "Came back", count: groups["Came back"].length },
             { label: "Owe you", count: groups["Owe you"].length },
             { label: "Agreed to offers", count: groups["Agreed to offers"].length },
             { label: "Not seen in 90 days", count: groups["Not seen in 90 days"].length },
@@ -169,118 +125,60 @@ export default function CustomerList({
             className={`hidden bg-neutral-50 px-5 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}
           >
             <span>Customer</span>
-            <span>Phone</span>
+            <span>Came from</span>
+            <span>Last visit</span>
             <span className="text-right">Visits</span>
-            <span className="text-right">Spent</span>
+            <span className="text-right">Lifetime</span>
             <span className="text-right">Owes you</span>
-            <span>Last seen</span>
-            <span />
+            <span>Can message</span>
           </div>
           {shown.map((c, i) => {
-            const visits = c.sales + c.orders + c.bookings + c.documents;
-            const opened = openId === c.id;
-            const agreed = consent[c.id] ?? c.marketingConsent;
+            const visits = visitsOf(c);
             return (
-              <div key={c.id} className={i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}>
-                <div className={`flex items-center gap-3 px-5 py-3 ${COLS}`}>
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span
-                      aria-hidden
-                      className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-teal-50 text-[11.5px] font-bold text-teal-800"
-                    >
-                      {initials(c.name)}
-                    </span>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-[14px] font-semibold text-ink">{c.name}</span>
-                      <span className="truncate text-xs text-neutral-500">
-                        <span className="lg:hidden">
-                          {visits > 0 ? `${visits} visit${visits === 1 ? "" : "s"}` : VIA[c.createdVia] ?? "Added by hand"}
-                          {c.spent > 0 ? ` · spent ${formatGHS(c.spent)}` : ""}
-                          {c.phone && c.owed === 0 ? ` · ${local(c.phone)}` : ""}
-                        </span>
-                        {c.owed > 0 && (
-                          <span className="num block font-bold text-gold-700 lg:hidden">Owes you {formatGHS(c.owed)}</span>
-                        )}
-                        <span className="hidden lg:inline">{VIA[c.createdVia] ?? "Added by hand"}</span>
+              <Link
+                key={c.id}
+                href={`/customers/${c.id}`}
+                className={`tap flex items-center gap-3 px-5 py-3 hover:bg-teal-50 ${COLS} ${i > 0 ? "border-t border-neutral-100" : "lg:border-t lg:border-neutral-100"}`}
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-3">
+                  <Avatar name={c.name} size={34} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-[14px] font-semibold text-ink">{c.name}</span>
+                    <span className="truncate text-xs text-neutral-500">
+                      {c.phone ? local(c.phone) : c.email ?? "No number"}
+                      <span className="lg:hidden">
+                        {visits > 0 ? ` · ${visits} visit${visits === 1 ? "" : "s"}` : ""}
+                        {c.spent > 0 ? ` · ${formatGHS(c.spent)}` : ""}
                       </span>
                     </span>
-                  </div>
-
-                  <span className="hidden truncate text-[13.5px] text-neutral-600 lg:block">
-                    <span className="sr-only">Phone: </span>
-                    {c.phone ? local(c.phone) : "None"}
+                    {c.owed > 0 && <span className="num text-xs font-bold text-gold-700 lg:hidden">Owes you {formatGHS(c.owed)}</span>}
                   </span>
-                  <span className="num hidden text-right text-[13.5px] text-ink lg:block">
-                    <span className="sr-only">Visits: </span>
-                    {visits}
-                  </span>
-                  <span className="num hidden text-right text-[13.5px] font-semibold text-ink lg:block">
-                    <span className="sr-only">Spent: </span>
-                    {formatGHS(c.spent)}
-                  </span>
-                  <span className={`num hidden text-right text-[13.5px] lg:block ${c.owed > 0 ? "font-bold text-gold-700" : "text-neutral-500"}`}>
-                    <span className="sr-only">Owes you: </span>
-                    {c.owed > 0 ? formatGHS(c.owed) : "Nothing"}
-                  </span>
-                  <span className="hidden text-[13.5px] text-neutral-600 lg:block">
-                    <span className="sr-only">Last seen: </span>
-                    {c.lastSeen ? seen(c.lastSeen) : "Not yet"}
-                  </span>
-
-                  <button
-                    onClick={() => open(c.id)}
-                    aria-expanded={opened}
-                    className="tap flex flex-none items-center justify-center rounded-control border border-line-brand px-3.5 text-[13px] font-bold text-teal-800 hover:border-teal-brand lg:w-full"
-                  >
-                    {opened ? "Close" : "History"}
-                  </button>
-                </div>
-
-                {opened && (
-                  <div className="border-t border-neutral-100 bg-neutral-50 px-5 py-4">
-                    {loading === c.id ? (
-                      <p className="text-[13px] text-neutral-600">Looking through their record...</p>
-                    ) : (history[c.id] ?? []).length === 0 ? (
-                      <p className="text-[13px] text-neutral-600">Nothing recorded against them yet.</p>
-                    ) : (
-                      <div className="flex flex-col gap-1.5">
-                        {(history[c.id] ?? []).map((h, n) => (
-                          <div key={`${h.kind}-${h.reference}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                            <p className="text-[13px] text-ink">
-                              <span className="font-semibold">{h.kind}</span>
-                              {h.reference && ` ${h.reference}`}
-                              <span className="text-neutral-500"> · {h.status}</span>
-                            </p>
-                            <p className="text-[12.5px] text-neutral-500">
-                              {h.amount !== null && <span className="num font-semibold text-ink">{formatGHS(Number(h.amount))}</span>}
-                              {h.happenedAt && ` · ${day(h.happenedAt)}`}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Whether this business may market to them, and the
-                        record that proves it either way. */}
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 pt-3">
-                      <p className="text-[13px] text-neutral-600">
-                        {agreed ? "Happy to receive offers from you." : "Only messages about their own orders."}
-                        {c.email ? ` ${c.email}` : ""}
-                      </p>
-                      {canRecordConsent && (
-                        <button
-                          onClick={() => setMarketing(c.id, !agreed)}
-                          disabled={saving === c.id}
-                          aria-pressed={agreed}
-                          className="tap flex items-center rounded-control border border-line-brand bg-white px-4 text-[13px] font-bold text-teal-800 hover:border-teal-brand disabled:opacity-60"
-                        >
-                          {saving === c.id ? "Saving their choice..." : agreed ? "They have opted out" : "They agreed to offers"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                </span>
+                <span className="hidden min-w-0 lg:block">
+                  <span className="sr-only">Came from: </span>
+                  <Tag>{VIA[c.createdVia] ?? "Added by hand"}</Tag>
+                </span>
+                <span className="hidden text-[13.5px] text-neutral-600 lg:block">
+                  <span className="sr-only">Last visit: </span>
+                  {c.lastSeen ? seen(c.lastSeen) : "Not yet"}
+                </span>
+                <span className="num hidden text-right text-[13.5px] text-ink lg:block">
+                  <span className="sr-only">Visits: </span>
+                  {visits}
+                </span>
+                <span className="num hidden text-right text-[13.5px] font-semibold text-ink lg:block">
+                  <span className="sr-only">Lifetime: </span>
+                  {formatGHS(c.spent)}
+                </span>
+                <span className={`num hidden text-right text-[13.5px] lg:block ${c.owed > 0 ? "font-bold text-gold-700" : "text-neutral-500"}`}>
+                  <span className="sr-only">Owes you: </span>
+                  {c.owed > 0 ? formatGHS(c.owed) : "Nothing"}
+                </span>
+                <span className="hidden text-[13px] text-neutral-600 lg:block">
+                  <span className="sr-only">Can message: </span>
+                  {c.phone ? (c.marketingConsent ? "WhatsApp, offers too" : "WhatsApp, their orders") : c.email ? "Email" : "No way yet"}
+                </span>
+              </Link>
             );
           })}
         </Panel>
@@ -288,6 +186,7 @@ export default function CustomerList({
     </div>
   );
 }
+
 
 // Adding someone by hand. If the number or email is already a customer,
 // that record is used, and the owner is told so.
@@ -418,3 +317,6 @@ function seen(iso: string): string {
 function day(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
+
+// The design's table, from 1024px.
+const COLS = "lg:grid lg:grid-cols-[minmax(0,1fr)_130px_100px_60px_110px_100px_150px] lg:items-center lg:gap-3";
