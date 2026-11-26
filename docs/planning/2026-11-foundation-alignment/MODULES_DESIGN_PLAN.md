@@ -327,7 +327,7 @@ Approved by Collins on 26 November 2026, all eight as recommended.
 - Storefront: the pickup and delivery promises under the intro, the promotion, and the side column's returns and contact (`lib/shop/settings.ts` holds the wording). Checkout asks which area, shows its fee and adds it to the total; with no areas listed the cost is still agreed on WhatsApp. The order page already showed a delivery fee.
 - Tested: PGlite 17/17 (0143 applied twice; the fee in the commerce core, the payment settling it, the receipt line); live before 0143, 5 checks that nothing changed; after 0143, 20 on live (saving and refusals, what the storefront says, GHS 45.50 to Tema on a real order, an unlisted area refused, the fee taken from the shop, pickup off refused), then removed.
 
-### R4 The customer's shop (built 26 November 2026; needs 0144)
+### R4 The customer's shop (done, 26 November 2026; 0144 run on live)
 
 The plan said R4 needed no migration. It needs a small one: an order could not carry a size, a pickup place or the offers opt-in.
 
@@ -338,4 +338,4 @@ The plan said R4 needed no migration. It needs a small one: an order could not c
 - **Checkout**: where to collect when the shop has more than one place (the order and its stock belong to that place, 0144); GhanaPost GPS, checked and tidied to GA-123-4567; "Send me offers on WhatsApp", unticked, recorded through `record_consent` with the order as evidence when ticked.
 - **Storefront**: a "Book with us" row of services with duration and deposit, and trust lines from facts Ascend holds.
 - **Laptop layouts**: product page, basket and checkout in two columns.
-- Tested: PGlite 20/20 (0144 applied twice); live before 0144, 7 checks; the flow clicked through at 375 and 1440; `scratchpad/liveR4.mjs after` is ready for after 0144.
+- Tested: PGlite 20/20 (0144 applied twice); live before 0144, 7 checks; the flow clicked through at 375 and 1440; after 0144, 18 on live (sizes saved and refused twice, two sizes on one order at GHS 365, the size on the order page, pickup at the second place, consent only when ticked), and picking a size clicked through, then removed.
