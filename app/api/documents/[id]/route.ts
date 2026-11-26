@@ -16,8 +16,14 @@ import { createDocumentLink, documentUrl } from "@/lib/messaging/send";
 import { whatsappLink } from "@/lib/inventory/order-message";
 import { formatGHS } from "@/lib/money";
 
+// A link in a WhatsApp message has to be whole. Where the app's public
+// address is not configured, use the address this request came to.
+function absolute(link: string, request: NextRequest): string {
+  return link.startsWith("/") ? `${request.nextUrl.origin}${link}` : link;
+}
+
 interface Body {
-  action?: "issue" | "convert" | "credit" | "record_payment" | "remind";
+  action?: "issue" | "convert" | "credit" | "record_payment" | "remind" | "share";
   /** record_payment: how it was paid, and the MoMo or bank reference. */
   method?: "cash" | "mobile_money" | "bank_transfer" | "card";
   reference?: string;
@@ -252,7 +258,7 @@ async function handlePOST(
   if (body.action === "remind") {
     let link = "";
     try {
-      link = documentUrl(await createDocumentLink(doc.id, doc.business_id));
+      link = absolute(documentUrl(await createDocumentLink(doc.id, doc.business_id)), request);
     } catch {
       // A reminder without a link still says what is owed.
     }
@@ -293,6 +299,41 @@ async function handlePOST(
       sent: false,
       why,
       ownWhatsApp: customer?.phone_e164 ? whatsappLink(customer.phone_e164, text) : null,
+    });
+  }
+
+  // The merchant sends the document from their own WhatsApp: a link the
+  // customer can open, and the words to go with it. For when Ascend's own
+  // message cannot go (a template not yet approved, no balance) or the
+  // merchant simply prefers to send it themselves.
+  if (body.action === "share") {
+    const { data: full } = await db
+      .from("document")
+      .select("type, number, total, customer:customer_id(display_name, phone_e164), supplier:supplier_id(name, phone_e164), business:business_id(name)")
+      .eq("id", doc.id)
+      .maybeSingle();
+    if (!full?.number) {
+      return NextResponse.json({ error: "Send it out first, so it has its number." }, { status: 409 });
+    }
+    let link = "";
+    try {
+      link = absolute(documentUrl(await createDocumentLink(doc.id, doc.business_id)), request);
+    } catch {
+      return NextResponse.json({ error: "We could not make the link just now. Tap again in a moment." }, { status: 500 });
+    }
+    const party =
+      (full.supplier as unknown as { name: string | null; phone_e164: string | null } | null) ??
+      (() => {
+        const c = full.customer as unknown as { display_name: string | null; phone_e164: string | null } | null;
+        return c ? { name: c.display_name, phone_e164: c.phone_e164 } : null;
+      })();
+    const businessName = (full.business as unknown as { name: string } | null)?.name ?? "us";
+    const kind = String(full.type).replace("_", " ");
+    const text = `Hello ${party?.name ?? "there"}, here is your ${kind} ${full.number} from ${businessName} for ${formatGHS(Number(full.total ?? 0))}. You can see it here: ${link}`;
+    return NextResponse.json({
+      link,
+      text,
+      ownWhatsApp: party?.phone_e164 ? whatsappLink(party.phone_e164, text) : `https://wa.me/?text=${encodeURIComponent(text)}`,
     });
   }
 

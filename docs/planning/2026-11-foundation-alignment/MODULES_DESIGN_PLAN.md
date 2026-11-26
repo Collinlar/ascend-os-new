@@ -118,7 +118,7 @@ Tested on live before 0139 with a throwaway ZZ business (an owner, a staff membe
 
 Not built, as decided (decision 4): leave balances ("Leave left"), staff documents, and a time-bound external accountant (Sharing covers an outside accountant). The design's "Business pulse" of sales, bookings and cash is Home's job; Today shows the team's last 7 days instead.
 
-### M3 Documents (built 26 November 2026; 0140 waits to be run)
+### M3 Documents (done, 26 November 2026; 0140 run on live)
 
 Two things the invoice page needed had no function behind them, and one existing button did not do what it said.
 
@@ -132,4 +132,6 @@ Two things the invoice page needed had no function behind them, and one existing
 - **The document page** (`/documents/[id]`): the document as the customer sees it (lines, subtotal, paid, credited, balance due), Payment (total, received, balance, the progress fill, each payment with how, when, who recorded it or that the provider confirmed it, its reference and its receipt), Remind and Record a payment, Reminders, linked documents (made from, became, credited by) with the next step (Make the invoice, Make a proforma, Give money back, Send this out), and the Evidence trail built from the records (drafted, made from, issued, sent or not sent on WhatsApp or email, opened by the customer, reminders, payments, credit notes, paid in full). A receipt points back at the invoice it paid.
 - Pay links, the QR on the invoice, Documents Plus (recurring invoices) and agreements are left off, as decided.
 
-Tested on live before 0140 with a throwaway ZZ business (a quotation made into an invoice, an invoice 12 days overdue, an accepted quotation, a draft): 27 of 27, and in the browser at 1440px and 375px with no horizontal scroll. Payments and reminders are tested once 0140 has run (`liveM3.mjs after0140`).
+Tested on live before 0140 with a throwaway ZZ business (a quotation made into an invoice, an invoice 12 days overdue, an accepted quotation, a draft): 27 of 27, and in the browser at 1440px and 375px with no horizontal scroll. After 0140 ran: 40 of 40, adding a part payment by MoMo with its reference and receipt, the same tap twice, more than is left refused with the amount left, the rest in cash to paid in full, the receipt pointing back, a paid invoice not chased, a quotation refused, and a reminder that cannot go by WhatsApp held back with the merchant's own WhatsApp offered and not counted.
+
+**Found while testing:** every `document.issued` WhatsApp message on live fails too ("WhatsApp will not deliver this outside a customer conversation until the template is approved"), so invoices are not reaching customers by WhatsApp; nothing is charged. The document page now has "Send it from your WhatsApp" (route action `share`: a customer link and the words, opened in the merchant's own WhatsApp). `NEXT_PUBLIC_APP_URL` is not set locally; the reminder and share links fall back to the request's own address, but the messages Ascend sends itself use only that setting, so it must be set on Netlify.

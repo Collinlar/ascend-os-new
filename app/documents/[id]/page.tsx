@@ -6,7 +6,7 @@ import { EmptyState, secondaryAction } from "@/components/shell/Page";
 import { StatusPill, Tag, Timeline, type Tone } from "@/components/shell/Parts";
 import { Icon } from "@/components/shell/icons";
 import { DocumentButtons, RecordPayment } from "@/components/documents/DocumentActions";
-import RemindButton from "@/components/documents/RemindButton";
+import RemindButton, { ShareButton } from "@/components/documents/RemindButton";
 import { MODULES } from "@/lib/nav/modules";
 import { checkPageAccess } from "@/lib/authority/page";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -122,9 +122,12 @@ export default async function DocumentPage({ params }: { params: { id: string } 
               {d.party.name && <Tag>{d.party.kind === "supplier" ? "Supplier" : "Customer"}: {d.party.name}</Tag>}
             </span>
             {d.number && (
-              <a href={`/api/documents/${d.id}/pdf`} target="_blank" rel="noopener noreferrer" className={`${secondaryAction} min-h-[40px]`}>
-                Download the PDF
-              </a>
+              <span className="flex flex-wrap gap-2">
+                <ShareButton documentId={d.id} />
+                <a href={`/api/documents/${d.id}/pdf`} target="_blank" rel="noopener noreferrer" className={`${secondaryAction} min-h-[40px]`}>
+                  Download the PDF
+                </a>
+              </span>
             )}
           </div>
 

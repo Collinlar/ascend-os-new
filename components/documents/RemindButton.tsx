@@ -80,3 +80,49 @@ export default function RemindButton({
     </span>
   );
 }
+
+/** Send the document from the merchant's own WhatsApp, with its link. */
+export function ShareButton({ documentId, label = "Send it from your WhatsApp" }: { documentId: string; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function go() {
+    setBusy(true);
+    setError(null);
+    // Opened before the request so a phone does not treat it as a pop-up.
+    const win = window.open("", "_blank");
+    try {
+      const res = await fetch(`/api/documents/${documentId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "share" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ownWhatsApp) {
+        win?.close();
+        setError(data.error ?? "That did not go through. Tap again.");
+      } else if (win) {
+        win.location.href = data.ownWhatsApp;
+      } else {
+        window.location.href = data.ownWhatsApp;
+      }
+    } catch {
+      win?.close();
+      setError("We could not reach Ascend just now. Check your connection and tap again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <span className="flex flex-col gap-1.5">
+      <button type="button" onClick={go} disabled={busy} className={`${secondaryAction} min-h-[40px] justify-center disabled:opacity-60`}>
+        <Icon name="share" size={15} />
+        {busy ? "Opening WhatsApp..." : label}
+      </button>
+      {error && (
+        <span role="alert" className="text-xs font-semibold text-danger-ink">
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
