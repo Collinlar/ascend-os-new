@@ -100,7 +100,7 @@ export default function BookingList({
     setError(null);
     try {
       const res = await fetch(`/api/services/bookings/${id}`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toStatus: to }),
       });
