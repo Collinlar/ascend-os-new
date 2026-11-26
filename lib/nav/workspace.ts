@@ -65,7 +65,7 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
     requires: ["pos.sell", "shop.orders", "services.bookings", "documents.issue"],
   },
   { href: "/orders", label: "Orders", short: "Orders", icon: "inbox", group: "sell", rank: 3, requires: "shop.orders" },
-  { href: "/shop", label: "Shop", short: "Shop", icon: "store", group: "sell", rank: 10, requires: "shop.storefront" },
+  { href: "/shop", label: "Shop", short: "Shop", icon: "store", group: "sell", rank: 3, requires: "shop.storefront" },
   { href: "/bookings", label: "Bookings", short: "Bookings", icon: "calendar", group: "sell", rank: 4, requires: "services.bookings" },
   {
     href: "/customers",
@@ -169,6 +169,8 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
 const FOLDED_INTO: Record<string, string> = {
   "/team": "/work",
   "/products": "/inventory",
+  // Orders are Shop's Orders tab (Modules M6a).
+  "/orders": "/shop",
 };
 
 /** Whether a business with these capabilities earns a destination, folded

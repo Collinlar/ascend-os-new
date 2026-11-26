@@ -69,14 +69,14 @@ export const MODULES = {
   orders: {
     kicker: "Ascend Shop",
     title: "Orders",
-    icon: "inbox",
-    tagline: "Orders from your shop, from confirming to delivered.",
+    icon: "store",
+    tagline: "Your catalogue, online. Create value first, ask for the rest later.",
   },
   shop: {
     kicker: "Ascend Shop",
     title: "Shop",
     icon: "store",
-    tagline: "Your products online, with one link to share on WhatsApp and Instagram.",
+    tagline: "Your catalogue, online. Create value first, ask for the rest later.",
   },
   money: {
     kicker: "Ascend Money",
@@ -162,4 +162,14 @@ export function inventoryTabs(
       href: key === "products" ? "/products" : key === "stock" ? "/inventory" : `/inventory?tab=${key}`,
       current: key === current,
     }));
+}
+
+/** Shop (Modules M6a): the overview, its orders, and the products on it. */
+export function shopTabs(capabilities: Set<string>, current: "/shop" | "/orders" | "/products", waiting = 0): ModuleTab[] {
+  const tabs: Array<{ label: string; href: string; shown: boolean }> = [
+    { label: "Overview", href: "/shop", shown: earns(capabilities, "/shop") },
+    { label: waiting ? `Orders (${waiting})` : "Orders", href: "/orders", shown: earns(capabilities, "/orders") },
+    { label: "Products", href: "/products", shown: earns(capabilities, "/products") },
+  ];
+  return tabs.filter((t) => t.shown).map(({ label, href }) => ({ label, href, current: href === current }));
 }

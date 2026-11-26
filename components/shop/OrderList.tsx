@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
@@ -16,6 +17,18 @@ export interface OwnerOrder {
   customerPhone: string | null;
   deliveryAddress: string | null;
   lines: Array<{ description: string; quantity: number }>;
+  /** Paid against it so far, by pay link or on the day (0141), less refunds. */
+  paid: number;
+}
+
+/** Where the money stands, said plainly: an order is unpaid until money is recorded. */
+export function paymentState(o: Pick<OwnerOrder, "total" | "paid" | "status">): { text: string; cls: string } {
+  const left = Math.max(0, o.total - o.paid);
+  if (["cancelled", "refunded"].includes(o.status)) return { text: o.status === "refunded" ? "Refunded" : "Not owed", cls: "bg-neutral-100 text-neutral-700" };
+  if (left <= 0.005) return { text: "Paid", cls: "bg-success-tint text-success-ink" };
+  if (o.paid > 0.005) return { text: `Part paid, ${formatGHS(left)} left`, cls: "bg-info-light text-info-ink" };
+  if (o.status === "fulfilled") return { text: "Handed over, not paid", cls: "bg-danger-tint text-danger-ink" };
+  return { text: "Pay on the day", cls: "bg-gold-100 text-gold-700" };
 }
 
 // The one action the owner should take next, per state. Keeping this in one
@@ -76,14 +89,17 @@ export default function OrderList({ orders }: { orders: OwnerOrder[] }) {
   const settled = orders.filter((o) => !OPEN_STATES.includes(o.status));
   const waiting = open.filter((o) => o.status === "pending");
 
+  const unpaid = orders.filter((o) => o.status === "fulfilled" && o.total - o.paid > 0.005);
   const shown =
     filter === "Needs confirming"
       ? waiting
       : filter === "Working on"
         ? open.filter((o) => o.status !== "pending")
-        : filter === "Settled"
-          ? settled
-          : orders;
+        : filter === "Handed over, not paid"
+          ? unpaid
+          : filter === "Settled"
+            ? settled
+            : orders;
 
   return (
     <div>
@@ -97,6 +113,7 @@ export default function OrderList({ orders }: { orders: OwnerOrder[] }) {
         pills={[
           { label: "Needs confirming", count: waiting.length },
           { label: "Working on", count: open.length - waiting.length },
+          { label: "Handed over, not paid", count: unpaid.length },
           { label: "Settled", count: settled.length },
           { label: "Everything" },
         ]}
@@ -171,6 +188,9 @@ function OrderCard({
               >
                 {STATUS_LABEL[order.status]}
               </span>
+              <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-extrabold ${paymentState(order).cls}`}>
+                {paymentState(order).text}
+              </span>
               <span className="text-[12.5px] font-medium text-slate-grey">
                 {timeAgo(order.placedAt)} ·{" "}
                 {order.fulfilment === "pickup"
@@ -229,6 +249,9 @@ function OrderCard({
             Message on WhatsApp
           </a>
         )}
+        <Link href={`/orders/${order.id}`} className="tap flex items-center px-2 text-[13px] font-bold text-teal-dark underline">
+          Open the order
+        </Link>
         <span className="flex-1" />
         <button
           onClick={() => onAct(order.id, "cancelled")}
@@ -244,8 +267,9 @@ function OrderCard({
 
 // One that is finished. Nothing to decide, so nothing but the record.
 function SettledRow({ order }: { order: OwnerOrder }) {
+  const pay = paymentState(order);
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[15px] border border-line-soft bg-white px-[18px] py-3.5">
+    <Link href={`/orders/${order.id}`} className="tap flex items-center justify-between gap-4 rounded-[15px] border border-line-soft bg-white px-[18px] py-3.5 hover:bg-teal-50">
       <div className="flex items-center gap-3.5">
         <span
           aria-hidden
@@ -260,8 +284,11 @@ function SettledRow({ order }: { order: OwnerOrder }) {
           </p>
         </div>
       </div>
-      <p className="num text-[14.5px] font-bold text-ink">{formatGHS(order.total)}</p>
-    </div>
+      <span className="flex flex-col items-end gap-1">
+        <span className="num text-[14.5px] font-bold text-ink">{formatGHS(order.total)}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pay.cls}`}>{pay.text}</span>
+      </span>
+    </Link>
   );
 }
 

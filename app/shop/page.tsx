@@ -1,78 +1,25 @@
-import { ModulePage } from "@/components/shell/Module";
-import { MODULES } from "@/lib/nav/modules";
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import { ModulePage } from "@/components/shell/Module";
+import { secondaryAction } from "@/components/shell/Page";
+import { StatusPill } from "@/components/shell/Parts";
+import { Icon } from "@/components/shell/icons";
+import ShopLink from "@/components/shop/ShopLink";
+import { MODULES, shopTabs } from "@/lib/nav/modules";
 import { currentWorkspace } from "@/lib/nav/workspace";
-import { supabaseServer } from "@/lib/supabase";
 import { originFromRequest } from "@/lib/origin";
 import { formatGHS } from "@/lib/money";
-import ShopLink from "@/components/shop/ShopLink";
+import { loadShopOverview, type ShopOverview } from "@/lib/shop/overview";
 import { checkPageAccess } from "@/lib/authority/page";
 
 export const dynamic = "force-dynamic";
 
-// The Shop set's own home.
-//
-// Everything about the shop used to live on the business dashboard: the
-// link, the switch, the state. That made the dashboard the place where
-// every product set piles up, which is the opposite of a merchant coming
-// in for the one thing they need. A shop has its own front door now, and
-// what the shop knows about itself is behind it.
-
-interface ShopState {
-  slug: string | null;
-  listed: number;
-  sellable: number;
-  waiting: number;
-  working: number;
-  takings: number;
-}
-
-async function loadShop(businessId: string): Promise<ShopState> {
-  const db = supabaseServer();
-
-  const [slugRow, listed, sellable, orders] = await Promise.all([
-    db.from("business").select("shop_slug").eq("id", businessId).maybeSingle(),
-    db
-      .from("catalogue_item")
-      .select("id, channel_listing!inner(channel, visible)", {
-        count: "exact",
-        head: true,
-      })
-      .eq("business_id", businessId)
-      .eq("active", true)
-      .eq("channel_listing.channel", "shop")
-      .eq("channel_listing.visible", true),
-    db
-      .from("catalogue_item")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .eq("active", true)
-      .not("base_price", "is", null),
-    db
-      .from("shop_order")
-      .select("status, total, placed_at")
-      .eq("business_id", businessId)
-      .gte("placed_at", new Date(Date.now() - 30 * 86400000).toISOString()),
-  ]);
-
-  const rows = (orders.data ?? []) as Array<{ status: string; total: number }>;
-  const working = rows.filter((o) =>
-    ["confirmed", "preparing", "ready", "out_for_delivery"].includes(o.status)
-  ).length;
-
-  return {
-    slug: (slugRow.data?.shop_slug as string | null) ?? null,
-    listed: listed.count ?? 0,
-    sellable: sellable.count ?? 0,
-    waiting: rows.filter((o) => o.status === "pending").length,
-    working,
-    takings: rows
-      .filter((o) => o.status === "fulfilled")
-      .reduce((sum, o) => sum + Number(o.total), 0),
-  };
-}
+// Shop, Overview (Modules M6a). Whether the shop is live and what a
+// customer is told about it; the last 30 days; what is selling and what is
+// running low; what Discover brought; and what is waiting on the owner.
+// Payment is on the day until online payments arrive, and the page says so
+// rather than drawing a checkout funnel nothing measures.
 
 export default async function ShopHome() {
   // Phase 1 authority check: records what it decides here, and acts on it
@@ -81,124 +28,191 @@ export default async function ShopHome() {
 
   const workspace = await currentWorkspace().catch(() => null);
   if (!workspace) redirect("/onboarding");
-
   // Not a paywall. A business without the shop is sent to the room where
   // taking it on is explained, rather than shown a door that does nothing.
   if (!workspace.capabilities.has("shop.storefront")) redirect("/grow");
 
-  const shop = await loadShop(workspace.businessId).catch(
-    (): ShopState => ({
-      slug: null,
-      listed: 0,
-      sellable: 0,
-      waiting: 0,
-      working: 0,
-      takings: 0,
-    })
-  );
+  const o: ShopOverview | null = await loadShopOverview(workspace.businessId).catch(() => null);
+  const url = o?.slug ? `${originFromRequest()}/s/${o.slug}` : null;
+  const tabs = shopTabs(workspace.capabilities, "/shop", o?.waitingFor.confirm ?? 0);
 
-  const url = shop.slug ? `${originFromRequest()}/s/${shop.slug}` : null;
-  const empty = shop.listed === 0;
+  if (!o) {
+    return (
+      <ModulePage identity={MODULES.shop} tabs={tabs}>
+        <p className="py-16 text-center text-neutral-600">We could not load your shop just now. Refresh in a moment.</p>
+      </ModulePage>
+    );
+  }
+
+  const live = o.listed > 0 && Boolean(url);
+  const f = o.figures;
+  const change = f.salesPrev30 > 0 ? Math.round(((f.sales30 - f.salesPrev30) / f.salesPrev30) * 100) : null;
+  const w = o.waitingFor;
+  const waitingTotal = w.confirm + w.pack + w.readyPickup + w.delivering + w.notPaid;
 
   return (
-    <ModulePage identity={MODULES.shop}>
-
-      <div className="max-w-3xl space-y-6">
-        {/* A shop that is open with nothing on it is the failure nobody
-            sees, because the page loads perfectly and is simply empty. */}
-        {empty && (
-          <section className="border border-l-4 border-line border-l-gold bg-white p-5">
-            <h2 className="text-lg font-semibold text-ink">
-              Your page is open, but there is nothing on it yet.
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              {shop.sellable > 0
-                ? `You have ${shop.sellable} product${
-                    shop.sellable === 1 ? "" : "s"
-                  } with a price. Put them on your shop page and customers can order them.`
-                : "Add what you sell, with a price, and it can go on your shop page."}
-            </p>
-            <Link
-              href="/products"
-              className="tap mt-4 inline-flex items-center bg-teal px-5 font-semibold text-white"
-            >
-              {shop.sellable > 0 ? "Put my products on the shop" : "Add what I sell"}
-            </Link>
-          </section>
-        )}
-
-        <ShopLink shopUrl={url} businessName={workspace.businessName} />
-
-        <section className="grid gap-4 sm:grid-cols-3">
-          <Card
-            label="Waiting for you"
-            value={String(shop.waiting)}
-            detail={
-              shop.waiting === 0
-                ? "No new orders to decide on"
-                : "New orders nobody has answered"
-            }
-            tone={shop.waiting > 0 ? "gold" : "plain"}
-          />
-          <Card
-            label="Being prepared"
-            value={String(shop.working)}
-            detail={
-              shop.working === 0 ? "Nothing in progress" : "Confirmed, not yet handed over"
-            }
-          />
-          <Card
-            label="Shop takings"
-            value={formatGHS(shop.takings)}
-            detail="Fulfilled orders, last 30 days"
-          />
-        </section>
-
-        <section className="flex flex-wrap items-center justify-between gap-3 border border-line bg-white px-4 py-3">
-          <p className="text-sm text-ink-muted">
-            <span className="font-medium text-ink">{shop.listed}</span> on your shop
-            page, out of {shop.sellable} you can sell
-          </p>
-          <Link
-            href="/products"
-            className="tap flex items-center text-sm font-medium text-teal-dark"
-          >
-            Choose what shows
-          </Link>
-        </section>
-
-        <Link
-          href="/orders"
-          className="tap flex items-center justify-between rounded-panel border border-line-brand bg-white px-4 py-4"
-        >
-          <span className="text-sm font-medium text-ink">Every order</span>
-          <span className="text-sm text-teal-dark">Open the order list</span>
+    <ModulePage
+      identity={MODULES.shop}
+      tabs={tabs}
+      action={
+        <Link href="/products/add" className="tap inline-flex min-h-[44px] items-center gap-2 rounded-control bg-teal px-4 text-[13.5px] font-bold text-white hover:bg-teal-hover">
+          <Icon name="plus" size={16} />
+          Add products
         </Link>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <section className="flex flex-col gap-3 rounded-[20px] border border-line-brand bg-white px-5 py-4 lg:flex-row lg:items-center">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-teal-50 text-teal-700">
+            <Icon name="store" size={22} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <strong className="font-heading text-[17px] text-ink-heading">{live ? "Your Shop is live" : "Your Shop is not live yet"}</strong>
+              <StatusPill tone="info">Pay on the day</StatusPill>
+              {o.verified && (
+                <StatusPill tone="teal">
+                  <Icon name="shield" size={13} />
+                  Verified business
+                </StatusPill>
+              )}
+            </span>
+            <span className="truncate text-[13px] text-neutral-600">
+              {url ? url.replace(/^https?:\/\//, "") : "No shop address yet"} · {o.listed} product{o.listed === 1 ? "" : "s"} on it
+              {o.places > 1 ? ` · ${o.places} places` : ""}
+            </span>
+            {!live && (
+              <span className="text-[13px] font-semibold text-gold-700">
+                {o.sellable > 0
+                  ? `You have ${o.sellable} product${o.sellable === 1 ? "" : "s"} with a price. Put them on your shop and customers can order.`
+                  : "Add what you sell, with a price, and it can go on your shop."}
+              </span>
+            )}
+          </span>
+          <span className="flex flex-none flex-wrap gap-2">
+            {url && (
+              <a href={url} target="_blank" rel="noopener noreferrer" className={`${secondaryAction} min-h-[40px]`}>
+                See it as a customer
+              </a>
+            )}
+            <Link href="/products" className={`${secondaryAction} min-h-[40px]`}>
+              Choose what shows
+            </Link>
+          </span>
+        </section>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Figure
+            label="Shop sales, last 30 days"
+            value={formatGHS(f.sales30)}
+            sub={change === null ? "Orders accepted, at their full value" : `${change >= 0 ? "Up" : "Down"} ${Math.abs(change)}% on the 30 days before`}
+          />
+          <Figure label="Orders" value={`${f.orders30} accepted`} sub={f.waiting ? `${f.waiting} waiting for you` : "None waiting for you"} warn={f.waiting > 0} />
+          <Figure label="Paid, last 30 days" value={formatGHS(f.paid30)} sub={f.toCollect > 0.005 ? `${formatGHS(f.toCollect)} still to collect` : "Nothing left to collect"} />
+          <Figure
+            label="Repeat buyers"
+            value={f.repeatShare === null ? "None yet" : `${f.repeatShare}%`}
+            sub={f.shopCustomers ? `Of ${f.shopCustomers} Shop customer${f.shopCustomers === 1 ? "" : "s"}` : "Once someone orders"}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <Card title="Selling now" aside={<Link href="/products" className="text-[13px] font-semibold text-teal-dark">All products</Link>}>
+              {o.selling.length === 0 ? (
+                <p className="text-sm text-neutral-600">Nothing sold on the shop in the last 30 days yet. Share your link on WhatsApp to bring the first order in.</p>
+              ) : (
+                o.selling.map((s, i) => (
+                  <div key={s.itemId} className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-neutral-100" : ""}`}>
+                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-neutral-100 text-neutral-600">
+                      <Icon name="tag" size={16} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <strong className="truncate text-[13.5px] text-ink">{s.name}</strong>
+                      <span className="text-xs text-neutral-600">
+                        {s.price !== null ? `${formatGHS(s.price)} · ` : ""}
+                        {s.sold} sold
+                      </span>
+                    </span>
+                    {s.stock === "out" && <StatusPill tone="bad">Out of stock</StatusPill>}
+                    {s.stock === "low" && <StatusPill tone="warn">Low stock: {s.left}</StatusPill>}
+                  </div>
+                ))
+              )}
+            </Card>
+            <ShopLink shopUrl={url} businessName={workspace.businessName} />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <Card title="Waiting for you" aside={<Link href="/orders" className="text-[13px] font-semibold text-teal-dark">Orders</Link>}>
+              {waitingTotal === 0 ? (
+                <p className="text-sm text-neutral-600">Nothing waiting. Every order is answered, handed over and paid.</p>
+              ) : (
+                <div className="flex flex-col gap-2 text-[13.5px]">
+                  {w.confirm > 0 && <Wait label="To confirm" n={w.confirm} tone="warn" />}
+                  {w.pack > 0 && <Wait label="To pack" n={w.pack} tone="info" />}
+                  {w.readyPickup > 0 && <Wait label="Ready for pickup" n={w.readyPickup} tone="ok" />}
+                  {w.delivering > 0 && <Wait label="Out for delivery" n={w.delivering} tone="teal" />}
+                  {w.notPaid > 0 && <Wait label="Handed over, not recorded as paid" n={w.notPaid} tone="bad" />}
+                </div>
+              )}
+            </Card>
+            {workspace.capabilities.has("discover.listing") && (
+              <section className="flex flex-col gap-2 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
+                <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-teal-700">
+                  <Icon name="target" size={15} />
+                  Discover
+                </span>
+                <strong className="text-[14px] text-ink">
+                  {o.discover.visits30 + o.discover.clicks30 > 0
+                    ? `${o.discover.visits30 + o.discover.clicks30} people came from Discover in 30 days`
+                    : o.discover.listed
+                      ? "Nobody has come from Discover in 30 days yet"
+                      : "You are not on Discover yet"}
+                </strong>
+                <span className="text-[12.5px] leading-relaxed text-neutral-700">
+                  Customers nearby find you on Discover. Promoting puts you higher, marked Sponsored.
+                </span>
+                <Link href="/promote" className="tap flex min-h-[40px] items-center gap-1 self-start text-[13px] font-bold text-teal-dark">
+                  Promote your shop
+                  <Icon name="chev" size={15} />
+                </Link>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
     </ModulePage>
   );
 }
 
-function Card({
-  label,
-  value,
-  detail,
-  tone = "plain",
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone?: "plain" | "gold";
-}) {
+function Figure({ label, value, sub, warn }: { label: string; value: string; sub: string; warn?: boolean }) {
   return (
-    <div
-      className={`bg-white px-4 py-4 ${
-        tone === "gold" ? "border border-l-4 border-line border-l-gold" : "border border-line"
-      }`}
-    >
-      <p className="text-sm text-ink-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
-      <p className="mt-1 text-xs text-ink-muted">{detail}</p>
+    <div className="flex flex-col gap-1 rounded-[18px] border border-line-brand bg-white px-4 py-3.5">
+      <span className="text-[12.5px] text-neutral-600">{label}</span>
+      <span className="num font-heading text-[22px] font-extrabold text-ink-heading">{value}</span>
+      <span className={`text-xs ${warn ? "font-semibold text-gold-700" : "text-neutral-600"}`}>{sub}</span>
     </div>
+  );
+}
+
+function Card({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-heading text-base font-bold text-ink-heading">{title}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Wait({ label, n, tone }: { label: string; n: number; tone: "warn" | "info" | "ok" | "teal" | "bad" }) {
+  return (
+    <span className="flex items-center justify-between gap-2">
+      <span className="text-ink">{label}</span>
+      <StatusPill tone={tone}>{String(n)}</StatusPill>
+    </span>
   );
 }

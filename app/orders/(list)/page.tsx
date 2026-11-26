@@ -1,5 +1,5 @@
 import { ModulePage } from "@/components/shell/Module";
-import { MODULES } from "@/lib/nav/modules";
+import { MODULES, currentCapabilities, shopTabs } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
 import { activeMembership } from "@/lib/auth/active-business";
@@ -30,6 +30,24 @@ async function loadOrders(): Promise<OwnerOrder[] | null> {
       .order("placed_at", { ascending: false })
       .limit(50);
 
+    // What has been paid against each order (pay links and money taken on
+    // the day, 0141), less refunds.
+    const ids = (data ?? []).map((o) => o.id as string);
+    const paid = new Map<string, number>();
+    if (ids.length) {
+      const { data: pays } = await db
+        .from("payment")
+        .select("source_entity_id, amount, status, reversal_of")
+        .eq("business_id", membership.business_id)
+        .eq("source_entity_type", "shop_order")
+        .in("source_entity_id", ids)
+        .in("status", ["confirmed", "refunded"]);
+      for (const p of pays ?? []) {
+        const sign = p.status === "confirmed" && !p.reversal_of ? 1 : p.status === "refunded" && p.reversal_of ? -1 : 0;
+        paid.set(p.source_entity_id as string, (paid.get(p.source_entity_id as string) ?? 0) + sign * Number(p.amount));
+      }
+    }
+
     return (data ?? []).map((o) => {
       const customer = o.customer as unknown as {
         display_name: string;
@@ -46,6 +64,7 @@ async function loadOrders(): Promise<OwnerOrder[] | null> {
         fulfilment: o.fulfilment,
         total: Number(o.total),
         placedAt: o.placed_at,
+        paid: paid.get(o.id as string) ?? 0,
         customerName: customer?.display_name ?? "Customer",
         customerPhone: customer?.phone_e164 ?? null,
         deliveryAddress: delivery?.address ?? null,
@@ -66,9 +85,10 @@ export default async function Orders() {
   await checkPageAccess("/orders");
 
   const orders = await loadOrders();
+  const waiting = (orders ?? []).filter((o) => o.status === "pending").length;
 
   return (
-    <ModulePage identity={MODULES.orders}>
+    <ModulePage identity={MODULES.orders} tabs={shopTabs(await currentCapabilities(), "/orders", waiting)}>
 
       {orders === null ? (
         <EmptyState

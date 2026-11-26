@@ -219,6 +219,9 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
       when: (b) => (b.purpose === "balance_topup" ? null : "public"),
     }),
   },
+  // Money taken on the day against an order or a booking (0141). The
+  // database asks for orders.manage or bookings.manage, whichever it is for.
+  "payments/record": { POST: member("active", { permission: ["orders.manage", "bookings.manage"] }) },
   "payments/refund": { POST: member({ table: "payment", bodyField: "paymentId" }, { permission: ["refunds.approve"] }) },
 
   // ----- shop orders -----

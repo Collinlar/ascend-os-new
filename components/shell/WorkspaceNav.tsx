@@ -21,7 +21,11 @@ async function waitingWork(
       .select("id", { count: "exact", head: true })
       .eq("business_id", businessId)
       .eq("status", "pending");
-    return [{ href: "/orders", count: count ?? 0 }];
+    // The same count on Shop, which holds Orders once it folds them in.
+    return [
+      { href: "/orders", count: count ?? 0 },
+      { href: "/shop", count: count ?? 0 },
+    ];
   } catch {
     // A badge is a nicety. Losing it must never cost somebody their nav.
     return [];

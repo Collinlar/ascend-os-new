@@ -6,6 +6,7 @@ import { EmptyState, secondaryAction } from "@/components/shell/Page";
 import { Avatar, StatusPill, Timeline, type Tone } from "@/components/shell/Parts";
 import { Icon } from "@/components/shell/icons";
 import BookingActions from "@/components/services/BookingActions";
+import RecordPayment from "@/components/payments/RecordPayment";
 import { MODULES } from "@/lib/nav/modules";
 import { checkPageAccess } from "@/lib/authority/page";
 import { currentWorkspace } from "@/lib/nav/workspace";
@@ -110,6 +111,9 @@ export default async function BookingPage({ params }: { params: { id: string } }
               <Row key={p.id} k={`${p.method}, ${when(p.at)}`} v={formatGHS(p.amount)} />
             ))}
             {balance !== null && <Row k="Still to pay" v={formatGHS(balance)} strong />}
+            {balance !== null && balance > 0.005 && ["confirmed", "in_progress", "completed"].includes(b.status) && (
+              <RecordPayment source="service_booking" sourceId={b.id} left={balance} customerFirst={first} />
+            )}
             {ask && (
               <a href={ask} target="_blank" rel="noopener noreferrer" className={`${secondaryAction} min-h-[40px] justify-center`}>
                 <Icon name="send" size={15} />
