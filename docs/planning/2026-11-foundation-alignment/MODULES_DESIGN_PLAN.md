@@ -350,3 +350,61 @@ The plan said R4 needed no migration. It needs a small one: an order could not c
 - Tested: PGlite 24/24 (0145 applied twice; the desk acting on an overdue report as an admin); live before 0145, 5 checks; the owner's order page at 375; after 0145, 27 on live (the page through each step, the receipt from the link, a report with a photo kept private, the reply, "Still not sorted", the desk, a new link from the owner), the page checked at 375, then removed with the photo.
 
 Round 2 is built: R1 to R5, migrations 0142 to 0145 run on live. Nothing deployed yet.
+
+## 8. Round 3: Promotions, and Plans and billing (plan, 27 November 2026, for Collins to approve)
+
+Source: the same Claude Design project, now at a newer version (34 pages). Compared with what round 2 was built from:
+
+- **Up to date, nothing to build:** Documents, Office, CRM, Shop, Services and the customer's phone and Shop pages. Their only change is the sidebar, which gains **Grow › Promotions** and **Account › Plans and billing**.
+- **New:** two modules, **Ascend Promotions** (5 screens) and **Ascend Plans and billing** (5 screens). Ascend has older versions of both: `/promote` (Discover listings and simple campaigns) and `/billing` (the v3 D3 page).
+
+### Promotions: what the design asks, and what Ascend has
+
+| Design | Ascend today | |
+|---|---|---|
+| Overview: seen, clicks, orders and bookings, earned per GHS 1 spent; "from seen to sold"; every campaign with where, budget, spent, results, status | Campaign list with budget, spent, impressions, clicks, orders, bookings (`campaign_performance`) | Restyle; add the funnel, earned per GHS 1, and per-campaign "where" |
+| Four promotion types: Product, Service, Shop, Location Boost (the design names six; four are drawn) | A campaign promotes one Discover listing | New: campaign type, and what it points at |
+| Who sees it: near which shops, a radius, "people looking for" | No targeting | New: places and radius; search terms from what Discover records (decision 2) |
+| Daily budget and length; pay only for days it runs; pause, resume, extend | One total budget, charged per click (GHS 0.10) | Decision 1 |
+| Estimate: people reached, most you pay, from similar campaigns in 60 days | None | Show a range only when there is enough history (decision 3) |
+| Review before live, "usually within 2 hours" | Listings have review states; campaigns do not | New: a campaign waits for review |
+| Results: by day, where orders came from (Shop, till by phone number, each counter), what people searched | Orders and bookings from Discover clicks, Shop only | Add till sales by the customer's phone number within 7 days (decision 4) |
+| Listing review: a health claim to fix, a removed product with an appeal and evidence | Suspension with a reason; no claim fix, no listing appeal | Build the fix-and-resubmit and the appeal |
+| Reports about the business (anonymous), shown to the owner | Reports go to Ascend; the owner sees order reports (R5) | Show the owner closed outcomes only (decision 5) |
+| Suggestions: quiet booking days, products that convert and are in stock, a branch with few visits | None | Build the three rules |
+| Ascend Balance: your money and sponsored credit apart, credit used first, scope and expiry, history; top up by MoMo | Balance with promo credit kept distinct; top-up needs Paystack | Build the view; top-up waits for Paystack (decision 6) |
+
+### Plans and billing: what the design asks, and what Ascend has
+
+| Design | Ascend today | |
+|---|---|---|
+| What you have: every free, paid, device, usage and sponsored product with why and when it ends; low usage and expiries first; the Account Manager | Active on your business, what you bought, Balance (v3 page) | Restyle and extend; the Account Manager is decision 8 |
+| Suggestions from the numbers (win-back customers, a recurring invoice, a counter terminal for a busy branch), dismissible | "Worth considering" from the price book | Build the rules; dismissals kept per business |
+| The full catalogue: passes, packs, devices, grow and protect | Price book (0065, 0131) | Prices differ or are missing (decision 7) |
+| Bundles Start, Grow and Run for 12 months, with credit for what is already paid | None | Decision 7 |
+| Buying (CRM automation drawn): term, add-on, pay by MoMo, card or bank, switched on when paid, receipt and VAT invoice | Purchases need Paystack | Decision 6 |
+| Usage meters: WhatsApp sends, SMS, Smart Setup, with "add more" | Message sending is metered; no packs to buy | Build the meters; buying waits for Paystack |
+| Every purchase from Ascend with receipts, spend this month, payment methods, billing details | What you have bought | Extend |
+
+### Steps
+
+| Step | What | Migration |
+|---|---|---|
+| **P0 Sidebar** | Grow › Promotions and Account › Plans and billing, as drawn | No |
+| **P1 Promotions overview and results** | Funnel, earned per GHS 1, campaign table, results page, Balance view | Small (campaign fields) |
+| **P2 New campaign** | Types, places and radius, daily budget and length, estimate, review | Yes |
+| **P3 Listing review and reports** | Claim fix and resubmit, listing appeal with evidence, the owner's report outcomes, suggestions | Yes |
+| **P4 Plans and billing** | What you have, suggestions, catalogue, bundles, usage, purchases and receipts | Yes (catalogue, dismissals) |
+| **P5 Paying Ascend** | Top-ups and purchases by MoMo and card | After Paystack |
+
+### Decisions for Collins
+
+1. **How promotion is charged.** The design says daily budget, charged only for days it runs. Ascend charges per click today. *Recommended:* the design's way: a daily budget, charged at the end of each day for what that day used (clicks at the current rate, never above the daily budget), so "most you will pay" is daily budget × days.
+2. **"People looking for".** *Recommended:* the shop picks from the search terms Discover already records for its category near its places; nothing about any one person is used or shown.
+3. **Estimates.** *Recommended:* show a range only when there are at least 10 similar campaigns in 60 days; otherwise say there is not enough history yet.
+4. **Till sales in results.** *Recommended:* yes: a till sale counts when the customer gave the same phone number within 7 days of a click, as the design says.
+5. **Reports shown to the owner.** *Recommended:* the owner sees only closed outcomes (what was reported, what was done), never who reported or anything still being reviewed.
+6. **Paying Ascend.** Top-ups and purchases need Paystack, which is on hold. *Recommended:* build every screen now, with "Ask your Account Manager to add it" or bank transfer recorded by Ascend in place of paying in the app, and switch MoMo and card on with Paystack.
+7. **Prices.** The design's prices differ from the price book: Documents Plus GHS 360, CRM automation GHS 600, Multi-location inventory GHS 900 (book: Advanced Inventory GHS 120 for 30 days), WhatsApp 500 sends GHS 250, SMS 1,000 GHS 180, Smart Setup 100 GHS 250, Enhanced verification GHS 150, verified reports GHS 150 a month, Smart POS GHS 3,500, Counter Register GHS 2,800, bundles Start, Grow, Run. *Needed from you:* confirm these prices, and whether "GHS 150 a month" fits the "no subscription" promise (the design elsewhere says "paid once"). Documents Plus now has a price, so round 2 decision 2 (lock its features once priced) applies: lock them, or keep them free?
+8. **The Account Manager.** The design names one per business ("Ama K.", Book a call). *Recommended:* show the Account Manager only when Ascend has assigned one (admin sets it), else "Talk to Ascend" on WhatsApp.
+9. **Order.** *Recommended:* P0, P1, P2, P3, P4; P5 with Paystack.
