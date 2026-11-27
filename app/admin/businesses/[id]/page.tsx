@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { currentAdmin } from "@/lib/auth/admin";
 import { supabaseServer } from "@/lib/supabase";
 import { PageHeader, PageShell, Panel } from "@/components/shell/Page";
+import { ManagerForm } from "@/components/admin/BillingDesk";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function BusinessPage({ params }: { params: { id: string } 
   if (!b) notFound();
 
   const count = (t: string) => db.from(t).select("id", { count: "exact", head: true }).eq("business_id", b.id);
+  const manager = await db.from("account_manager").select("name, whatsapp").eq("business_id", b.id).maybeSingle().then((x) => (x.error ? null : (x.data as { name: string; whatsapp: string } | null)), () => null);
   const [locations, team, devices, products, customers, lastSale, risk, cases, ents] = await Promise.all([
     db.from("location").select("name, city, active").eq("business_id", b.id).order("created_at"),
     count("business_membership"),
@@ -106,6 +108,14 @@ export default async function BusinessPage({ params }: { params: { id: string } 
         </div>
 
         <div className="flex flex-col gap-4">
+          <Panel className="px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">Account Manager</p>
+            <p className="mb-3 mt-1 text-[13px] text-neutral-600">
+              {manager ? `${manager.name} is shown to the business, with WhatsApp.` : "None yet. The business sees Talk to Ascend."}
+            </p>
+            <ManagerForm businessId={b.id as string} current={manager} />
+          </Panel>
+
           <Panel className="px-5 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">Risk</p>
             <span className={`mt-2 inline-block rounded-full px-3 py-1 text-[13px] font-bold ${RISK_TONE[state] ?? "bg-neutral-100 text-neutral-700"}`}>{state}</span>

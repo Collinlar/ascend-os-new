@@ -115,6 +115,25 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // Logo, colour, Modern and Compact, and own numbering are Documents Plus
+  // (round 3, P4). Going back to the free look is always allowed. Before
+  // 0149 there is no has_documents_plus and nothing is locked.
+  const wantsPlus =
+    Boolean(logo) ||
+    Boolean(accent && body.accentColour !== undefined) ||
+    (body.template !== undefined && body.template !== "classic") ||
+    (prefixes !== undefined && Object.keys(prefixes).length > 0) ||
+    body.numberYear === false;
+  if (wantsPlus) {
+    const { data: plus, error: plusError } = await db.rpc("has_documents_plus", { p_business: body.businessId });
+    if (!plusError && plus !== true) {
+      return NextResponse.json(
+        { error: "Your logo, colour, the Modern and Compact templates and your own numbering come with Documents Plus.", plus: true },
+        { status: 402 }
+      );
+    }
+  }
+
   let logoUrl: string | null | undefined = body.removeLogo ? null : undefined;
   if (logo) {
     // Filed per business. A changed logo is a new object, so documents

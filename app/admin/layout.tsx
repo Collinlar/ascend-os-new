@@ -11,6 +11,7 @@ const ITEMS: ControlNavItem[] = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/businesses", label: "Businesses" },
   { href: "/admin/revenue", label: "Revenue" },
+  { href: "/admin/billing", label: "Payments" },
   { href: "/admin/risk", label: "Risk" },
   { href: "/admin/discover", label: "Discover" },
   { href: "/admin/messaging", label: "Messaging" },

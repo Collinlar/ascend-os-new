@@ -41,6 +41,10 @@ export interface LookData {
   sample: SampleLine[];
   /** False until migration 0142 has run: the new settings cannot be saved. */
   ready: boolean;
+  /** Documents Plus is on (round 3, P4). True before 0149, when nothing is locked. */
+  plus: boolean;
+  /** What Documents Plus costs, when it can be bought. */
+  plusPrice: number | null;
 }
 
 export async function loadLook(businessId: string): Promise<LookData> {
@@ -56,11 +60,13 @@ export async function loadLook(businessId: string): Promise<LookData> {
     ? full.data
     : (await db.from("document_branding").select("trading_name, address_line, phone, email, footer_note, accent_colour").eq("business_id", businessId).maybeSingle()).data) as Record<string, unknown> | null;
 
-  const [biz, place, seq, sample] = await Promise.all([
+  const [biz, place, seq, sample, plus, price] = await Promise.all([
     db.from("business").select("name").eq("id", businessId).maybeSingle(),
     db.from("location").select("address, city").eq("business_id", businessId).eq("active", true).order("created_at").limit(1).maybeSingle(),
     db.from("document_sequence").select("type, period_key, last_number").eq("business_id", businessId),
     sampleLines(businessId),
+    db.rpc("has_documents_plus", { p_business: businessId }).then((r) => (r.error ? true : r.data === true), () => true),
+    db.from("price_book_entry").select("amount").eq("sku", "documents_plus_12m").eq("active", true).maybeSingle().then((r) => (r.error || !r.data ? null : Number(r.data.amount)), () => null),
   ]);
 
   const numberYear = row?.number_year === false ? false : true;
@@ -93,5 +99,7 @@ export async function loadLook(businessId: string): Promise<LookData> {
     next,
     sample,
     ready,
+    plus,
+    plusPrice: price,
   };
 }

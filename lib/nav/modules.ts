@@ -30,6 +30,12 @@ export const MODULES = {
     icon: "target",
     tagline: "Reach people looking for what you sell on Ascend Discover. Paid from your Ascend Balance, never your sales.",
   },
+  billing: {
+    kicker: "Ascend Plans and billing",
+    title: "Plans and billing",
+    icon: "money",
+    tagline: "What you have and why, what would help next, and what you have paid Ascend. Nothing renews by itself.",
+  },
   documents: {
     kicker: "Ascend Documents",
     title: "Documents",
@@ -189,5 +195,15 @@ export function promotionsTabs(current: "/promote" | "/promote/new" | "/promote/
     { label: "New campaign", href: "/promote/new" },
     { label: "Review and reports", href: "/promote/review" },
     { label: "Ascend Balance", href: "/promote/balance" },
+  ].map((t) => ({ ...t, current: t.href === current }));
+}
+
+/** Plans and billing (round 3, P4). */
+export function billingTabs(current: "/billing" | "/billing/add" | "/billing/bundles" | "/billing/usage"): ModuleTab[] {
+  return [
+    { label: "What you have", href: "/billing" },
+    { label: "Add to your business", href: "/billing/add" },
+    { label: "Compare bundles", href: "/billing/bundles" },
+    { label: "Usage and receipts", href: "/billing/usage" },
   ].map((t) => ({ ...t, current: t.href === current }));
 }

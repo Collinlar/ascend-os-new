@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ModulePage } from "@/components/shell/Module";
-import { EmptyState } from "@/components/shell/Page";
+import { EmptyState, secondaryAction } from "@/components/shell/Page";
 import { MODULES, promotionsTabs } from "@/lib/nav/modules";
 import { currentWorkspace } from "@/lib/nav/workspace";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -93,8 +93,11 @@ export default async function BalancePage({ searchParams }: { searchParams: { sh
           <section className="flex flex-col gap-2 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
             <h2 className="font-heading text-base font-bold text-ink-heading">Top up</h2>
             <p className="text-[13px] leading-relaxed text-neutral-700">
-              Topping up by MoMo or card in the app is coming. To add money now, talk to Ascend and pay by bank transfer; it is added to your Balance once the transfer arrives.
+              Topping up by MoMo or card in the app is coming. To add money now, ask for a top-up and pay Ascend by transfer with its reference; it is added to your Balance once Ascend records it.
             </p>
+            <Link href="/billing/get/top-up" className={`${secondaryAction} min-h-[40px] self-start`}>
+              Top up your Balance
+            </Link>
             <p className="text-xs text-neutral-600">Your sales settlements are never touched. GHS 1 in your Balance is worth GHS 1 of promotion.</p>
           </section>
 

@@ -152,7 +152,14 @@ export async function liveLook(businessId: string): Promise<Record<string, unkno
     .select("trading_name, address_line, phone, email, tin, footer_note, accent_colour, template, logo_url, signature_areas")
     .eq("business_id", businessId)
     .maybeSingle();
-  if (!full.error) return (full.data ?? null) as Record<string, unknown> | null;
+  if (!full.error) {
+    const row = (full.data ?? null) as Record<string, unknown> | null;
+    if (!row) return null;
+    // Drafts and previews show what issuing would stamp: without Documents
+    // Plus that is Classic, no logo and no colour (round 3, P4).
+    const plus = await db.rpc("has_documents_plus", { p_business: businessId }).then((r) => (r.error ? true : r.data === true), () => true);
+    return plus ? row : { ...row, template: "classic", logo_url: null, accent_colour: null };
+  }
   // Before 0142 the look's newer columns do not exist yet.
   const { data } = await db
     .from("document_branding")

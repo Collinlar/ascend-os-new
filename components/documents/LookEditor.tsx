@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Icon } from "@/components/shell/icons";
 import { primaryAction, secondaryAction } from "@/components/shell/Page";
 import { Toast, useToast } from "@/components/shell/Toast";
@@ -80,12 +81,15 @@ export default function LookEditor({ data }: { data: LookData }) {
     setDirty(true);
   };
 
+  // Without Documents Plus the saved Plus settings stay saved but are not
+  // used: documents are Classic, no logo or colour, standard numbering.
+  const locked = data.ready && !data.plus;
   const shownName = name.trim() || data.businessName;
   const shownAddress = address.trim() || data.place;
-  const prefixOf = (type: string) => (prefixes[type] ?? "").trim().toUpperCase() || KINDS.find((k) => k.type === type)!.standard;
+  const prefixOf = (type: string) => (locked ? "" : (prefixes[type] ?? "").trim().toUpperCase()) || KINDS.find((k) => k.type === type)!.standard;
   const numberOf = (type: string) => {
     const n = String(data.next[type] ?? 1).padStart(4, "0");
-    return `${prefixOf(type)}-${year ? `${new Date().getFullYear()}-` : ""}${n}`;
+    return `${prefixOf(type)}-${year || locked ? `${new Date().getFullYear()}-` : ""}${n}`;
   };
 
   // A logo is turned into a JPEG on white here, at most 400px, so it is
@@ -138,17 +142,22 @@ export default function LookEditor({ data }: { data: LookData }) {
           phone,
           email,
           footerNote: footer,
-          accentColour: accent ?? "",
+          // Without Documents Plus its settings are left as they are.
+          ...(locked ? {} : { accentColour: accent ?? "" }),
           // The rest needs 0142; before it runs only the settings above save.
           ...(data.ready
             ? {
                 tin,
-                template,
                 signatureAreas: signatures,
-                numberPrefixes: Object.fromEntries(KINDS.map((k) => [k.type, (prefixes[k.type] ?? "").trim().toUpperCase() === k.standard ? "" : (prefixes[k.type] ?? "")])),
-                numberYear: year,
-                ...(newLogo ? { logoBase64: newLogo.split(",")[1] } : {}),
-                ...(!logoUrl && L.logoUrl ? { removeLogo: true } : {}),
+                ...(locked
+                  ? {}
+                  : {
+                      template,
+                      numberPrefixes: Object.fromEntries(KINDS.map((k) => [k.type, (prefixes[k.type] ?? "").trim().toUpperCase() === k.standard ? "" : (prefixes[k.type] ?? "")])),
+                      numberYear: year,
+                      ...(newLogo ? { logoBase64: newLogo.split(",")[1] } : {}),
+                      ...(!logoUrl && L.logoUrl ? { removeLogo: true } : {}),
+                    }),
               }
             : {}),
         }),
@@ -171,9 +180,9 @@ export default function LookEditor({ data }: { data: LookData }) {
   }
 
   const look = {
-    template,
-    accent,
-    logoUrl,
+    template: locked ? ("classic" as Template) : template,
+    accent: locked ? null : accent,
+    logoUrl: locked ? null : logoUrl,
     name: shownName,
     address: shownAddress,
     phone: phone.trim(),
@@ -193,6 +202,20 @@ export default function LookEditor({ data }: { data: LookData }) {
           </p>
         )}
 
+        {locked && (
+          <section className="flex flex-col gap-2 rounded-[18px] border border-gold bg-gold-tint px-4 py-3.5">
+            <span className="text-[11px] font-bold uppercase tracking-eyebrow text-gold-ink">Documents Plus</span>
+            <strong className="text-[14px] text-ink">Your logo and colour on every document</strong>
+            <span className="text-[13px] leading-relaxed text-ink">
+              The Modern and Compact templates, your logo, your colour and your own numbering come with Documents Plus
+              {data.plusPrice ? `, GHS ${data.plusPrice.toLocaleString("en-GB")} for 12 months` : ""}. Your details, TIN, terms and signature areas stay free.
+            </span>
+            <Link href="/billing/get/documents_plus_12m" className={`${secondaryAction} min-h-[40px] self-start`}>
+              Get Documents Plus
+            </Link>
+          </section>
+        )}
+
         <Card>
           <H2>Template</H2>
           <div className="grid grid-cols-3 gap-2">
@@ -201,15 +224,16 @@ export default function LookEditor({ data }: { data: LookData }) {
                 key={key}
                 type="button"
                 onClick={() => touch(setTemplate)(key)}
-                aria-pressed={template === key}
-                className={`tap flex flex-col items-center gap-1.5 rounded-[12px] border-2 p-2 ${template === key ? "border-teal-700" : "border-neutral-200 hover:border-teal-brand"}`}
+                disabled={locked && key !== "classic"}
+                aria-pressed={(locked ? "classic" : template) === key}
+                className={`tap flex flex-col items-center gap-1.5 rounded-[12px] border-2 p-2 disabled:opacity-50 ${(locked ? "classic" : template) === key ? "border-teal-700" : "border-neutral-200 hover:border-teal-brand"}`}
               >
                 <Thumb template={key} accent={lookAccent({ template: key, accent }) ?? "#374151"} />
                 <span className="text-[12.5px] font-bold text-ink">{label}</span>
               </button>
             ))}
           </div>
-          <span className="text-xs text-neutral-600">{TEMPLATES.find((t) => t[0] === template)![2]}.</span>
+          <span className="text-xs text-neutral-600">{locked ? "Classic is free. Modern and Compact come with Documents Plus" : TEMPLATES.find((t) => t[0] === template)![2]}.</span>
         </Card>
 
         <Card>
@@ -227,7 +251,7 @@ export default function LookEditor({ data }: { data: LookData }) {
               <strong className="text-[13.5px] text-ink">{logoUrl ? (newLogo ? "New logo, not saved yet" : "Your logo") : "No logo yet"}</strong>
               <span className="text-xs text-neutral-600">A square PNG or JPG works best</span>
             </span>
-            <label className={`${secondaryAction} min-h-[40px] cursor-pointer ${data.ready ? "" : "pointer-events-none opacity-50"}`}>
+            <label className={`${secondaryAction} min-h-[40px] cursor-pointer ${data.ready && !locked ? "" : "pointer-events-none opacity-50"}`} aria-disabled={locked || undefined}>
               {logoUrl ? "Replace" : "Add logo"}
               <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => pickLogo(e.target.files?.[0])} />
             </label>
@@ -244,9 +268,10 @@ export default function LookEditor({ data }: { data: LookData }) {
                 key={c}
                 type="button"
                 onClick={() => touch(setAccent)(c)}
+                disabled={locked}
                 aria-label={label}
                 aria-pressed={accent?.toUpperCase() === c}
-                className="tap h-[34px] w-[34px] flex-none rounded-full"
+                className="tap h-[34px] w-[34px] flex-none rounded-full disabled:opacity-40"
                 style={{ background: c, boxShadow: accent?.toUpperCase() === c ? `0 0 0 3px #fff, 0 0 0 5px ${c}` : "none" }}
               />
             ))}
@@ -289,7 +314,7 @@ export default function LookEditor({ data }: { data: LookData }) {
                     value={prefixes[k.type] ?? ""}
                     onChange={(e) => touch(setPrefixes)({ ...prefixes, [k.type]: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6) })}
                     placeholder={k.standard}
-                    disabled={!data.ready}
+                    disabled={!data.ready || locked}
                     aria-label={`Prefix for ${k.label.toLowerCase()}`}
                     className="mono h-9 w-[72px] rounded-[9px] border border-neutral-200 px-2 text-center text-base uppercase text-ink placeholder:text-neutral-500 focus:border-teal focus:outline-none disabled:opacity-50 sm:text-[13px]"
                   />
@@ -297,7 +322,7 @@ export default function LookEditor({ data }: { data: LookData }) {
                 </span>
               </div>
             ))}
-            <Switch on={year} onFlip={() => touch(setYear)(!year)} title="Add the year" detail={year ? `INV-${new Date().getFullYear()}-0001, starting again each January` : "INV-0001, counting on across the years"} disabled={!data.ready} />
+            <Switch on={year || locked} onFlip={() => touch(setYear)(!year)} title="Add the year" detail={year || locked ? `INV-${new Date().getFullYear()}-0001, starting again each January` : "INV-0001, counting on across the years"} disabled={!data.ready || locked} />
           </div>
           <span className="text-xs leading-relaxed text-neutral-600">
             Numbers never repeat or skip, so every document stays valid evidence. Changing a prefix keeps the count going.

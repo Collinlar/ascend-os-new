@@ -39,11 +39,11 @@ const PRODUCT: Record<string, string> = {
 async function counts() {
   const db = supabaseServer();
   const [appeals, suspended, listed] = await Promise.all([
+    // Since round 3 P3 an appeal or a resubmission waits as pending_review.
     db
       .from("discover_listing")
       .select("id", { count: "exact", head: true })
-      .eq("status", "suspended")
-      .not("appeal_note", "is", null),
+      .eq("status", "pending_review"),
     db
       .from("discover_listing")
       .select("id", { count: "exact", head: true })
@@ -89,6 +89,11 @@ export default async function Admin() {
   const admin = await currentAdmin();
   if (!admin) notFound();
 
+  const waitingPayments = await supabaseServer()
+    .from("ascend_order")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "waiting")
+    .then((x) => x.count ?? 0, () => 0);
   const [f, d, m, r] = await Promise.all([
     figures().catch(() => null),
     counts().catch(() => ({ appeals: 0, suspended: 0, listed: 0 })),
@@ -102,7 +107,8 @@ export default async function Admin() {
     { n: r.riskAppeals, one: "risk appeal to decide", many: "risk appeals to decide", href: "/admin/risk" },
     { n: r.reports, one: "customer report to review", many: "customer reports to review", href: "/admin/risk" },
     { n: m.deletions, one: "request to delete someone's data", many: "requests to delete people's data", href: "/admin/messaging" },
-    { n: d.appeals, one: "Discover appeal", many: "Discover appeals", href: "/admin/discover" },
+    { n: d.appeals, one: "Discover listing waiting for review", many: "Discover listings waiting for review", href: "/admin/discover" },
+    { n: waitingPayments, one: "order waiting for its payment", many: "orders waiting for their payment", href: "/admin/billing" },
     { n: r.signals, one: "risk signal to look at", many: "risk signals to look at", href: "/admin/risk" },
     { n: m.flags, one: "messaging flag", many: "messaging flags", href: "/admin/messaging" },
   ].filter((x) => x.n > 0);
