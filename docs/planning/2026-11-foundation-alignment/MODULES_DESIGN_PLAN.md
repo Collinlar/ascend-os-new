@@ -454,3 +454,65 @@ Approved by Collins on 27 November 2026, all nine as recommended. Prices are the
 - **For Collins**: two settings on Netlify make the pay step complete. `ASCEND_BANK_DETAILS` (the account the business pays, shown on the checkout) and `ASCEND_SUPPORT_WHATSAPP` (Ascend's WhatsApp number for "WhatsApp Ascend" when there is no Account Manager). Without them the page says Ascend sends the details on WhatsApp.
 - Fixed while building: the Control Center overview counted Discover appeals in the shape before P3, so appeals and resubmissions waiting as pending_review were never counted.
 - Tested: PGlite 31/31 (0149 applied twice). Live before 0149, 6 checks, and the five pages and the look page at 1440 and 375 with no sideways scroll. After 0149, 29 on live: prices with Coming and Ask, a suggestion hidden with Not for me, a colour refused without Documents Plus while the free details saved, CRM automation not buyable, Documents Plus asked for with a reference, listed on the admin desk, refused to the owner and without a bank reference, recorded by a temporary ZZ admin, then the colour and Modern saved, the purchase and its receipt shown; a top-up reaching the Balance; an order cancelled; an Account Manager shown to the business. Two first-run misses were the test (a shop-only business has no Documents page; bold text split a phrase); the locked look page was then checked on a documents business, in the browser at 375. The one real business with its own look has its grant until 31 January 2027. Admin, data and orders then removed.
+
+## 9. Round 4: the customer's booking page, and the shop on a laptop (plan, 27 November 2026, for Collins to approve)
+
+Source: four pages from the Claude Design project, attached by Collins: `Ascend Shop Customer Phone`, `Ascend Shop Customer Web`, `Ascend Services Customer Phone` and `Ascend Services Customer Web`. They arrived as bundled pages; the markup was unpacked and read as text.
+
+- **Shop, customer side**: the phone screens are the ones round 2 (R4, R5) was built from, and Ascend matches them. The laptop screens add a few things.
+- **Services, customer side**: the booking page (`/b/[slug]`) was built in M6b from the older customer phone design (service, day and time, person, details, booked). These two designs go much further: categories, home service, classes, quote-first requests, managing a booking afterwards, and the visit after.
+
+Paystack stays on hold, so every screen that takes money online (pay the deposit now, hold the slot for 10 minutes, pay the balance by MoMo, refund to MoMo) is shown as it can work today: pay on the day, or pay the business directly, as the shop does.
+
+What Ascend already has underneath: a booking can be `fixed_slot`, `request_to_book`, `quote_first`, `class_session`, `field_job` or `project`, its status can be `quoted`, and it can carry a `service_address` (0003). Only fixed slots and requests are used today, and only from the business side.
+
+### Services: what the design asks, and what Ascend has
+
+| Design | Ascend today | |
+|---|---|---|
+| The list: category chips (Hair, Nails, Bridal, Classes), "Open today until 8pm", "Next free: today 15:30", each service with its price, length and a tag (30% deposit, Pay after, Quote first, seats left) | A list of services with price, length and deposit | Build: categories from the catalogue's own categories; opening hours from the places (R3); next free from the slots already worked out |
+| At the salon or At my home, with a travel fee and an area | No home-service setting | Decision 2 |
+| A service's page: what it is, where, who does it, the deposit and the change policy | Part of the flow | Restyle |
+| Choose a time: the person first, a month to move through, mornings and afternoons, times in Accra | A day picker, then a person | Restyle as drawn |
+| "Nothing fits? Tell me if a Saturday morning opens up" | Not built | Decision 5 |
+| Your details: name, WhatsApp, home address when at home, a note, the offers opt-in, a summary | Name, phone and a note | Add the opt-in (as the shop does, through `record_consent`) and the summary |
+| Pay the deposit now; the slot held for 10 minutes; approve on your phone | Waits for Paystack; the deposit is told as due on the day | Unchanged until Paystack (decision 7) |
+| You are booked: number, when, who, where, paid and left, what happens next, Add to calendar, Directions, Manage booking | A simpler booked screen | Build: a calendar file, and a map link from the place's address |
+| Manage booking: reschedule with the same person, cancel inside the free window, message the salon | Not built: a customer cannot see a booking after making it | Build a private booking link, like the order link (decision 1) |
+| Classes: a date, seats left, book more than one seat | `class_session` exists as a kind; nothing schedules a class | Decision 3 |
+| Bridal and events: tell us about the day (occasion, date, people, where, what, photos), then the quotation arrives, then accept and pay the deposit | `quote_first` exists as a kind; quotations exist in Documents | Decision 4 |
+| After the visit: the balance, a star rating and a comment only the salon sees, "Book your next visit" with a date | Not built | Decision 6 |
+| The laptop page: the list beside the picker, the price and what is paid when, then one confirm page | The phone page, wider | Build the laptop layout |
+
+### Shop: what the laptop design adds
+
+| Design | Ascend today | |
+|---|---|---|
+| A line across the top (free pickup, same-day delivery, MoMo or card), and a header with Shop all, the categories, Book a service, Track order, Cart | A simpler header | Build; Track order asks for the order's phone number and sends the link again |
+| A hero with "Shop bestsellers" and "Book a bridal date", from the shop's promotion (R3) | The promotion as a banner | Restyle on a laptop only |
+| Category tiles with how many products each has | Category chips | Build |
+| Product page: "How to use", "What is inside", "Good for"; "Buy now" beside Add to cart | One description | Decision 8 |
+| A footer: Visit us (each place with its hours), Help, Payments | Trust lines | Build from the places and R3 settings |
+| A heart to save a product | Not built | Leave out: there are no customer accounts, by design |
+| Tracking shows the rider by name, with Call | Not built | Decision 8 |
+
+### Steps
+
+| Step | What | Migration |
+|---|---|---|
+| **S1 The booking page, and the shop on a laptop** | Services: categories, open today and next free, the person and month picker with mornings and afternoons, the opt-in and summary, the booked screen with Add to calendar and Directions, the laptop layout. Shop: the laptop header, hero, category tiles, footer, Buy now | Small (the product's three sections and the rider, if decision 8 is yes) |
+| **S2 Manage your booking** | A private booking link sent with the booking and from the owner's booking page; reschedule and cancel inside the free window; message the salon; after the visit, the rating and "Book your next visit"; "Nothing fits" requests | Yes (the link, the change window, ratings, requests) |
+| **S3 New kinds of booking** | Home service with a travel fee, classes with seats, quote-first requests that become a quotation in Documents. Each needs its business side too (settings on the service, a class schedule, requests to answer) | Yes |
+| **Later, with Paystack** | Pay the deposit now with the slot held, pay the balance, refunds to MoMo | After Paystack |
+
+### Decisions for Collins
+
+1. **Changing and cancelling.** The design says free changes up to 24 hours before, and later cancellations and no-shows keep the deposit. No such setting exists. *Recommended:* a setting per business, 24 hours by default. Inside it the customer reschedules or cancels from their link; after it the link says to message the salon. Until Paystack, a deposit is paid to the business directly, so the business returns it: the booking page shows "Deposit to return" and the owner marks it returned.
+2. **Home service.** The design limits it to "within 10 km of East Legon, travel GHS 60". Ascend cannot measure the distance to an address yet. *Recommended:* per service, "Also at the customer's home", with a flat travel fee and a line on which areas it covers. A home booking arrives as a request the business accepts, after checking the address.
+3. **Classes.** *Recommended:* the owner schedules a class (date, time, place, who teaches, seats), and customers book one or more seats until it is full. Seats left is worked out from the bookings.
+4. **Quote-first.** *Recommended:* yes. The request (occasion, date, people, where, what, up to 3 photos) reaches the business's Requests. The owner answers with a quotation made in Documents and linked to the request. The customer sees it on their booking link and accepts it, which books the date with the deposit due.
+5. **"Nothing fits".** Telling the customer when a time opens needs Ascend's WhatsApp messages, which wait for Meta's approval. *Recommended:* record the request now and show it to the business, who can message the customer from their own WhatsApp. Ascend sends it automatically once the templates are approved.
+6. **Ratings.** *Recommended:* private to the business, as the design says ("only they see your comment"). Not shown on the shop or Discover, and not part of any score for now. Showing ratings publicly would be a decision of its own.
+7. **Paying online.** *Recommended:* as the shop: until Paystack the screens say what is true (pay the deposit to the business, or on the day), and switch to MoMo and card when Paystack is on.
+8. **The product's sections, and the rider.** *Recommended:* yes to both. The product editor gains three optional fields (How to use, What is inside, Good for), shown only when filled. The owner can name who delivers an order (a name and a phone) when sending it out, and the tracking page shows them with Call.
+9. **Order.** *Recommended:* S1, S2, S3.
