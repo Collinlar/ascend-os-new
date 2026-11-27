@@ -411,11 +411,11 @@ Source: the same Claude Design project, now at a newer version (34 pages). Compa
 
 Approved by Collins on 27 November 2026, all nine as recommended. Prices are the design's (decision 7). Documents Plus is locked in P4, together with a way to get it, so nobody loses a feature they cannot buy.
 
-### P0 Sidebar and P1 Promotions overview (built 27 November 2026; needs 0146)
+### P0 Sidebar and P1 Promotions overview (done, 27 November 2026; 0146 run on live)
 
 - **P0**: the sidebar gains **Grow** (Promotions) and **Account** (Plans and billing), in the design's order: Sell, Customers and money, Grow, Run the business, Account.
 - **Found while building P1**: Discover recorded only that a promotion was seen and clicked. Nothing connected a click to the visit, order or booking after it, so "From seen to sold", orders and "earned per GHS 1" could not be known. **0146** carries the click through: Discover gives each click a private reference (made by the server), the storefront keeps it for that tab and records the visit, and an order or a booking within 7 days is recorded against the click's campaign at its own amount (`attribute_discover`), once. `promotion_figures` and `promotion_days` give the pages their numbers. Nothing reaches the evidence ledger.
 - **Decision 4 cannot be built as approved**: a Discover click is anonymous, so a till sale cannot be matched to it by phone number. Results count Shop orders and bookings, and say so. Asking Discover customers for a number would be its own decision.
 - **Pages**: `/promote` (the four figures, From seen to sold, the campaign table with Pause and Resume, the Balance, the Sponsored rule, and the listings with starting a promotion until P2), `/promote/[id]` (results: figures, clicks and orders by day, where orders came from, spend), `/promote/balance` (your money and sponsored credit apart, the credit's programme and end date, history with one line a day for promotion). Sponsored credit is shown as used first. Top-up says how to add money until Paystack (decision 6); there is no admin tool to record a transfer yet (P4 or P5).
 - Before 0146 the pages still show every campaign with seen and clicks, and "Not yet" where a figure needs tracing.
-- Tested: PGlite 15/15 (0146 applied twice); live before 0146, 11 checks; the three pages at 1440 and 375. `scratchpad/liveP1.mjs after` is ready for after 0146.
+- Tested: PGlite 15/15 (0146 applied twice); live before 0146, 11 checks; the three pages at 1440 and 375. after 0146, 13 on live (a click carried to a visit and a GHS 170 order, "GHS 170 from GHS 0.10"), and in the browser a storefront opened with a click's reference recorded the visit and took the reference off the address; then removed.
