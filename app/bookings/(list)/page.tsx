@@ -1,4 +1,5 @@
 import { ModulePage } from "@/components/shell/Module";
+import WishList, { type WishView } from "@/components/services/WishList";
 import { MODULES, currentCapabilities, servicesTabs } from "@/lib/nav/modules";
 import { supabaseServer } from "@/lib/supabase";
 import { currentPersonId } from "@/lib/auth/session";
@@ -119,9 +120,10 @@ export default async function Bookings({ searchParams }: { searchParams: { day?:
     );
   }
 
-  const [data, dayData] = await Promise.all([
+  const [data, dayData, wishes] = await Promise.all([
     view === "list" ? load() : Promise.resolve(null),
     view === "day" ? loadServicesDay(workspace.businessId, day).catch(() => null) : Promise.resolve(null),
+    loadWishes(workspace.businessId).catch(() => [] as WishView[]),
   ]);
   const label = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const chip = (on: boolean) =>
@@ -212,6 +214,16 @@ export default async function Bookings({ searchParams }: { searchParams: { day?:
                 )}
               </section>
 
+              {wishes.length > 0 && (
+                <section className="flex flex-col gap-3 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-heading text-base font-bold text-ink-heading">Asked for a time</h2>
+                    <StatusPill tone="info">{String(wishes.length)}</StatusPill>
+                  </div>
+                  <WishList businessId={workspace.businessId} businessName={workspace.businessName} wishes={wishes} />
+                </section>
+              )}
+
               {dayData.deposits.length > 0 && (
                 <section className="flex flex-col gap-2.5 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
                   <h2 className="font-heading text-base font-bold text-ink-heading">Waiting on deposits</h2>
@@ -245,4 +257,31 @@ function Fig({ label, value, bad }: { label: string; value: string; bad?: boolea
       <strong className={`num truncate font-heading text-[18px] ${bad ? "text-danger-ink" : "text-ink-heading"}`}>{value}</strong>
     </span>
   );
+}
+
+// "Nothing fits" requests still waiting (round 4, S2). Empty before 0151.
+const DAY_NAMES = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+async function loadWishes(businessId: string): Promise<WishView[]> {
+  const { data, error } = await supabaseServer()
+    .from("booking_wish")
+    .select("id, customer_name, customer_phone, days, part, note, created_at, item:item_id(name), member:membership_id(person:person_id(full_name))")
+    .eq("business_id", businessId)
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (error) return [];
+  return ((data ?? []) as Array<Record<string, unknown>>).map((w) => {
+    const days = ((w.days as number[]) ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DAY_NAMES[d]);
+    const part = w.part === "morning" ? " mornings" : w.part === "afternoon" ? " afternoons" : "";
+    return {
+      id: w.id as string,
+      name: w.customer_name as string,
+      phone: w.customer_phone as string,
+      service: (w.item as { name: string } | null)?.name ?? null,
+      person: (w.member as { person: { full_name: string } | null } | null)?.person?.full_name?.split(/\s+/)[0] ?? null,
+      when: `${days.join(" or ")}${part ? `,${part}` : ""}`.replace(/s,( mornings| afternoons)$/, "$1"),
+      note: (w.note as string) ?? null,
+      askedAt: w.created_at as string,
+    };
+  });
 }

@@ -32,6 +32,14 @@ export interface BookingDetail {
   flow: Array<{ id: string; at: string; title: string; detail?: string; tone: "teal" | "ok" | "warn" | "bad" | "info" | "mute" }>;
   team: Array<{ membershipId: string; name: string }>;
   businessName: string;
+  /** Round 4, S2: who cancelled, a deposit to return, their rating. */
+  care: {
+    cancelledBy: string | null;
+    depositToReturn: number | null;
+    depositReturned: boolean;
+    returnedHow: string | null;
+    rating: { stars: number; comment: string | null } | null;
+  } | null;
 }
 
 const METHOD: Record<string, string> = { cash: "Cash", mobile_money: "Mobile Money", card: "Card", bank_transfer: "Bank transfer", payment_link: "Pay link" };
@@ -118,12 +126,20 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
                   : t === "services.booking.requested" || t === "services.booking.created"
                     ? null
                     : null;
+    if (t === "services.booking.rescheduled") {
+      flow.push({ id: `${t}:${e.occurred_at}`, at: e.occurred_at as string, title: "Moved by the customer", detail: payload.from ? `was ${new Date(payload.from as string).toLocaleString("en-GB", { timeZone: "Africa/Accra", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : undefined, tone: "info" });
+      continue;
+    }
+    if (t === "services.booking.deposit_returned") {
+      flow.push({ id: `${t}:${e.occurred_at}`, at: e.occurred_at as string, title: `Deposit of GHS ${Number(payload.amount ?? 0).toFixed(2)} returned`, detail: who?.full_name ? `by ${who.full_name}` : undefined, tone: "mute" });
+      continue;
+    }
     if (!title) continue;
     flow.push({
       id: `${t}:${e.occurred_at}`,
       at: e.occurred_at as string,
       title,
-      detail: [who?.full_name ? `by ${who.full_name}` : null, to === "cancelled" && b.cancellation_reason ? `"${b.cancellation_reason}"` : null].filter(Boolean).join(", ") || undefined,
+      detail: [payload.by === "customer" ? "by the customer" : who?.full_name ? `by ${who.full_name}` : null, to === "cancelled" && b.cancellation_reason ? `"${b.cancellation_reason}"` : null].filter(Boolean).join(", ") || undefined,
       tone: title === "Did not come" || title === "Cancelled" ? "bad" : title === "Done" ? "ok" : "teal",
     });
   }
@@ -163,6 +179,22 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
     visitNumber: Math.max(1, Number((visits as { count: number | null }).count ?? 1)),
     crm: me ? { spent: Number(me.spent ?? 0), owed: Number(me.owed ?? 0), bookings: Number(me.bookings ?? 0), lastSeen: me.last_seen } : null,
     payments: pays,
+    care: await (async () => {
+      // Before 0151 these are not there.
+      const [c, r] = await Promise.all([
+        db.from("service_booking").select("cancelled_by, deposit_to_return, deposit_returned_at, deposit_return_method").eq("id", id).maybeSingle(),
+        db.from("booking_rating").select("stars, comment").eq("booking_id", id).maybeSingle(),
+      ]);
+      if (c.error) return null;
+      const row = (c.data ?? {}) as Record<string, unknown>;
+      return {
+        cancelledBy: (row.cancelled_by as string) ?? null,
+        depositToReturn: row.deposit_to_return === null || row.deposit_to_return === undefined ? null : Number(row.deposit_to_return),
+        depositReturned: Boolean(row.deposit_returned_at),
+        returnedHow: (row.deposit_return_method as string) ?? null,
+        rating: r.error || !r.data ? null : { stars: Number(r.data.stars), comment: (r.data.comment as string) ?? null },
+      };
+    })(),
     flow,
     team: (members.data ?? []).map((m) => ({ membershipId: m.id as string, name: (m.person as unknown as { full_name: string } | null)?.full_name ?? "A team member" })),
     businessName: (business.data?.name as string | undefined) ?? "us",

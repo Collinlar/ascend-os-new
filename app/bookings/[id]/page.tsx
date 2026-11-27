@@ -6,6 +6,7 @@ import { EmptyState, secondaryAction } from "@/components/shell/Page";
 import { Avatar, StatusPill, Timeline, type Tone } from "@/components/shell/Parts";
 import { Icon } from "@/components/shell/icons";
 import BookingActions from "@/components/services/BookingActions";
+import BookingCustomerCare from "@/components/services/BookingCustomerCare";
 import RecordPayment from "@/components/payments/RecordPayment";
 import { MODULES } from "@/lib/nav/modules";
 import { checkPageAccess } from "@/lib/authority/page";
@@ -129,6 +130,22 @@ export default async function BookingPage({ params }: { params: { id: string } }
               </span>
             )}
           </Card>
+          {b.care && (
+            <Card title={`${first} and this booking`}>
+              <BookingCustomerCare
+                bookingId={b.id}
+                customerFirst={first}
+                customerPhone={b.customer.phone}
+                businessName={b.businessName}
+                serviceName={b.service.name}
+                depositToReturn={b.care.depositToReturn}
+                depositReturned={b.care.depositReturned}
+                returnedHow={b.care.returnedHow}
+                cancelledByCustomer={b.care.cancelledBy === "customer"}
+                rating={b.care.rating}
+              />
+            </Card>
+          )}
           {b.crm && (
             <Card title={`${first} as a customer`}>
               <Row k="Spent with you" v={formatGHS(b.crm.spent)} />

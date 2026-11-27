@@ -137,7 +137,11 @@ async function load(slug: string) {
       .filter(Boolean)
       .join(". ");
 
+    // The free-change window (round 4, S2); null before 0151.
+    const windowHours = await db.rpc("booking_change_window", { p_business: business.id }).then((r) => (r.error ? null : Number(r.data)), () => null);
+
     return {
+      windowHours,
       businessName: business.name,
       city: location?.city ?? null,
       slug: business.shop_slug as string,
@@ -182,8 +186,10 @@ export async function generateMetadata({
 
 export default async function BookingPage({
   params,
+  searchParams,
 }: {
   params: { slug: string };
+  searchParams: { service?: string };
 }) {
   const data = await load(params.slug);
   if (!data) notFound();
@@ -200,6 +206,8 @@ export default async function BookingPage({
         places={data.places}
         services={data.services}
         providers={data.providers}
+        windowHours={data.windowHours}
+        initialServiceId={searchParams.service ?? null}
       />
       {/* Clear of the booking button, which is fixed to the foot of the page. */}
       <div className="mx-auto max-w-md px-6 pb-36 lg:max-w-5xl">

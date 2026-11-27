@@ -8,6 +8,7 @@ import { effectiveAccess } from "@/lib/domains/entitlements";
 import { normalizePhone } from "@/lib/auth/phone";
 import { withAuthority } from "@/lib/authority/with-authority";
 import { businessStatus } from "@/lib/authority/business-status";
+import { bookingPath, createBookingLink } from "@/lib/services/booking-link";
 
 interface Body {
   slug?: string;
@@ -179,8 +180,14 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // Their own link to the booking (round 4, S2). Before 0151 there is none.
+  const managePath = data.booking_id
+    ? await createBookingLink(data.booking_id as string, business.id as string).then(bookingPath, () => null)
+    : null;
+
   return NextResponse.json({
     bookingId: data.booking_id,
+    managePath,
     status: data.status,
     scheduledStart: data.scheduled_start,
     depositRequired: Number(data.deposit_required ?? 0),

@@ -119,6 +119,8 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
     POST: { kind: "public", why: "Recording an anonymous Discover click" },
   },
   "services/book": { POST: { kind: "public", why: "A customer booking" } },
+  "services/wish": { POST: { kind: "public", why: "A customer asking for a time when nothing fits" } },
+  "booking-link": { POST: { kind: "public", why: "A customer moving, cancelling or rating their own booking through its private link; the database checks the window again" } },
   "services/slots": { GET: { kind: "public", why: "A customer choosing a time" } },
   "shop/orders": { POST: { kind: "public", why: "A customer placing an order" } },
   "shop/track": { POST: { kind: "public", why: "A customer finding their own order by its reference and their phone number" } },
@@ -271,6 +273,18 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
       capability: ["services.bookings"],
       assigned: { permission: "bookings.manage_assigned", column: "assigned_membership_id" },
     }),
+  },
+  // The customer's booking link and a deposit returned (round 4, S2); the
+  // database asks for bookings.manage again on a return.
+  "services/bookings/[id]/customer": {
+    POST: member({ table: "service_booking", param: "id" }, {
+      permission: ["bookings.manage", "bookings.manage_assigned"],
+      capability: ["services.bookings"],
+      assigned: { permission: "bookings.manage_assigned", column: "assigned_membership_id" },
+    }),
+  },
+  "services/booking-settings": {
+    POST: member("body", { permission: ["bookings.manage", "business.settings"], capability: ["services.bookings"] }),
   },
 
   // ----- team -----

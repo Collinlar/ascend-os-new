@@ -125,7 +125,13 @@ export default function BookingFlow({
   places,
   services,
   providers,
+  windowHours = null,
+  initialServiceId = null,
 }: {
+  /** Free changes until this many hours before (round 4, S2). */
+  windowHours?: number | null;
+  /** "Book your next visit" opens on the service (round 4, S2). */
+  initialServiceId?: string | null;
   slug: string;
   businessName: string;
   verified: boolean;
@@ -138,9 +144,11 @@ export default function BookingFlow({
   services: BookableService[];
   providers: Provider[];
 }) {
-  const [step, setStep] = useState<Step>("services");
+  const initial = initialServiceId ? services.find((s) => s.id === initialServiceId) ?? null : null;
+  const [step, setStep] = useState<Step>(initial ? "service" : "services");
   const [category, setCategory] = useState<string>("All");
-  const [service, setService] = useState<BookableService | null>(null);
+  const [service, setService] = useState<BookableService | null>(initial);
+  const [wishing, setWishing] = useState(false);
   const [place, setPlace] = useState<BookingPlace | null>(places[0] ?? null);
   // null means anybody: the first person free at that time.
   const [provider, setProvider] = useState<Provider | null>(null);
@@ -155,7 +163,7 @@ export default function BookingFlow({
   const [offers, setOffers] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<{ id: string; start: string; end: string; reference: string } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ id: string; start: string; end: string; reference: string; manage: string | null } | null>(null);
   const [clientRef] = useState(() => newClientRef("book"));
 
   const categories = useMemo(() => {
@@ -244,6 +252,7 @@ export default function BookingFlow({
         start: data.scheduledStart ?? slot.start,
         end: slot.end,
         reference: data.reference ?? `BK-${String(data.bookingId).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+        manage: typeof data.managePath === "string" ? data.managePath : null,
       });
       setStep("done");
     } catch {
@@ -291,6 +300,13 @@ export default function BookingFlow({
           <span>{businessName} confirms on WhatsApp.</span>
           {deposit ? <span>Pay the {formatGHS(deposit)} deposit to {businessName} as they tell you. Nothing was taken here.</span> : <span>You pay {businessName} on the day. Nothing was taken here.</span>}
           <span>Please arrive 10 minutes early.</span>
+          {confirmed.manage && windowHours !== null && (
+            <span>
+              Change or cancel for free until{" "}
+              {new Date(new Date(confirmed.start).getTime() - windowHours * 3600e3).toLocaleString("en-GB", { timeZone: ACCRA, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              .
+            </span>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -312,6 +328,12 @@ export default function BookingFlow({
             </a>
           )}
         </div>
+        {confirmed.manage && (
+          <a href={confirmed.manage} className="tap flex min-h-[48px] items-center justify-center rounded-[14px] bg-teal font-bold text-white">
+            Manage booking
+          </a>
+        )}
+        {confirmed.manage && <p className="text-center text-[12.5px] text-neutral-600">Keep this page: it is your own link to the booking.</p>}
         <button
           type="button"
           onClick={() => {
@@ -322,7 +344,7 @@ export default function BookingFlow({
             setConfirmed(null);
             setStep("services");
           }}
-          className="tap flex min-h-[48px] items-center justify-center rounded-[14px] bg-teal font-bold text-white"
+          className={`tap flex min-h-[48px] items-center justify-center rounded-[14px] font-bold ${confirmed.manage ? "border-[1.5px] border-line-brand bg-white text-teal-800" : "bg-teal text-white"}`}
         >
           Book something else
         </button>
@@ -426,6 +448,9 @@ export default function BookingFlow({
         <div className="mx-4 flex flex-col gap-2 rounded-[16px] bg-neutral-50 px-3.5 py-3.5 text-[12.5px] text-neutral-700">
           <span>Book in a minute. No account needed.</span>
           <span>A deposit, where there is one, holds your time. The rest is paid after.</span>
+          {windowHours !== null && (
+            <span>Free changes up to {windowHours === 0 ? "the start" : windowHours % 24 === 0 ? `${windowHours / 24 === 1 ? "24 hours" : `${windowHours / 24} days`} before` : `${windowHours} hours before`}, from your booking link.</span>
+          )}
           <span>{businessName} confirms your booking on WhatsApp.</span>
         </div>
         <p className="text-center text-[12px] text-neutral-600">Bookings powered by AscendSME</p>
@@ -621,6 +646,19 @@ export default function BookingFlow({
                   )}
                 </>
               )}
+
+              {/* "Nothing fits" (round 4, S2, decision 5). */}
+              {!wishing ? (
+                <button
+                  type="button"
+                  onClick={() => setWishing(true)}
+                  className="tap flex min-h-[44px] items-center gap-2 rounded-[12px] border-[1.5px] border-dashed border-neutral-300 px-3 py-2.5 text-left text-[13px] font-semibold text-neutral-700"
+                >
+                  Nothing fits? Tell {businessName} when suits you
+                </button>
+              ) : (
+                <WishForm slug={slug} businessName={businessName} serviceId={service.id} membershipId={provider?.membershipId ?? null} onClose={() => setWishing(false)} />
+              )}
             </>
           )}
 
@@ -739,5 +777,103 @@ function Field({
         className="h-12 rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 text-[16px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-500 focus:border-teal"
       />
     </label>
+  );
+}
+
+const WEEK: Array<[number, string]> = [
+  [1, "Mon"],
+  [2, "Tue"],
+  [3, "Wed"],
+  [4, "Thu"],
+  [5, "Fri"],
+  [6, "Sat"],
+  [0, "Sun"],
+];
+
+function WishForm({ slug, businessName, serviceId, membershipId, onClose }: { slug: string; businessName: string; serviceId: string; membershipId: string | null; onClose: () => void }) {
+  const [days, setDays] = useState<number[]>([]);
+  const [part, setPart] = useState<"morning" | "afternoon" | "any">("any");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  if (sent) {
+    return (
+      <p role="status" className="rounded-[14px] bg-success-tint px-4 py-3 text-[13.5px] font-semibold text-success-ink">
+        Sent. {businessName} messages you on WhatsApp when a time like that opens up.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2.5 rounded-[16px] border border-neutral-200 px-4 py-3.5">
+      <strong className="text-[14px] text-ink">When would suit you?</strong>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">
+        {WEEK.map(([d, l]) => (
+          <button
+            key={d}
+            type="button"
+            aria-pressed={days.includes(d)}
+            onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
+            className={`tap min-h-[40px] min-w-[48px] rounded-full border-[1.5px] px-3 text-[13px] font-semibold ${days.includes(d) ? "border-teal-700 bg-teal-50 text-teal-800" : "border-neutral-200 text-neutral-700"}`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Part of the day">
+        {(
+          [
+            ["morning", "Mornings"],
+            ["afternoon", "Afternoons"],
+            ["any", "Any time"],
+          ] as Array<["morning" | "afternoon" | "any", string]>
+        ).map(([k, l]) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={part === k}
+            onClick={() => setPart(k)}
+            className={`tap min-h-[40px] rounded-full border-[1.5px] px-3 text-[13px] font-semibold ${part === k ? "border-teal-700 bg-teal-50 text-teal-800" : "border-neutral-200 text-neutral-700"}`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <Field id="wish-name" label="Name" value={name} onChange={setName} placeholder="Who should they ask for?" autoComplete="name" />
+      <Field id="wish-phone" label="WhatsApp number" value={phone} onChange={setPhone} placeholder="024 000 0000" autoComplete="tel" inputMode="tel" />
+      {error && <p role="alert" className="text-[13px] text-danger-ink">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy || days.length === 0 || name.trim().length < 2 || phone.replace(/\D/g, "").length < 9}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              const res = await fetch("/api/services/wish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ slug, itemId: serviceId, membershipId, days, part, name, phone }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) return setError(data.error ?? "That did not go through. Tap again.");
+              setSent(true);
+            } catch {
+              setError("We could not reach the business just now. Tap again.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="tap flex min-h-[44px] items-center rounded-[12px] bg-teal px-4 text-[14px] font-bold text-white disabled:opacity-40"
+        >
+          {busy ? "Sending" : `Tell ${businessName}`}
+        </button>
+        <button type="button" onClick={onClose} className="tap min-h-[44px] px-2 text-[14px] font-semibold text-neutral-700">
+          Not now
+        </button>
+      </div>
+    </div>
   );
 }

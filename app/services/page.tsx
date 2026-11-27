@@ -8,6 +8,7 @@ import { originFromRequest } from "@/lib/origin";
 
 import BookingLink from "@/components/services/BookingLink";
 import ServiceManager from "@/components/services/ServiceManager";
+import ChangeWindow from "@/components/services/ChangeWindow";
 import type { ServiceRow } from "@/app/api/services/offerings/route";
 import { checkPageAccess } from "@/lib/authority/page";
 
@@ -174,6 +175,14 @@ export default async function ServicesHome() {
         </section>
 
         <ServiceManager businessId={workspace.businessId} services={state.services} businessName={workspace.businessName} placeNames={workspace.places.map((p) => p.name)} />
+
+        {/* Round 4, S2: until when customers change bookings themselves. */}
+        <ChangeWindow
+          businessId={workspace.businessId}
+          hours={await supabaseServer()
+            .rpc("booking_change_window", { p_business: workspace.businessId })
+            .then((r) => (r.error ? null : Number(r.data)), () => null)}
+        />
 
         <div className="flex flex-wrap gap-3">
           <Link
