@@ -18,6 +18,8 @@ interface Body {
   customerName?: string;
   customerPhone?: string;
   serviceAddress?: string;
+  /** The Discover click that brought them, if one did (round 3, P1). */
+  discoverRef?: string;
 }
 
 async function handlePOST(request: NextRequest) {
@@ -131,6 +133,16 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(
       { error: "We could not book that just now. Tap again in a moment." },
       { status: 500 }
+    );
+  }
+
+  // Counted for the Discover promotion that brought them, if one did. Never
+  // in the way of the booking itself (round 3, P1).
+  const ref = typeof body.discoverRef === "string" ? body.discoverRef : "";
+  if (/^[a-f0-9]{32}$/.test(ref) && data.booking_id) {
+    await db.rpc("attribute_discover", { p: { ref, step: "booked", business_id: business.id, service_booking_id: data.booking_id } }).then(
+      () => null,
+      () => null
     );
   }
 

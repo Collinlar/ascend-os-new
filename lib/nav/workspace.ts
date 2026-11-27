@@ -126,7 +126,7 @@ const DESTINATIONS: Array<NavItem & { requires: string | string[] }> = [
   // The catalogue. Inside Inventory as its Products tab whenever Inventory
   // is there; on its own for a business that sells without counting stock.
   { href: "/products", label: "Products", short: "Products", icon: "tag", group: "run", rank: 9, requires: "catalogue.core" },
-  { href: "/promote", label: "Promote", short: "Promote", icon: "target", group: "run", rank: 13, requires: "discover.listing" },
+  { href: "/promote", label: "Promotions", short: "Promote", icon: "target", group: "grow", rank: 13, requires: "discover.listing" },
   {
     href: "/readiness",
     label: "Investment readiness",
@@ -200,10 +200,10 @@ const SELF_SERVE: ProductSetKey[] = ["pos", "shop", "services", "documents"];
 
 const BILLING: NavItem = {
   href: "/billing",
-  label: "Plan and billing",
+  label: "Plans and billing",
   short: "Billing",
   icon: "grid",
-  more: true,
+  group: "account",
 };
 
 const HOME: NavItem = { href: "/dashboard", label: "Home", short: "Home", icon: "home" };

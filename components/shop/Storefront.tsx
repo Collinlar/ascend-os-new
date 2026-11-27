@@ -10,6 +10,7 @@ import ProductDetail from "./ProductDetail";
 import StoreBrowse from "./StoreBrowse";
 import { initials, type StorefrontProduct } from "./storefront-parts";
 import { DEFAULT_SETTINGS, type ShopSettings } from "@/lib/shop/settings";
+import { discoverRef, takeDiscoverRef } from "@/lib/discover/ref";
 
 export type { StorefrontProduct } from "./storefront-parts";
 
@@ -106,6 +107,19 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
     window.scrollTo({ top: 0 });
   }, [view, openId]);
 
+  // A Discover click brought them here: count the visit for the promotion
+  // (round 3, P1). Silent, and never in the way.
+  useEffect(() => {
+    const ref = takeDiscoverRef(slug);
+    if (!ref) return;
+    fetch("/api/discover/attribute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ref, slug }),
+      keepalive: true,
+    }).catch(() => null);
+  }, [slug]);
+
   function setQuantity(key: string, wanted: number) {
     // Never more in the basket than the shop has left of a counted product,
     // across all its sizes.
@@ -145,6 +159,7 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           deliveryGps: fulfilment === "merchant_delivery" ? gps : undefined,
           locationId: fulfilment === "pickup" && places.length > 1 ? placeId : undefined,
           marketingOptIn: offers,
+          discoverRef: discoverRef(slug),
           lines: lines.map((l) => ({ itemId: l.product.id, variantId: l.size?.id, quantity: l.quantity })),
         }),
       });

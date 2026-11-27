@@ -24,6 +24,12 @@ export interface ModuleTab {
 }
 
 export const MODULES = {
+  promotions: {
+    kicker: "Ascend Promotions",
+    title: "Promote with Ascend",
+    icon: "target",
+    tagline: "Reach people looking for what you sell on Ascend Discover. Paid from your Ascend Balance, never your sales.",
+  },
   documents: {
     kicker: "Ascend Documents",
     title: "Documents",
@@ -174,4 +180,12 @@ export function shopTabs(capabilities: Set<string>, current: "/shop" | "/orders"
     { label: "Settings", href: "/shop/settings", shown: earns(capabilities, "/shop") },
   ];
   return tabs.filter((t) => t.shown).map(({ label, href }) => ({ label, href, current: href === current }));
+}
+
+/** Promotions (round 3): the overview, each campaign's results, and the Balance. */
+export function promotionsTabs(current: "/promote" | "/promote/balance"): ModuleTab[] {
+  return [
+    { label: "Overview", href: "/promote" },
+    { label: "Ascend Balance", href: "/promote/balance" },
+  ].map((t) => ({ ...t, current: t.href === current }));
 }

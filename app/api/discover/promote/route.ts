@@ -8,7 +8,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
-  action?: "start_campaign" | "pause_campaign" | "appeal";
+  action?: "start_campaign" | "pause_campaign" | "resume_campaign" | "appeal";
   listingId?: string;
   campaignId?: string;
   budget?: number;
@@ -98,6 +98,35 @@ async function handlePOST(request: NextRequest) {
     }
     await db.from("discover_campaign").update({ status: "paused" }).eq("id", campaign.id);
     return NextResponse.json({ paused: true });
+  }
+
+  // Resume what the business paused (round 3, P1): only while the listing
+  // may be shown, budget is left and the end date has not passed.
+  if (body.action === "resume_campaign") {
+    if (!body.campaignId) return NextResponse.json({ error: "Pick a campaign." }, { status: 422 });
+    const { data: campaign } = await db
+      .from("discover_campaign")
+      .select("id, business_id, status, budget, spent, ends_at, listing:listing_id(status)")
+      .eq("id", body.campaignId)
+      .maybeSingle();
+    if (!campaign || campaign.business_id !== membership.business_id) {
+      return NextResponse.json({ error: "We could not find that campaign." }, { status: 404 });
+    }
+    if (campaign.status !== "paused") {
+      return NextResponse.json({ error: "Only a paused campaign can be resumed." }, { status: 409 });
+    }
+    if ((campaign.listing as unknown as { status: string } | null)?.status !== "eligible") {
+      return NextResponse.json({ error: "This listing is not showing on Discover right now, so it cannot be promoted." }, { status: 409 });
+    }
+    if (Number(campaign.spent) >= Number(campaign.budget)) {
+      return NextResponse.json({ error: "The budget for this campaign is used up. Start a new one instead." }, { status: 409 });
+    }
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+    if (campaign.ends_at && (campaign.ends_at as string) < today) {
+      return NextResponse.json({ error: "This campaign has ended. Start a new one instead." }, { status: 409 });
+    }
+    await db.from("discover_campaign").update({ status: "running" }).eq("id", campaign.id).eq("status", "paused");
+    return NextResponse.json({ resumed: true });
   }
 
   if (body.action === "appeal") {

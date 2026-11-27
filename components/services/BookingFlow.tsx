@@ -1,5 +1,6 @@
 "use client";
 
+import { discoverRef } from "@/lib/discover/ref";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatGHS } from "@/lib/money";
 import { newClientRef } from "@/lib/ids";
@@ -165,6 +166,8 @@ export default function BookingFlow({
           scheduledStart: slot.start,
           customerName: name,
           customerPhone: phone,
+          // A Discover click that brought them, for the promotion (round 3, P1).
+          discoverRef: discoverRef(slug),
         }),
       });
       const data = await res.json().catch(() => null);

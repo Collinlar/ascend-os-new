@@ -22,12 +22,16 @@ export interface NavItem {
   rank?: number;
 }
 
-export type NavGroup = "sell" | "money" | "run";
+export type NavGroup = "sell" | "money" | "grow" | "run" | "account";
 
+// In the sidebar's order (round 3, P0): Grow sits before Run the business,
+// and Account holds Plans and billing, as the design draws them.
 export const NAV_GROUP_LABEL: Record<NavGroup, string> = {
   sell: "Sell",
   money: "Customers and money",
+  grow: "Grow",
   run: "Run the business",
+  account: "Account",
 };
 
 // Surfaces that must not carry the workspace nav: the till runs full screen

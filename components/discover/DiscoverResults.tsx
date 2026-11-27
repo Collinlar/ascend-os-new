@@ -48,17 +48,22 @@ function initials(name: string, max = 2) {
 // The click is recorded, then the customer goes where they chose. A failure
 // to record must never stand between them and the business.
 async function go(row: DiscoverRow, href: string) {
+  let target = href;
   try {
-    await fetch("/api/discover", {
+    const res = await fetch("/api/discover", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listingId: row.listing_id, campaignId: row.campaign_id }),
       keepalive: true,
     });
+    // The click's reference goes with the customer to the shop, so an
+    // order that follows can be counted for the promotion (round 3, P1).
+    const out = (await res.json().catch(() => null)) as { ref?: string } | null;
+    if (out?.ref && href.startsWith("/s/")) target = `${href}?dref=${out.ref}`;
   } catch {
     // Ignored on purpose.
   }
-  window.location.href = href;
+  window.location.href = target;
 }
 
 function Thumb({ row, size }: { row: DiscoverRow; size: string }) {

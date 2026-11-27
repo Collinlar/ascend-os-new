@@ -2,6 +2,7 @@
 // how customers find businesses (DSC-003).
 
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
 
@@ -55,12 +56,16 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ error: "Missing listing." }, { status: 422 });
   }
 
+  // The click's private reference, made here so a page cannot invent one.
+  // It rides on the link to the shop so what follows can be counted for
+  // the promotion (round 3, P1).
+  const ref = randomBytes(16).toString("hex");
   const db = supabaseServer();
   const { error } = await db.rpc("record_discover_click", {
     p: {
       listing_id: body.listingId,
       campaign_id: body.campaignId ?? "",
-      session_ref: body.sessionRef ?? null,
+      session_ref: ref,
     },
   });
 
@@ -69,7 +74,7 @@ async function handlePOST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ recorded: false });
   }
-  return NextResponse.json({ recorded: true });
+  return NextResponse.json({ recorded: true, ref });
 }
 
 export const GET = withAuthority("discover", "GET", handleGET);

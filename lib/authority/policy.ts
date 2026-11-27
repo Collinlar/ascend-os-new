@@ -122,6 +122,7 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
   "services/slots": { GET: { kind: "public", why: "A customer choosing a time" } },
   "shop/orders": { POST: { kind: "public", why: "A customer placing an order" } },
   report: { POST: { kind: "public", why: "A customer reporting a problem with a business, 3 a day" } },
+  "discover/attribute": { POST: { kind: "public", why: "A shop visit that followed a Discover click, counted for the promotion" } },
   "order-link/report": { POST: { kind: "public", why: "A customer reporting a problem with their order, from its private link, 3 a day" } },
   "order-link/escalate": { POST: { kind: "public", why: "A customer sending their order report on to Ascend, from its private link" } },
   "order-link/receipt": { GET: { kind: "public", why: "A customer opening the receipt for their order, from its private link" } },

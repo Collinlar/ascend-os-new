@@ -43,10 +43,14 @@ export default function PromoteManager({
   balance,
   listings,
   campaigns,
+  compact = false,
 }: {
   balance: number;
   listings: ListingRow[];
   campaigns: CampaignRow[];
+  /** Inside the Promotions overview (round 3), which draws the figures
+   *  and the campaigns itself: only the listings and starting a promotion. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -90,6 +94,7 @@ export default function PromoteManager({
     <div className="flex flex-col gap-6">
       {error && <p className="rounded-control bg-gold-100 px-4 py-3 text-sm font-semibold text-gold-700">{error}</p>}
 
+      {!compact && (
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
         <Panel className="px-5 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-eyebrow text-neutral-500">Ascend Balance</p>
@@ -106,6 +111,7 @@ export default function PromoteManager({
           </>
         )}
       </div>
+      )}
 
       <section>
         <h2 className="font-heading text-[18px] font-extrabold text-ink-heading">Where you appear</h2>
@@ -230,7 +236,7 @@ export default function PromoteManager({
         </Panel>
       </section>
 
-      {campaigns.length > 0 && (
+      {!compact && campaigns.length > 0 && (
         <section>
           <h2 className="font-heading text-[18px] font-extrabold text-ink-heading">Your promotions</h2>
           <Panel className="mt-3">

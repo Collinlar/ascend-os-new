@@ -25,6 +25,8 @@ interface OrderBody {
   locationId?: string;
   /** Ticked "send me offers" at checkout (R4). Never assumed. */
   marketingOptIn?: boolean;
+  /** The Discover click that brought them, if one did (round 3, P1). */
+  discoverRef?: string;
   lines?: Array<{ itemId: string; variantId?: string | null; quantity: number }>;
 }
 
@@ -193,6 +195,14 @@ async function handlePOST(request: NextRequest) {
       },
       { status: unavailable ? 409 : 500 }
     );
+  }
+
+  // Counted for the Discover promotion that brought them, if one did. Never
+  // in the way of the order itself (round 3, P1).
+  if (typeof body.discoverRef === "string" && /^[a-f0-9]{32}$/.test(body.discoverRef) && !data.duplicate) {
+    await db
+      .rpc("attribute_discover", { p: { ref: body.discoverRef, step: "ordered", business_id: business.id, shop_order_id: data.order_id } })
+      .then(() => null, () => null);
   }
 
   // The customer's private link to follow the order (R5). Before 0145 the
