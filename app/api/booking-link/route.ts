@@ -39,6 +39,17 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json(data);
   }
 
+  // Round 4, S3: the customer accepts their quotation.
+  if (body.action === "accept") {
+    const { data, error } = await db.rpc("accept_booking_quotation", { p: { booking_id: link.bookingId } });
+    if (error) {
+      if (/quotation_expired/.test(error.message)) return NextResponse.json({ error: "This quotation has expired. Message the business for a new one." }, { status: 409 });
+      if (/no_quotation_to_accept|quotation_not_open/.test(error.message)) return NextResponse.json({ error: "There is no open quotation to accept here." }, { status: 409 });
+      return NextResponse.json({ error: "That did not go through. Tap again in a moment." }, { status: 500 });
+    }
+    return NextResponse.json(data);
+  }
+
   if (body.action === "rate") {
     const { error } = await db.rpc("rate_booking", { p: { booking_id: link.bookingId, stars: Number(body.stars), comment: body.comment ?? "" } });
     if (error) {

@@ -33,6 +33,14 @@ export interface BookingDetail {
   team: Array<{ membershipId: string; name: string }>;
   businessName: string;
   /** Round 4, S2: who cancelled, a deposit to return, their rating. */
+  /** Round 4, S3: a class's seats, travel, a quotation request and its quotation. */
+  kind: {
+    model: string;
+    seats: number;
+    travelFee: number | null;
+    request: { occasion: string; date: string | null; people: string; where: string; needs: string[]; note: string; photos: string[] } | null;
+    quotation: { id: string; number: string | null; status: string; total: number } | null;
+  } | null;
   care: {
     cancelledBy: string | null;
     depositToReturn: number | null;
@@ -179,6 +187,31 @@ export async function loadBooking(businessId: string, id: string): Promise<Booki
     visitNumber: Math.max(1, Number((visits as { count: number | null }).count ?? 1)),
     crm: me ? { spent: Number(me.spent ?? 0), owed: Number(me.owed ?? 0), bookings: Number(me.bookings ?? 0), lastSeen: me.last_seen } : null,
     payments: pays,
+    kind: await (async () => {
+      const { data: k, error } = await db.from("service_booking").select("model, seats, travel_fee, request_detail, quotation:quotation_document_id(id, number, status, total)").eq("id", id).maybeSingle();
+      if (error || !k) return null;
+      const d = (k.request_detail ?? null) as Record<string, unknown> | null;
+      const paths = Array.isArray(d?.photos) ? (d!.photos as Array<{ path: string }>).map((p) => p.path).filter(Boolean) : [];
+      const signed = paths.length ? ((await db.storage.from("reports").createSignedUrls(paths, 600)).data ?? []).map((x) => x.signedUrl).filter((u): u is string => Boolean(u)) : [];
+      const q = k.quotation as unknown as { id: string; number: string | null; status: string; total: number } | null;
+      return {
+        model: k.model as string,
+        seats: Number(k.seats ?? 1),
+        travelFee: k.travel_fee === null ? null : Number(k.travel_fee),
+        request: d
+          ? {
+              occasion: String(d.occasion ?? ""),
+              date: (d.date as string) ?? null,
+              people: String(d.people ?? ""),
+              where: String(d.where ?? ""),
+              needs: Array.isArray(d.needs) ? (d.needs as string[]) : [],
+              note: String(d.note ?? ""),
+              photos: signed,
+            }
+          : null,
+        quotation: q ? { id: q.id, number: q.number, status: q.status, total: Number(q.total ?? 0) } : null,
+      };
+    })(),
     care: await (async () => {
       // Before 0151 these are not there.
       const [c, r] = await Promise.all([

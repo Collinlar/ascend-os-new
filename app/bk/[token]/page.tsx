@@ -54,6 +54,21 @@ export default async function BookingLinkPage({ params }: { params: { token: str
     );
   }
 
+  // Round 4, S3: a class's seats, a home visit, a quotation request and
+  // its quotation. Before 0152 these are not there.
+  const extra = await db
+    .from("service_booking")
+    .select("model, seats, service_address, travel_fee, request_detail, quotation_document_id, item:item_id(service_attributes)")
+    .eq("id", link.bookingId)
+    .maybeSingle()
+    .then((r) => (r.error ? null : (r.data as Record<string, unknown> | null)), () => null);
+  const quotationId = (extra?.quotation_document_id as string) ?? null;
+  const quotation = quotationId
+    ? await db.from("document").select("number, status, total, valid_until, lines").eq("id", quotationId).maybeSingle().then((r) => r.data as Record<string, unknown> | null, () => null)
+    : null;
+  const attrs = ((extra?.item as { service_attributes: Record<string, unknown> | null } | null)?.service_attributes ?? {}) as Record<string, unknown>;
+  const detail = (extra?.request_detail as Record<string, unknown> | null) ?? null;
+
   const place = b.location as unknown as { name: string; address: string | null; city: string | null } | null;
   const phone = ((look.data?.phone as string) ?? "").replace(/[^\d+]/g, "");
   const businessName = (biz.data?.name as string) ?? "The business";
@@ -80,6 +95,31 @@ export default async function BookingLinkPage({ params }: { params: { token: str
     rated: Boolean(rating.data),
     businessName,
     slug: (biz.data?.shop_slug as string) ?? null,
+    model: (extra?.model as string) ?? "fixed_slot",
+    seats: Number(extra?.seats ?? 1),
+    homeAddress: (extra?.service_address as string) ?? null,
+    travelFee: extra?.travel_fee === null || extra?.travel_fee === undefined ? null : Number(extra.travel_fee),
+    request: detail
+      ? {
+          occasion: (detail.occasion as string) ?? "",
+          date: (detail.date as string) ?? null,
+          people: (detail.people as string) ?? "",
+          where: (detail.where as string) ?? "",
+          note: (detail.note as string) ?? "",
+          photos: Array.isArray(detail.photos) ? detail.photos.length : 0,
+        }
+      : null,
+    quotation:
+      quotation && quotation.number
+        ? {
+            number: quotation.number as string,
+            status: quotation.status as string,
+            total: Number(quotation.total ?? 0),
+            validUntil: (quotation.valid_until as string) ?? null,
+            lines: ((quotation.lines ?? []) as Array<Record<string, unknown>>).map((l) => ({ description: String(l.description ?? ""), quantity: Number(l.quantity ?? 1), total: Number(l.line_total ?? 0) })),
+            depositPercent: attrs.deposit_percent === undefined ? 30 : Number(attrs.deposit_percent),
+          }
+        : null,
     whatsapp: phone.replace(/^0/, "233").replace(/^\+/, "").length >= 11 ? `https://wa.me/${phone.replace(/^0/, "233").replace(/^\+/, "")}?text=${encodeURIComponent(`Hello, about my booking ${ref}.`)}` : null,
   };
 

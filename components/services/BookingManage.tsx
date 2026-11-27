@@ -33,6 +33,20 @@ export interface ManageView {
   businessName: string;
   slug: string | null;
   whatsapp: string | null;
+  /** Round 4, S3 */
+  model?: string;
+  seats?: number;
+  homeAddress?: string | null;
+  travelFee?: number | null;
+  request?: { occasion: string; date: string | null; people: string; where: string; note: string; photos: number } | null;
+  quotation?: {
+    number: string;
+    status: string;
+    total: number;
+    validUntil: string | null;
+    lines: Array<{ description: string; quantity: number; total: number }>;
+    depositPercent: number;
+  } | null;
 }
 
 const ACCRA = "Africa/Accra";
@@ -57,8 +71,13 @@ export default function BookingManage({ view: v }: { view: ManageView }) {
   const [done, setDone] = useState<string | null>(null);
 
   const freeUntil = v.start ? new Date(new Date(v.start).getTime() - v.windowHours * 3600e3) : null;
-  const open = ["requested", "confirmed"].includes(v.status);
+  const quote = v.model === "quote_first";
+  const isClass = v.model === "class_session";
+  const open = ["requested", "confirmed"].includes(v.status) && !(quote && v.status !== "confirmed");
   const changeable = open && freeUntil !== null && freeUntil.getTime() > Date.now();
+  // A class seat or a quoted day is cancelled, never moved; a time belongs
+  // to the class or to a day planned with the business.
+  const movable = changeable && !isClass && !quote;
   const left = v.price !== null ? Math.max(0, v.price - v.paid) : null;
   const first = v.providerName?.split(/\s+/)[0] ?? null;
 
@@ -69,18 +88,24 @@ export default function BookingManage({ view: v }: { view: ManageView }) {
         ? "Done"
         : v.status === "no_show"
           ? "Missed"
-          : v.status === "requested"
-            ? "Waiting for the business to confirm"
-            : "Coming up";
+          : quote && v.status === "requested"
+            ? "Waiting for your quotation"
+            : quote && v.status === "quoted"
+              ? "Your quotation is here"
+              : v.status === "requested"
+                ? v.homeAddress
+                  ? "Waiting for the business to confirm your address and time"
+                  : "Waiting for the business to confirm"
+                : "Coming up";
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-3.5 px-5 pb-16 pt-6">
       <span className="text-[11px] font-bold uppercase tracking-eyebrow text-teal-700">{kicker}</span>
       <h1 className="font-heading text-[24px] font-extrabold leading-tight text-ink-heading">
-        {v.start ? `${longDay(v.start)}, ${clock(v.start)}` : v.serviceName}
+        {v.start ? `${longDay(v.start)}, ${clock(v.start)}` : v.request?.date ? new Date(`${v.request.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) : v.serviceName}
       </h1>
       <p className="text-[14px] text-neutral-600">
-        {[v.serviceName, first, v.place].filter(Boolean).join(" · ")}
+        {[v.serviceName, quote ? v.request?.occasion : first, v.homeAddress ? "At your home" : quote ? v.request?.where : v.place].filter(Boolean).join(" · ")}
       </p>
 
       {done && <p role="status" className="rounded-[14px] bg-success-tint px-4 py-3 text-[13.5px] font-semibold text-success-ink">{done}</p>}
@@ -88,12 +113,16 @@ export default function BookingManage({ view: v }: { view: ManageView }) {
 
       <div className="rounded-[16px] border border-neutral-200 bg-white">
         <Line k="Booking" v={`${v.reference} · ${v.businessName}`} />
+        {isClass && <Line k="Seats" v={String(v.seats ?? 1)} />}
+        {v.homeAddress && <Line k="Your address" v={v.homeAddress} />}
+        {v.travelFee ? <Line k="Travel to you" v={formatGHS(v.travelFee)} /> : null}
         {v.paid > 0 && <Line k="Paid" v={formatGHS(v.paid)} />}
         {left !== null && v.status !== "cancelled" && <Line k={v.status === "completed" ? "Left to pay" : "Left to pay after"} v={formatGHS(left)} />}
         {v.status === "cancelled" && v.depositToReturn ? (
           <Line k="Deposit" v={v.depositReturned ? `${formatGHS(v.depositToReturn)} returned` : `${formatGHS(v.depositToReturn)} to come back to you`} />
         ) : null}
-        <Line k="Where" v={v.place ?? "Ask the business"} last />
+        {!v.homeAddress && !quote && <Line k="Where" v={v.place ?? "Ask the business"} last />}
+        {quote && v.request?.people ? <Line k="People" v={v.request.people} last /> : null}
       </div>
 
       {v.status === "cancelled" && (
@@ -116,9 +145,34 @@ export default function BookingManage({ view: v }: { view: ManageView }) {
         </p>
       )}
 
+      {quote && v.status === "requested" && v.request && (
+        <div className="flex flex-col gap-1 rounded-[16px] bg-neutral-50 px-4 py-3 text-[13px] text-neutral-700">
+          <strong className="text-ink">What you asked for</strong>
+          {v.request.note && <span>{v.request.note}</span>}
+          {v.request.photos > 0 && <span>{v.request.photos} inspiration photo{v.request.photos === 1 ? "" : "s"} sent.</span>}
+          <span>{v.businessName} sends your quotation on WhatsApp, and it shows here. Nothing is paid until you accept it.</span>
+        </div>
+      )}
+
+      {quote && v.quotation && (
+        <QuotationCard
+          v={v}
+          busy={busy}
+          onAccept={async () => {
+            setBusy(true);
+            setError(null);
+            const r = await act(v.token, { action: "accept" });
+            setBusy(false);
+            if (!r.ok) return setError(r.data.error ?? "That did not go through. Tap again.");
+            setDone(`Accepted. ${v.businessName} has been told.`);
+            router.refresh();
+          }}
+        />
+      )}
+
       {changeable && mode === "view" && (
         <div className="flex gap-2">
-          <button type="button" onClick={() => { setMode("move"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800">
+          <button type="button" hidden={!movable} onClick={() => { setMode("move"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800">
             Pick a new time
           </button>
           <button type="button" onClick={() => { setMode("cancel"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-neutral-200 bg-white text-[14px] font-bold text-danger-ink">
@@ -349,5 +403,51 @@ function Line({ k, v, last }: { k: string; v: string; last?: boolean }) {
       <span className="text-neutral-600">{k}</span>
       <strong className="text-right text-ink">{v}</strong>
     </span>
+  );
+}
+
+function QuotationCard({ v, busy, onAccept }: { v: ManageView; busy: boolean; onAccept: () => void }) {
+  const q = v.quotation!;
+  const deposit = Math.round(q.total * q.depositPercent) / 100;
+  const expired = q.validUntil ? new Date(`${q.validUntil}T23:59:59Z`).getTime() < Date.now() : false;
+  const accepted = q.status === "accepted" || v.status === "confirmed";
+  return (
+    <div className="flex flex-col gap-2.5 rounded-[16px] border border-neutral-200 px-4 py-3.5">
+      <span className="flex items-baseline justify-between gap-2">
+        <strong className="text-[14px] text-ink">Quotation {q.number}</strong>
+        {q.validUntil && <span className="text-[12px] text-neutral-600">Valid until {new Date(`${q.validUntil}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>}
+      </span>
+      <div className="flex flex-col gap-1.5">
+        {q.lines.map((l, i) => (
+          <span key={i} className="flex items-baseline justify-between gap-3 text-[13px]">
+            <span className="text-ink">
+              {l.description}
+              {l.quantity > 1 ? ` × ${l.quantity}` : ""}
+            </span>
+            <span className="num flex-none text-ink">{formatGHS(l.total)}</span>
+          </span>
+        ))}
+        <span className="flex justify-between border-t border-neutral-100 pt-2 text-[14px] font-bold text-ink">
+          <span>Total</span>
+          <span className="num">{formatGHS(q.total)}</span>
+        </span>
+      </div>
+      {accepted ? (
+        <p className="text-[13px] text-success-ink">
+          Accepted. {deposit > 0 ? `Pay the ${formatGHS(deposit)} deposit to ${v.businessName} as they tell you; the rest is paid on the day.` : `You pay ${v.businessName} on the day.`}
+        </p>
+      ) : expired ? (
+        <p className="text-[13px] text-neutral-700">This quotation has expired. Message {v.businessName} for a new one.</p>
+      ) : (
+        <>
+          <p className="text-[12.5px] text-neutral-600">
+            {deposit > 0 ? `To confirm: a ${q.depositPercent}% deposit, ${formatGHS(deposit)}, paid to ${v.businessName} directly. The rest on the day.` : "Nothing to pay now."}
+          </p>
+          <button type="button" disabled={busy} onClick={onAccept} className="tap flex min-h-[48px] items-center justify-center rounded-[14px] bg-teal font-bold text-white disabled:opacity-50">
+            {busy ? "Accepting" : `Accept the quotation, ${formatGHS(q.total)}`}
+          </button>
+        </>
+      )}
+    </div>
   );
 }

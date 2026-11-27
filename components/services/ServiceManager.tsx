@@ -19,6 +19,11 @@ const BLANK = {
   durationMinutes: "60",
   bufferMinutes: "0",
   depositAmount: "",
+  bookingModel: "fixed_slot" as "fixed_slot" | "class_session" | "quote_first",
+  homeEnabled: false,
+  travelFee: "",
+  areas: "",
+  depositPercent: "30",
 };
 
 export default function ServiceManager({
@@ -54,6 +59,11 @@ export default function ServiceManager({
       durationMinutes: String(row.durationMinutes),
       bufferMinutes: String(row.bufferMinutes),
       depositAmount: row.depositAmount === null ? "" : String(row.depositAmount),
+      bookingModel: row.bookingModel ?? "fixed_slot",
+      homeEnabled: row.home?.enabled ?? false,
+      travelFee: row.home?.enabled ? String(row.home.travelFee) : "",
+      areas: row.home?.areas ?? "",
+      depositPercent: row.depositPercent === null || row.depositPercent === undefined ? "30" : String(row.depositPercent),
     });
     setEditing(row.id);
     setError(null);
@@ -71,6 +81,9 @@ export default function ServiceManager({
       durationMinutes: Number(form.durationMinutes),
       bufferMinutes: Number(form.bufferMinutes || 0),
       depositAmount: form.depositAmount.trim() === "" ? null : Number(form.depositAmount),
+      bookingModel: form.bookingModel,
+      home: { enabled: form.bookingModel === "fixed_slot" && form.homeEnabled, travelFee: Number(form.travelFee || 0), areas: form.areas },
+      depositPercent: form.bookingModel === "quote_first" ? Number(form.depositPercent || 0) : null,
     };
 
     try {
@@ -195,6 +208,62 @@ export default function ServiceManager({
                 numeric
               />
             </div>
+
+            {/* How it is booked (round 4, S3). */}
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-xs font-bold text-ink-muted">How customers book it</legend>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {(
+                  [
+                    ["fixed_slot", "Pick a time", "They choose a free time with you"],
+                    ["class_session", "A class", "You schedule classes; they book seats"],
+                    ["quote_first", "Quote first", "They tell you about the day; you send a quotation"],
+                  ] as Array<["fixed_slot" | "class_session" | "quote_first", string, string]>
+                ).map(([k, l, d]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={form.bookingModel === k}
+                    onClick={() => setForm((f) => ({ ...f, bookingModel: k }))}
+                    className={`tap flex flex-col items-start gap-0.5 rounded-control border-[1.5px] px-3 py-2.5 text-left ${form.bookingModel === k ? "border-teal bg-teal-50" : "border-line bg-white"}`}
+                  >
+                    <span className="text-[13.5px] font-bold text-ink">{l}</span>
+                    <span className="text-[12px] text-neutral-600">{d}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            {form.bookingModel === "fixed_slot" && (
+              <div className="flex flex-col gap-2.5 rounded-control border border-line px-3.5 py-3">
+                <label className="flex min-h-[44px] cursor-pointer items-center gap-3">
+                  <input type="checkbox" checked={form.homeEnabled} onChange={(e) => setForm((f) => ({ ...f, homeEnabled: e.target.checked }))} className="h-5 w-5 accent-teal-700" />
+                  <span className="text-[13.5px] font-semibold text-ink">Also at the customer&apos;s home</span>
+                </label>
+                {form.homeEnabled && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field id="svc-travel" label="Travel fee in GHS" value={form.travelFee} onChange={(v) => setForm((f) => ({ ...f, travelFee: v }))} placeholder="60" numeric />
+                    <Field id="svc-areas" label="Where you go" value={form.areas} onChange={(v) => setForm((f) => ({ ...f, areas: v }))} placeholder="Within Accra" />
+                    <p className="text-[12px] text-neutral-600 sm:col-span-2">A home booking comes to you as a request. You accept it once you have checked the address.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {form.bookingModel === "quote_first" && (
+              <Field
+                id="svc-deposit-pct"
+                label="Deposit when they accept your quotation, in percent"
+                value={form.depositPercent}
+                onChange={(v) => setForm((f) => ({ ...f, depositPercent: v }))}
+                placeholder="30"
+                numeric
+              />
+            )}
+
+            {form.bookingModel === "class_session" && (
+              <p className="text-[12.5px] text-neutral-600">The price is for one seat. Schedule each class below once it is saved.</p>
+            )}
 
             <Field
               id="svc-deposit"

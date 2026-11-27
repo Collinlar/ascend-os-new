@@ -29,6 +29,12 @@ export interface ServiceRow {
   bufferMinutes: number;
   depositAmount: number | null;
   active: boolean;
+  /** How it is booked (round 4, S3): a time, a class, or a quotation first. */
+  bookingModel: "fixed_slot" | "class_session" | "quote_first";
+  /** Also at the customer's home, with a flat travel fee (decision 2). */
+  home: { enabled: boolean; travelFee: number; areas: string };
+  /** The deposit on an accepted quotation, as a share of it. */
+  depositPercent: number | null;
 }
 
 interface Body {
@@ -41,7 +47,12 @@ interface Body {
   bufferMinutes?: number;
   depositAmount?: number | null;
   active?: boolean;
+  bookingModel?: string;
+  home?: { enabled?: boolean; travelFee?: number | null; areas?: string | null };
+  depositPercent?: number | null;
 }
+
+const MODELS = ["fixed_slot", "class_session", "quote_first"];
 
 // Owner or manager. A service's price and duration are what the business
 // charges and promises, so a cashier does not set them.
@@ -80,6 +91,17 @@ function validate(body: Body): string | null {
   ) {
     return "The deposit cannot be more than the whole price.";
   }
+  if (body.bookingModel !== undefined && !MODELS.includes(body.bookingModel)) {
+    return "Pick how it is booked: a time, a class, or a quotation first.";
+  }
+  if (body.home?.enabled) {
+    const fee = Number(body.home.travelFee ?? 0);
+    if (!(fee >= 0 && fee <= 5000)) return "A travel fee is between GHS 0 and GHS 5,000.";
+    if ((body.home.areas ?? "").trim().length < 3) return "Say where you go, like Within Accra or East Legon and Airport.";
+  }
+  if (body.depositPercent !== null && body.depositPercent !== undefined && !(body.depositPercent >= 0 && body.depositPercent <= 100)) {
+    return "A deposit share is between 0 and 100 percent.";
+  }
   return null;
 }
 
@@ -87,10 +109,16 @@ function attributes(body: Body) {
   return {
     duration_minutes: body.durationMinutes,
     buffer_minutes: body.bufferMinutes ?? 0,
-    // Every slot offered is a real slot somebody can take, so the model is
-    // fixed_slot. The others in the enum are a different product.
-    booking_model: "fixed_slot",
+    // How it is booked (round 4, S3): a real slot, a class with seats, or
+    // a quotation first. Home service is only for a slot.
+    booking_model: MODELS.includes(body.bookingModel ?? "") ? body.bookingModel : "fixed_slot",
     ...(body.depositAmount ? { deposit_amount: body.depositAmount } : {}),
+    ...((body.bookingModel ?? "fixed_slot") === "fixed_slot" && body.home?.enabled
+      ? { home: { enabled: true, travel_fee: Number(body.home.travelFee ?? 0), areas: (body.home.areas ?? "").trim().slice(0, 120) } }
+      : {}),
+    ...(body.bookingModel === "quote_first" && body.depositPercent !== null && body.depositPercent !== undefined
+      ? { deposit_percent: Number(body.depositPercent) }
+      : {}),
   };
 }
 
@@ -260,6 +288,12 @@ function toRow(item: {
     bufferMinutes: Number(attrs.buffer_minutes ?? 0),
     depositAmount: attrs.deposit_amount ? Number(attrs.deposit_amount) : null,
     active: item.active,
+    bookingModel: (MODELS.includes(String(attrs.booking_model)) ? attrs.booking_model : "fixed_slot") as ServiceRow["bookingModel"],
+    home: (() => {
+      const h = (attrs.home ?? {}) as { enabled?: boolean; travel_fee?: number; areas?: string };
+      return { enabled: h.enabled === true, travelFee: Number(h.travel_fee ?? 0), areas: h.areas ?? "" };
+    })(),
+    depositPercent: attrs.deposit_percent === undefined ? null : Number(attrs.deposit_percent),
   };
 }
 

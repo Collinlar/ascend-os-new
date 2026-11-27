@@ -318,6 +318,15 @@ async function handlePOST(request: NextRequest) {
       createdBy: membership.id,
     });
 
+    // A quotation made from a quote-first request answers it (round 4,
+    // S3): the booking is marked quoted and the customer sees it on their
+    // booking link once it is issued. Any other booking is left alone.
+    if (type === "quotation" && sourceType === "service_booking" && sourceId) {
+      await db
+        .rpc("link_booking_quotation", { p: { business_id: body.businessId, actor_membership_id: membership.id, booking_id: sourceId, document_id: documentId } })
+        .then(() => null, () => null);
+    }
+
     if (body.issueNow) {
       const channels = Array.isArray(body.sendBy)
         ? body.sendBy.filter((c): c is "whatsapp" | "email" => c === "whatsapp" || c === "email")

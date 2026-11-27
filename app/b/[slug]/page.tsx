@@ -98,8 +98,27 @@ async function load(slug: string) {
         depositAmount: attrs.deposit_amount ? Number(attrs.deposit_amount) : null,
         category: (item.category as string) || null,
         photo: (item.photo_url as string) || null,
+        // How it is booked, and home service (round 4, S3).
+        model: (["class_session", "quote_first"].includes(String(attrs.booking_model)) ? attrs.booking_model : "fixed_slot") as BookableService["model"],
+        home: (() => {
+          const h = (attrs.home ?? {}) as { enabled?: boolean; travel_fee?: number; areas?: string };
+          return h.enabled ? { travelFee: Number(h.travel_fee ?? 0), areas: h.areas ?? "" } : null;
+        })(),
       };
     });
+
+    // Upcoming classes for each class service (round 4, S3). None before 0152.
+    for (const s of services.filter((x) => x.model === "class_session")) {
+      const { data: rows } = await db.rpc("class_sessions", { p_business: business.id, p_item: s.id }).then((r) => r, () => ({ data: [] }));
+      s.sessions = ((rows ?? []) as Array<Record<string, unknown>>).map((c) => ({
+        id: c.id as string,
+        startsAt: c.starts_at as string,
+        endsAt: c.ends_at as string,
+        seatsLeft: Number(c.seats_left),
+        place: (c.place as string) ?? null,
+        teacher: (c.teacher as string) ?? null,
+      }));
+    }
 
     // "Open today until 8pm": the latest anybody works today (round 4, S1).
     // Ascend keeps no opening hours, so the team's own hours say it.
@@ -115,7 +134,7 @@ async function load(slug: string) {
     // The next free time: the shortest service, anybody, today and the next
     // few days. A handful of lookups, so the page stays quick.
     let nextFree: string | null = null;
-    const shortest = services.slice().sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
+    const shortest = services.filter((s) => s.model === "fixed_slot").sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
     if (shortest && providers.length > 0) {
       for (let i = 0; i < 4 && !nextFree; i += 1) {
         const day = new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });

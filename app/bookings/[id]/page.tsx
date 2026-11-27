@@ -91,11 +91,49 @@ export default async function BookingPage({ params }: { params: { id: string } }
               <Fact label="When" value={b.start ? when(b.start) : "Not set"} sub={b.end ? `Until about ${clock(b.end)}` : undefined} />
               <Fact label="With" value={b.providerName ?? "Nobody yet"} />
               <Fact label="Where" value={b.serviceAddress ?? b.placeName ?? "Not set"} sub={b.serviceAddress ? "At their place" : undefined} />
-              <Fact label="Price" value={b.price !== null ? formatGHS(b.price) : "Not set"} />
+              <Fact
+                label="Price"
+                value={b.price !== null ? formatGHS(b.price) : "Not set"}
+                sub={b.kind?.model === "class_session" ? `${b.kind.seats} seat${b.kind.seats === 1 ? "" : "s"}` : b.kind?.travelFee ? `with ${formatGHS(b.kind.travelFee)} travel` : undefined}
+              />
             </div>
             <span className="text-xs font-semibold text-neutral-600">How this booking is going</span>
             <Timeline entries={b.flow.map((f) => ({ id: f.id, title: f.title, detail: [when(f.at), f.detail].filter(Boolean).join(", "), tone: f.tone }))} />
           </Card>
+          {b.kind?.request && (
+            <Card title="What they asked for">
+              <div className="grid grid-cols-2 gap-3 rounded-panel bg-neutral-100 px-4 py-3 sm:grid-cols-4">
+                <Fact label="Occasion" value={b.kind.request.occasion || "Not said"} />
+                <Fact label="Date" value={b.kind.request.date ? new Date(`${b.kind.request.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "Not said"} />
+                <Fact label="People" value={b.kind.request.people || "Not said"} />
+                <Fact label="Where" value={b.kind.request.where || "Not said"} />
+              </div>
+              {b.kind.request.note && <p className="text-[13.5px] text-ink">{b.kind.request.note}</p>}
+              {b.kind.request.photos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {b.kind.request.photos.map((src, i) => (
+                    <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Inspiration photo ${i + 1}`} width={96} height={96} className="h-24 w-24 rounded-[12px] object-cover" />
+                    </a>
+                  ))}
+                </div>
+              )}
+              {b.kind.quotation ? (
+                <p className="text-[13.5px] text-ink">
+                  {b.kind.quotation.number ? `Quotation ${b.kind.quotation.number}` : "A draft quotation"} for {formatGHS(b.kind.quotation.total)}
+                  {b.kind.quotation.status === "accepted" ? ", accepted." : b.kind.quotation.number ? ", sent. They accept it on their booking link." : ". Send it so they can accept it."}{" "}
+                  <Link href={`/documents/${b.kind.quotation.id}`} className="font-semibold text-teal-dark underline">
+                    Open it
+                  </Link>
+                </p>
+              ) : (
+                <Link href={`/documents/new?type=quotation&from=service_booking:${b.id}`} className={`${secondaryAction} min-h-[40px] self-start`}>
+                  Answer with a quotation
+                </Link>
+              )}
+            </Card>
+          )}
           {b.notes && (
             <Card title={`Notes for ${b.providerName?.split(/\s+/)[0] ?? "whoever does it"}`}>
               <p className="text-[13.5px] text-ink">{b.notes}</p>

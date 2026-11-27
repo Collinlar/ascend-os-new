@@ -283,6 +283,9 @@ export const ROUTE_POLICY: Record<string, Partial<Record<Method, Policy>>> = {
       assigned: { permission: "bookings.manage_assigned", column: "assigned_membership_id" },
     }),
   },
+  "services/classes": {
+    POST: member("body", { permission: ["bookings.manage"], capability: ["services.bookings"] }),
+  },
   "services/booking-settings": {
     POST: member("body", { permission: ["bookings.manage", "business.settings"], capability: ["services.bookings"] }),
   },

@@ -9,6 +9,7 @@ import { originFromRequest } from "@/lib/origin";
 import BookingLink from "@/components/services/BookingLink";
 import ServiceManager from "@/components/services/ServiceManager";
 import ChangeWindow from "@/components/services/ChangeWindow";
+import ClassSchedule, { type ClassRow } from "@/components/services/ClassSchedule";
 import type { ServiceRow } from "@/app/api/services/offerings/route";
 import { checkPageAccess } from "@/lib/authority/page";
 
@@ -75,6 +76,12 @@ async function load(businessId: string): Promise<State> {
         bufferMinutes: Number(attrs.buffer_minutes ?? 0),
         depositAmount: attrs.deposit_amount ? Number(attrs.deposit_amount) : null,
         active: Boolean(item.active),
+        bookingModel: (["class_session", "quote_first"].includes(String(attrs.booking_model)) ? attrs.booking_model : "fixed_slot") as "fixed_slot" | "class_session" | "quote_first",
+        home: (() => {
+          const h = (attrs.home ?? {}) as { enabled?: boolean; travel_fee?: number; areas?: string };
+          return { enabled: h.enabled === true, travelFee: Number(h.travel_fee ?? 0), areas: h.areas ?? "" };
+        })(),
+        depositPercent: attrs.deposit_percent === undefined ? null : Number(attrs.deposit_percent),
       };
     }),
     providers: Array.from(byProvider.values()).map((p) => ({
@@ -175,6 +182,44 @@ export default async function ServicesHome() {
         </section>
 
         <ServiceManager businessId={workspace.businessId} services={state.services} businessName={workspace.businessName} placeNames={workspace.places.map((p) => p.name)} />
+
+        {/* Round 4, S3: classes for the services booked as a class. */}
+        {state.services.some((s) => s.bookingModel === "class_session" && s.active) &&
+          (await (async () => {
+            const db = supabaseServer();
+            const classServices = state.services.filter((s) => s.bookingModel === "class_session" && s.active);
+            const [lists, team] = await Promise.all([
+              Promise.all(
+                classServices.map((s) =>
+                  db.rpc("class_sessions", { p_business: workspace.businessId, p_item: s.id }).then(
+                    (r) =>
+                      ((r.data ?? []) as Array<Record<string, unknown>>).map(
+                        (c): ClassRow => ({
+                          id: c.id as string,
+                          itemId: s.id,
+                          startsAt: c.starts_at as string,
+                          seats: Number(c.seats),
+                          seatsLeft: Number(c.seats_left),
+                          place: (c.place as string) ?? null,
+                          teacher: (c.teacher as string) ?? null,
+                        })
+                      ),
+                    () => [] as ClassRow[]
+                  )
+                )
+              ),
+              db.from("business_membership").select("id, person:person_id(full_name)").eq("business_id", workspace.businessId).eq("status", "active"),
+            ]);
+            return (
+              <ClassSchedule
+                businessId={workspace.businessId}
+                services={classServices.map((s) => ({ id: s.id, name: s.name }))}
+                classes={lists.flat().sort((a, b) => a.startsAt.localeCompare(b.startsAt))}
+                places={workspace.places.map((p) => ({ id: p.id, name: p.name }))}
+                team={((team.data ?? []) as Array<Record<string, unknown>>).map((m) => ({ id: m.id as string, name: (m.person as { full_name: string } | null)?.full_name ?? "Someone on your team" }))}
+              />
+            );
+          })())}
 
         {/* Round 4, S2: until when customers change bookings themselves. */}
         <ChangeWindow

@@ -24,6 +24,21 @@ export interface BookableService {
   depositAmount: number | null;
   category: string | null;
   photo: string | null;
+  /** How it is booked (round 4, S3). */
+  model?: "fixed_slot" | "class_session" | "quote_first";
+  /** Also at the customer's home, for a flat travel fee (decision 2). */
+  home?: { travelFee: number; areas: string } | null;
+  /** Upcoming classes, for a class service (decision 3). */
+  sessions?: ClassOption[];
+}
+
+export interface ClassOption {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  seatsLeft: number;
+  place: string | null;
+  teacher: string | null;
 }
 
 export interface Provider {
@@ -149,6 +164,11 @@ export default function BookingFlow({
   const [category, setCategory] = useState<string>("All");
   const [service, setService] = useState<BookableService | null>(initial);
   const [wishing, setWishing] = useState(false);
+  // Round 4, S3: at the customer's home, a class and its seats.
+  const [atHome, setAtHome] = useState(false);
+  const [address, setAddress] = useState("");
+  const [session, setSession] = useState<ClassOption | null>(null);
+  const [seats, setSeats] = useState(1);
   const [place, setPlace] = useState<BookingPlace | null>(places[0] ?? null);
   // null means anybody: the first person free at that time.
   const [provider, setProvider] = useState<Provider | null>(null);
@@ -163,7 +183,7 @@ export default function BookingFlow({
   const [offers, setOffers] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<{ id: string; start: string; end: string; reference: string; manage: string | null } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ id: string; start: string; end: string; reference: string; manage: string | null; requested?: boolean } | null>(null);
   const [clientRef] = useState(() => newClientRef("book"));
 
   const categories = useMemo(() => {
@@ -216,7 +236,10 @@ export default function BookingFlow({
   const morning = slots.filter((s) => accraHour(s.start) < 12);
   const afternoon = slots.filter((s) => accraHour(s.start) >= 12);
   const who = provider?.name ?? (slot ? providers.find((p) => slot.membershipIds.includes(p.membershipId))?.name : null) ?? "First one free";
-  const whereL = place ? [place.name, place.city].filter(Boolean).join(", ") : "";
+  const isClass = service?.model === "class_session";
+  const home = atHome && service?.home ? service.home : null;
+  const whereL = home ? "At your home" : isClass ? session?.place ?? "" : place ? [place.name, place.city].filter(Boolean).join(", ") : "";
+  const teacherOrWho = isClass ? session?.teacher ?? "The teacher" : who;
 
   async function book() {
     if (!service || !slot) return;
@@ -231,9 +254,11 @@ export default function BookingFlow({
           clientRef,
           itemId: service.id,
           // Anybody resolves to the first person the slot says is free.
-          membershipId: provider?.membershipId ?? slot.membershipIds[0],
-          locationId: place?.id ?? undefined,
+          membershipId: isClass ? undefined : provider?.membershipId ?? slot.membershipIds[0],
+          locationId: isClass || home ? undefined : place?.id ?? undefined,
           scheduledStart: slot.start,
+          ...(isClass && session ? { kind: "class", classSessionId: session.id, seats } : {}),
+          ...(home ? { kind: "home", serviceAddress: address.trim() } : {}),
           customerName: name,
           customerPhone: phone,
           note: note.trim() || undefined,
@@ -253,6 +278,7 @@ export default function BookingFlow({
         end: slot.end,
         reference: data.reference ?? `BK-${String(data.bookingId).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
         manage: typeof data.managePath === "string" ? data.managePath : null,
+        requested: data.status === "requested",
       });
       setStep("done");
     } catch {
@@ -262,8 +288,10 @@ export default function BookingFlow({
     }
   }
 
-  const deposit = service?.depositAmount ?? null;
-  const later = service && service.price !== null ? service.price - (deposit ?? 0) : null;
+  const deposit = isClass ? null : service?.depositAmount ?? null;
+  // A class is priced per seat; a home visit carries the travel fee.
+  const total = service && service.price !== null ? service.price * (isClass ? seats : 1) + (home ? home.travelFee : 0) : null;
+  const later = total !== null ? total - (deposit ?? 0) : null;
 
   // ---------------------------------------------------------------- done --
   if (step === "done" && confirmed && service) {
@@ -276,30 +304,36 @@ export default function BookingFlow({
               <path d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />
             </svg>
           </span>
-          <h1 className="font-heading text-[23px] font-extrabold text-ink-heading">You are booked</h1>
+          <h1 className="font-heading text-[23px] font-extrabold text-ink-heading">
+            {confirmed.requested ? "Request sent" : isClass ? `You have ${seats} seat${seats === 1 ? "" : "s"}` : "You are booked"}
+          </h1>
           <p className="text-[14px] leading-relaxed text-neutral-600">
             {longDay(confirmed.start)}, {clock(confirmed.start)}
             <br />
-            {who}
+            {teacherOrWho}
             {whereL ? ` · ${whereL}` : ""}
           </p>
+          {confirmed.requested && (
+            <p className="text-[13.5px] text-neutral-700">{businessName} checks your address and confirms the time on WhatsApp.</p>
+          )}
         </div>
 
         <div className="rounded-[16px] border border-neutral-200 bg-white">
           <Line k="Booking" v={`${confirmed.reference} · ${service.name}`} />
-          {service.price !== null && (
+          {home && <Line k="Travel to you" v={formatGHS(home.travelFee)} />}
+          {total !== null && (
             <>
               {deposit ? <Line k="Deposit to hold it" v={formatGHS(deposit)} /> : null}
-              <Line k={deposit ? "Rest after your visit" : "To pay on the day"} v={formatGHS(later ?? service.price)} last />
+              <Line k={deposit ? "Rest after your visit" : "To pay on the day"} v={formatGHS(later ?? total)} last />
             </>
           )}
         </div>
 
         <div className="flex flex-col gap-2 rounded-[16px] bg-neutral-50 px-4 py-3.5 text-[13px] text-ink">
           <strong>What happens next</strong>
-          <span>{businessName} confirms on WhatsApp.</span>
+          {!confirmed.requested && <span>{businessName} confirms on WhatsApp.</span>}
           {deposit ? <span>Pay the {formatGHS(deposit)} deposit to {businessName} as they tell you. Nothing was taken here.</span> : <span>You pay {businessName} on the day. Nothing was taken here.</span>}
-          <span>Please arrive 10 minutes early.</span>
+          {!home && <span>Please arrive 10 minutes early.</span>}
           {confirmed.manage && windowHours !== null && (
             <span>
               Change or cancel for free until{" "}
@@ -342,6 +376,9 @@ export default function BookingFlow({
             setProvider(null);
             setDate("");
             setConfirmed(null);
+            setSession(null);
+            setSeats(1);
+            setAtHome(false);
             setStep("services");
           }}
           className={`tap flex min-h-[48px] items-center justify-center rounded-[14px] font-bold ${confirmed.manage ? "border-[1.5px] border-line-brand bg-white text-teal-800" : "bg-teal text-white"}`}
@@ -431,11 +468,17 @@ export default function BookingFlow({
                     <strong className="text-[14px] text-ink">{s.name}</strong>
                     <span className="text-[12.5px] text-neutral-600">{duration(s.durationMinutes)}</span>
                     <span className="flex items-center justify-between gap-1.5">
-                      <strong className="num text-[13.5px] text-ink">{s.price === null ? "Price on asking" : formatGHS(s.price)}</strong>
-                      {s.depositAmount ? (
+                      <strong className="num text-[13.5px] text-ink">{s.model === "quote_first" ? (s.price ? `From ${formatGHS(s.price)}` : "Quote") : s.price === null ? "Price on asking" : `${formatGHS(s.price)}${s.model === "class_session" ? " a seat" : ""}`}</strong>
+                      {s.model === "quote_first" ? (
+                        <span className="rounded-full bg-gold-light px-2 py-0.5 text-[11.5px] font-bold text-gold-ink">Quote first</span>
+                      ) : s.model === "class_session" ? (
+                        <span className="rounded-full bg-info-light px-2 py-0.5 text-[11.5px] font-bold text-info-ink">
+                          {s.sessions?.length ? `Class · ${Math.max(...s.sessions.map((c) => c.seatsLeft))} seats left` : "No classes yet"}
+                        </span>
+                      ) : s.depositAmount ? (
                         <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11.5px] font-bold text-teal-800">Deposit {formatGHS(s.depositAmount)}</span>
                       ) : (
-                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11.5px] font-bold text-neutral-700">Pay on the day</span>
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11.5px] font-bold text-neutral-700">{s.home ? "Also at your home" : "Pay on the day"}</span>
                       )}
                     </span>
                   </span>
@@ -460,7 +503,13 @@ export default function BookingFlow({
 
   // ------------------------------------------------------------- the rest --
   const stepIndex = { service: 1, time: 2, details: 3 }[step as "service" | "time" | "details"];
-  const canGo = step === "service" ? true : step === "time" ? Boolean(slot) : name.trim().length >= 2 && phone.replace(/\D/g, "").length >= 9;
+  const canGo =
+    step === "service"
+      ? !(isClass && !service?.sessions?.length)
+      : step === "time"
+        ? Boolean(slot)
+        : name.trim().length >= 2 && phone.replace(/\D/g, "").length >= 9 && (!home || address.trim().length >= 6);
+  const quoteFirst = service?.model === "quote_first";
 
   return (
     <div className="mx-auto max-w-md px-4 pb-32 lg:max-w-4xl">
@@ -504,7 +553,9 @@ export default function BookingFlow({
               </p>
               {service.description && <p className="text-[14px] leading-relaxed text-neutral-700">{service.description}</p>}
 
-              {places.length > 1 && (
+              {quoteFirst && <QuoteRequest slug={slug} businessName={businessName} service={service} />}
+
+              {!quoteFirst && !isClass && (places.length > 1 || service.home) && (
                 <>
                   <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Where</span>
                   <div className="grid grid-cols-2 gap-2">
@@ -512,26 +563,47 @@ export default function BookingFlow({
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => setPlace(p)}
-                        aria-pressed={place?.id === p.id}
-                        className={`tap flex min-h-[52px] flex-col justify-center rounded-[14px] border-[1.5px] px-3 py-2 text-left ${place?.id === p.id ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
+                        onClick={() => {
+                          setPlace(p);
+                          setAtHome(false);
+                        }}
+                        aria-pressed={!atHome && place?.id === p.id}
+                        className={`tap flex min-h-[52px] flex-col justify-center rounded-[14px] border-[1.5px] px-3 py-2 text-left ${!atHome && place?.id === p.id ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
                       >
                         <span className="text-[13.5px] font-bold text-ink">{p.name}</span>
                         {p.address && <span className="text-[12px] text-neutral-600">{p.address}</span>}
                       </button>
                     ))}
+                    {service.home && (
+                      <button
+                        type="button"
+                        onClick={() => setAtHome(true)}
+                        aria-pressed={atHome}
+                        className={`tap flex min-h-[52px] flex-col justify-center rounded-[14px] border-[1.5px] px-3 py-2 text-left ${atHome ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
+                      >
+                        <span className="text-[13.5px] font-bold text-ink">At my home</span>
+                        <span className="text-[12px] text-neutral-600">+{formatGHS(service.home.travelFee)} · {service.home.areas}</span>
+                      </button>
+                    )}
                   </div>
+                  {atHome && <p className="text-[12.5px] text-neutral-600">{businessName} checks your address and confirms the time before it is booked.</p>}
                 </>
               )}
 
-              {service.price !== null && (
+              {isClass && (
+                <p className="rounded-[14px] bg-neutral-50 px-4 py-3 text-[13px] text-neutral-700">
+                  {service.sessions?.length ? `A class. Pick a date and how many seats next.` : `No classes are scheduled right now. Message ${businessName} to ask when the next one is.`}
+                </p>
+              )}
+
+              {service.price !== null && !quoteFirst && !isClass && (
                 <div className="flex flex-col gap-1 rounded-[14px] border border-teal-200 bg-teal-50 px-4 py-3 text-[13px] text-teal-800">
                   <strong>{deposit ? `${formatGHS(deposit)} deposit holds your time` : "Pay on the day"}</strong>
                   <span>{deposit ? `The rest, ${formatGHS(later ?? 0)}, is paid after your visit. You pay ${businessName} directly.` : `You pay ${businessName} after your visit. Nothing is taken now.`}</span>
                 </div>
               )}
 
-              {providers.length > 0 && (
+              {providers.length > 0 && !quoteFirst && !isClass && (
                 <>
                   <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Done by</span>
                   <div className="flex flex-wrap gap-3">
@@ -547,7 +619,53 @@ export default function BookingFlow({
             </>
           )}
 
-          {step === "time" && service && (
+          {step === "time" && service && isClass && (
+            <>
+              <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Pick a class</span>
+              <div className="flex flex-col gap-2">
+                {(service.sessions ?? []).map((c) => {
+                  const on = session?.id === c.id;
+                  const full = c.seatsLeft === 0;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={full}
+                      onClick={() => {
+                        setSession(c);
+                        setSeats((n) => Math.min(Math.max(1, n), c.seatsLeft));
+                        setSlot({ start: c.startsAt, end: c.endsAt, membershipIds: [] });
+                      }}
+                      aria-pressed={on}
+                      className={`tap flex flex-col items-start gap-0.5 rounded-[14px] border-[1.5px] px-3.5 py-3 text-left disabled:opacity-50 ${on ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
+                    >
+                      <strong className="text-[14px] text-ink">{longDay(c.startsAt)}, {clock(c.startsAt)}</strong>
+                      <span className="text-[12.5px] text-neutral-600">{[c.place, c.teacher ? `with ${c.teacher}` : null].filter(Boolean).join(" · ")}</span>
+                      <span className={`text-[12.5px] font-bold ${full ? "text-danger-ink" : c.seatsLeft <= 3 ? "text-gold-ink" : "text-teal-800"}`}>
+                        {full ? "Full" : `${c.seatsLeft} seat${c.seatsLeft === 1 ? "" : "s"} left`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {session && (
+                <div className="flex items-center justify-between gap-3 rounded-[14px] border border-neutral-200 px-3.5 py-2.5">
+                  <span className="text-[13.5px] font-semibold text-ink">Seats</span>
+                  <span className="flex items-center gap-2">
+                    <button type="button" aria-label="One seat fewer" disabled={seats <= 1} onClick={() => setSeats(seats - 1)} className="tap flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 text-[18px] font-bold text-ink disabled:opacity-40">
+                      -
+                    </button>
+                    <strong className="num w-6 text-center text-[16px] text-ink">{seats}</strong>
+                    <button type="button" aria-label="One seat more" disabled={seats >= Math.min(20, session.seatsLeft)} onClick={() => setSeats(seats + 1)} className="tap flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 text-[18px] font-bold text-ink disabled:opacity-40">
+                      +
+                    </button>
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === "time" && service && !isClass && (
             <>
               <div className="flex items-center gap-2.5 rounded-[14px] bg-neutral-50 px-3 py-2.5">
                 <span aria-hidden style={{ backgroundColor: tintFor(service.id).bg }} className="h-10 w-10 flex-none rounded-[10px]" />
@@ -666,6 +784,20 @@ export default function BookingFlow({
             <>
               <Field id="bk-name" label="Name" value={name} onChange={setName} placeholder="Who should they ask for?" autoComplete="name" />
               <Field id="bk-phone" label="WhatsApp number for your booking" value={phone} onChange={setPhone} placeholder="024 000 0000" autoComplete="tel" inputMode="tel" />
+              {home && (
+                <label htmlFor="bk-address" className="flex flex-col gap-1.5">
+                  <span className="text-[13px] font-semibold text-neutral-700">Home address, GhanaPost GPS or landmark</span>
+                  <textarea
+                    id="bk-address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value.slice(0, 300))}
+                    rows={2}
+                    placeholder="Like GA-123-4567, or near the Shell at Dzorwulu"
+                    className="rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 py-3 text-[16px] text-ink outline-none placeholder:text-neutral-500 focus:border-teal"
+                  />
+                  <span className="text-[12.5px] text-neutral-600">{home.areas}. Travel {formatGHS(home.travelFee)} is added.</span>
+                </label>
+              )}
               <label htmlFor="bk-note" className="flex flex-col gap-1.5">
                 <span className="text-[13px] font-semibold text-neutral-700">Anything we should know? (optional)</span>
                 <textarea
@@ -692,15 +824,17 @@ export default function BookingFlow({
             <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Your booking</span>
             <Line k="Service" v={service.name} bare />
             <Line k="When" v={slot ? `${longDay(slot.start)}, ${clock(slot.start)}` : "Pick a time"} bare />
-            <Line k="With" v={who} bare />
+            <Line k={isClass ? "Teacher" : "With"} v={teacherOrWho} bare />
             {whereL && <Line k="Where" v={whereL} bare />}
-            {service.price !== null && <Line k="Price" v={formatGHS(service.price)} bare />}
+            {isClass && session && <Line k="Seats" v={String(seats)} bare />}
+            {home && <Line k="Travel to you" v={formatGHS(home.travelFee)} bare />}
+            {total !== null && <Line k={isClass || home ? "Total" : "Price"} v={formatGHS(total)} bare />}
             {deposit ? <Line k="Deposit, paid to the business" v={formatGHS(deposit)} bare /> : null}
           </aside>
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-100 bg-white px-4 pb-6 pt-3">
+      <div className={`fixed inset-x-0 bottom-0 z-20 border-t border-neutral-100 bg-white px-4 pb-6 pt-3 ${quoteFirst && step === "service" ? "hidden" : ""}`}>
         <div className="mx-auto max-w-md lg:max-w-4xl">
           <button
             type="button"
@@ -714,14 +848,22 @@ export default function BookingFlow({
             className="tap flex h-[50px] w-full items-center justify-center rounded-[14px] bg-teal font-heading text-[15px] font-extrabold text-white disabled:opacity-40 lg:ml-auto lg:w-[320px]"
           >
             {step === "service"
-              ? "Choose a time"
+              ? isClass
+                ? "Choose a class"
+                : "Choose a time"
               : step === "time"
                 ? slot
                   ? `Continue · ${whenShort(slot.start)}`
-                  : "Pick a time to continue"
+                  : isClass
+                    ? "Pick a class to continue"
+                    : "Pick a time to continue"
                 : placing
                   ? "Booking your time"
-                  : "Book this time"}
+                  : home
+                    ? "Send my request"
+                    : isClass
+                      ? `Book ${seats} seat${seats === 1 ? "" : "s"}`
+                      : "Book this time"}
           </button>
         </div>
       </div>
@@ -874,6 +1016,150 @@ function WishForm({ slug, businessName, serviceId, membershipId, onClose }: { sl
           Not now
         </button>
       </div>
+    </div>
+  );
+}
+
+const OCCASIONS = ["Wedding", "Engagement", "Photo shoot", "Corporate", "Birthday", "Other"];
+
+// Quote first (round 4, S3, decision 4): tell the business about the day,
+// with up to three inspiration photos. Nothing is paid until the customer
+// accepts the quotation on their booking link.
+function QuoteRequest({ slug, businessName, service }: { slug: string; businessName: string; service: BookableService }) {
+  const [occasion, setOccasion] = useState("Wedding");
+  const [date, setDate] = useState("");
+  const [people, setPeople] = useState("");
+  const [where, setWhere] = useState("");
+  const [note, setNote] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState<string | null>(null);
+  const [clientRef] = useState(() => newClientRef("quote"));
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: ACCRA });
+
+  async function addPhotos(files: FileList | null) {
+    if (!files) return;
+    const made: string[] = [];
+    for (const file of Array.from(files).slice(0, 3 - photos.length)) {
+      if (!/^image\//.test(file.type)) continue;
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        await new Promise<void>((res, rej) => {
+          img.onload = () => res();
+          img.onerror = () => rej();
+          img.src = url;
+        });
+        const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = c.getContext("2d")!;
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        made.push(c.toDataURL("image/jpeg", 0.8));
+      } catch {
+        setError("One photo could not be read. Try another.");
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    setPhotos((prev) => [...prev, ...made].slice(0, 3));
+  }
+
+  if (sent) {
+    return (
+      <div className="flex flex-col gap-3 rounded-[16px] bg-success-tint px-4 py-4">
+        <strong className="font-heading text-[18px] text-success-ink">Request sent</strong>
+        <p className="text-[13.5px] text-ink">{businessName} sends your quotation on WhatsApp. Nothing is paid until you accept it.</p>
+        <a href={sent} className="tap flex min-h-[46px] items-center justify-center rounded-[14px] bg-teal font-bold text-white">
+          See my request
+        </a>
+      </div>
+    );
+  }
+  const ok = date >= today && name.trim().length >= 2 && phone.replace(/\D/g, "").length >= 9;
+  return (
+    <div className="flex flex-col gap-3.5">
+      <p className="text-[13.5px] leading-relaxed text-neutral-700">Tell us about the day. {businessName} replies with a quotation. No payment until you accept it.</p>
+      <span className="text-[13px] font-semibold text-neutral-700">What is the occasion?</span>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Occasion">
+        {OCCASIONS.map((o) => (
+          <button key={o} type="button" aria-pressed={occasion === o} onClick={() => setOccasion(o)} className={`tap min-h-[40px] rounded-full border-[1.5px] px-3 text-[13px] font-semibold ${occasion === o ? "border-teal-700 bg-teal-50 text-teal-800" : "border-neutral-200 text-neutral-700"}`}>
+            {o}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-neutral-700">Date</span>
+          <input type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} className="h-12 rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-3 text-[16px] text-ink focus:border-teal focus:outline-none" />
+        </label>
+        <Field id="q-people" label="How many people" value={people} onChange={setPeople} placeholder="Bride and 4" />
+      </div>
+      <Field id="q-where" label="Where" value={where} onChange={setWhere} placeholder="Your home, a hall, or the salon" />
+      <label htmlFor="q-note" className="flex flex-col gap-1.5">
+        <span className="text-[13px] font-semibold text-neutral-700">What do you need?</span>
+        <textarea id="q-note" value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} rows={3} placeholder={`Like makeup and hair for the bride, makeup for 4, a trial before`} className="rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 py-3 text-[16px] text-ink outline-none placeholder:text-neutral-500 focus:border-teal" />
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        {photos.map((p, i) => (
+          <span key={i} className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p} alt={`Inspiration photo ${i + 1}`} width={64} height={64} className="h-16 w-16 rounded-[12px] object-cover" />
+            <button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos(photos.filter((_, j) => j !== i))} className="tap absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[14px] font-bold text-ink shadow-card">
+              x
+            </button>
+          </span>
+        ))}
+        {photos.length < 3 && (
+          <label className="tap inline-flex min-h-[44px] cursor-pointer items-center rounded-[12px] border-[1.5px] border-dashed border-neutral-300 px-3.5 text-[13px] font-semibold text-neutral-700">
+            Add inspiration photos
+            <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => addPhotos(e.target.files)} />
+          </label>
+        )}
+      </div>
+      <Field id="q-name" label="Name" value={name} onChange={setName} placeholder="Who should they ask for?" autoComplete="name" />
+      <Field id="q-phone" label="WhatsApp number for the quotation" value={phone} onChange={setPhone} placeholder="024 000 0000" autoComplete="tel" inputMode="tel" />
+      {error && <p role="alert" className="rounded-[14px] bg-gold-light px-4 py-3 text-[13.5px] font-semibold text-gold-ink">{error}</p>}
+      <button
+        type="button"
+        disabled={busy || !ok}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await fetch("/api/services/book", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                slug,
+                clientRef,
+                kind: "quote",
+                itemId: service.id,
+                customerName: name,
+                customerPhone: phone,
+                detail: { occasion, date, people, where, note },
+                photos: photos.map((p) => p.split(",")[1]),
+              }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) return setError(data.error ?? "That did not go through. Tap again.");
+            setSent(typeof data.managePath === "string" ? data.managePath : "#");
+          } catch {
+            setError("We could not reach the business just now. Tap again in a moment.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="tap flex h-[50px] items-center justify-center rounded-[14px] bg-teal font-heading text-[15px] font-extrabold text-white disabled:opacity-40"
+      >
+        {busy ? "Sending your request" : "Ask for a quotation"}
+      </button>
     </div>
   );
 }
