@@ -121,6 +121,10 @@ export default async function OrderTrackingPage({ params }: { params: { token: s
             ? facts.pickup?.detail ?? "They tell you when to come."
             : facts.delivery?.detail ?? "They tell you when it leaves.";
 
+  // Who brings it (round 4, S1). Before 0150 there is nobody named.
+  const rider = o.fulfilment === "merchant_delivery"
+    ? await db.from("shop_order").select("rider_name, rider_phone").eq("id", o.id as string).maybeSingle().then((r) => (r.error ? null : (r.data as { rider_name: string | null; rider_phone: string | null } | null)), () => null)
+    : null;
   const shopPhone = ((look.data?.phone as string) ?? "").replace(/[^\d+]/g, "");
   const wa = shopPhone.length >= 9 ? `https://wa.me/${shopPhone.replace(/^0/, "233").replace(/^\+/, "")}?text=${encodeURIComponent(`Hello, about my order ${orderRef(o.id as string)}.`)}` : null;
 
@@ -224,6 +228,26 @@ export default async function OrderTrackingPage({ params }: { params: { token: s
         </div>
 
         <aside className="flex flex-col gap-4">
+          {rider?.rider_name && ["confirmed", "preparing", "ready", "out_for_delivery"].includes(o.status as string) && (
+            <div className="flex items-center gap-3 rounded-panel border border-line bg-white p-4">
+              <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-teal-50 text-[14px] font-extrabold text-teal-800">
+                {rider.rider_name
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("")}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <strong className="text-[14px] text-ink">{rider.rider_name}, the shop&apos;s rider</strong>
+                <span className="text-[12.5px] text-ink-muted">Will call when close</span>
+              </span>
+              {rider.rider_phone && (
+                <a href={`tel:${rider.rider_phone}`} className="tap inline-flex min-h-[44px] flex-none items-center rounded-control border border-line px-4 text-[13.5px] font-bold text-teal-dark">
+                  Call
+                </a>
+              )}
+            </div>
+          )}
           {(wa || settings.contactLine) && (
             <div className="rounded-panel border border-line bg-white p-4">
               <p className="text-[14px] font-bold text-ink">Questions about your order?</p>

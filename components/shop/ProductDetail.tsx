@@ -23,6 +23,7 @@ export default function ProductDetail({
   suggestions,
   onBack,
   onAdd,
+  onBuyNow,
   onOpenOther,
 }: {
   product: StorefrontProduct;
@@ -35,6 +36,8 @@ export default function ProductDetail({
   suggestions: StorefrontProduct[];
   onBack: () => void;
   onAdd: (quantity: number, sizeId?: string) => void;
+  /** Add it and go straight to checkout (round 4, S1). */
+  onBuyNow?: (quantity: number, sizeId?: string) => void;
   onOpenOther: (product: StorefrontProduct) => void;
 }) {
   const sizes = product.sizes ?? [];
@@ -117,6 +120,25 @@ export default function ProductDetail({
             <p className="mt-4 whitespace-pre-line text-[14.5px] font-medium leading-relaxed text-ink-muted md:text-[15px]">{product.description}</p>
           )}
 
+          {product.details && (
+            <div className="mt-5 flex flex-col gap-3.5">
+              {(
+                [
+                  ["How to use", product.details.use],
+                  ["What is inside", product.details.inside],
+                  ["Good for", product.details.goodFor],
+                ] as Array<[string, string | undefined]>
+              )
+                .filter(([, v]) => v)
+                .map(([k, v]) => (
+                  <section key={k}>
+                    <h2 className="text-[14px] font-extrabold text-ink">{k}</h2>
+                    <p className="mt-1 whitespace-pre-line text-[14px] leading-relaxed text-ink-muted">{v}</p>
+                  </section>
+                ))}
+            </div>
+          )}
+
           {/* How it reaches you and who sells it, said before it goes in
               the basket, in the shop's own settings (R3). */}
           <div className="mt-5 flex flex-col rounded-panel border border-line">
@@ -167,7 +189,9 @@ export default function ProductDetail({
             type="button"
             onClick={() => onAdd(Math.min(quantity, room), size?.id)}
             disabled={room === 0 || needsSize}
-            className="tap flex flex-1 items-center justify-center rounded-panel bg-teal font-bold text-white shadow-action disabled:bg-neutral-200 disabled:text-neutral-700 disabled:shadow-none"
+            className={`tap flex flex-1 items-center justify-center rounded-panel font-bold disabled:bg-neutral-200 disabled:text-neutral-700 disabled:shadow-none ${
+              onBuyNow ? "border-[1.5px] border-teal bg-white text-teal-dark md:bg-teal md:text-white md:shadow-action" : "bg-teal text-white shadow-action"
+            }`}
           >
             {room === 0 ? (
               product.left === 0 ? "Sold out for now" : "All of them are in your basket"
@@ -181,6 +205,15 @@ export default function ProductDetail({
               </>
             )}
           </button>
+          {onBuyNow && room > 0 && !needsSize && (
+            <button
+              type="button"
+              onClick={() => onBuyNow(Math.min(quantity, room), size?.id)}
+              className="tap flex flex-none items-center justify-center rounded-panel bg-teal px-5 font-bold text-white shadow-action md:border-[1.5px] md:border-teal md:bg-white md:text-teal-dark md:shadow-none"
+            >
+              Buy now
+            </button>
+          )}
         </div>
       </div>
     </div>

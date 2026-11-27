@@ -29,6 +29,8 @@ export interface StorefrontProduct {
   added?: string;
   /** What customers often buy with it, most often first. */
   goesWith?: string[];
+  /** How to use it, what is inside, what it is good for (round 4, S1). */
+  details?: { use?: string; inside?: string; goodFor?: string };
 }
 
 // Deterministic tint for a product with no photo, so the same item is the

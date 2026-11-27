@@ -77,6 +77,17 @@ async function load(): Promise<LoadResult> {
       }
     }
 
+    // The product's own sections (round 4, S1). Before 0150 there are none.
+    const detailsBy = new Map<string, { use: string; inside: string; goodFor: string }>();
+    if (ids.length) {
+      const { data: rows, error: detailsError } = await db.from("catalogue_item").select("id, how_to_use, what_is_inside, good_for").in("id", ids);
+      if (!detailsError) {
+        for (const r of (rows ?? []) as Array<Record<string, string | null>>) {
+          detailsBy.set(r.id as string, { use: r.how_to_use ?? "", inside: r.what_is_inside ?? "", goodFor: r.good_for ?? "" });
+        }
+      }
+    }
+
     return {
       kind: "ok" as const,
       businessId: membership.business_id,
@@ -118,6 +129,7 @@ async function load(): Promise<LoadResult> {
               ? null
               : Number(row.shop_price_override),
           sizes: sizesBy.get(row.item_id) ?? [],
+          details: detailsBy.get(row.item_id),
         })
       ),
     };

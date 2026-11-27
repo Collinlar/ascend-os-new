@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase";
 import { effectiveAccess } from "@/lib/domains/entitlements";
 import BookingFlow, {
   type BookableService,
+  type BookingPlace,
   type Provider,
 } from "@/components/services/BookingFlow";
 import ReportProblem from "@/components/risk/ReportProblem";
@@ -28,7 +29,7 @@ async function load(slug: string) {
     const db = supabaseServer();
     const { data: business } = await db
       .from("business")
-      .select("id, name, shop_slug")
+      .select("id, name, shop_slug, identity_verification")
       .eq("shop_slug", slug)
       .maybeSingle();
     if (!business) return null;
@@ -41,17 +42,23 @@ async function load(slug: string) {
     const access = await effectiveAccess(business.id).catch(() => null);
     if (!access?.capabilities.has("services.bookings")) return null;
 
-    const { data: location } = await db
+    const { data: locations } = await db
       .from("location")
-      .select("city")
+      .select("id, name, address, city")
       .eq("business_id", business.id)
       .eq("active", true)
-      .limit(1)
-      .maybeSingle();
+      .order("created_at");
+    const places: BookingPlace[] = (locations ?? []).map((l) => ({
+      id: l.id as string,
+      name: l.name as string,
+      address: (l.address as string) ?? null,
+      city: (l.city as string) ?? null,
+    }));
+    const location = places[0] ?? null;
 
     const { data: items } = await db
       .from("catalogue_item")
-      .select("id, name, description, base_price, service_attributes")
+      .select("id, name, description, base_price, service_attributes, category, photo_url")
       .eq("business_id", business.id)
       .eq("kind", "service")
       .eq("active", true);
@@ -59,7 +66,7 @@ async function load(slug: string) {
     // Only staff with published availability can be booked (SRV-004).
     const { data: availability } = await db
       .from("staff_availability")
-      .select("membership_id")
+      .select("membership_id, day_of_week, end_time, effective_from, effective_to")
       .eq("business_id", business.id);
 
     const providerIds = Array.from(
@@ -89,13 +96,56 @@ async function load(slug: string) {
         price: item.base_price === null ? null : Number(item.base_price),
         durationMinutes: Number(attrs.duration_minutes ?? 60),
         depositAmount: attrs.deposit_amount ? Number(attrs.deposit_amount) : null,
+        category: (item.category as string) || null,
+        photo: (item.photo_url as string) || null,
       };
     });
+
+    // "Open today until 8pm": the latest anybody works today (round 4, S1).
+    // Ascend keeps no opening hours, so the team's own hours say it.
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+    const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+    const ends = (availability ?? [])
+      .filter((a) => a.day_of_week === dow && (!a.effective_from || a.effective_from <= today) && (!a.effective_to || a.effective_to >= today) && a.end_time)
+      .map((a) => String(a.end_time).slice(0, 5))
+      .sort();
+    const last = ends[ends.length - 1];
+    const openUntil = last ? hourLabel(last) : null;
+
+    // The next free time: the shortest service, anybody, today and the next
+    // few days. A handful of lookups, so the page stays quick.
+    let nextFree: string | null = null;
+    const shortest = services.slice().sort((a, b) => a.durationMinutes - b.durationMinutes)[0];
+    if (shortest && providers.length > 0) {
+      for (let i = 0; i < 4 && !nextFree; i += 1) {
+        const day = new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: "Africa/Accra" });
+        const found = await Promise.all(
+          providers.slice(0, 6).map((p) =>
+            db
+              .rpc("available_slots", { p_item_id: shortest.id, p_membership_id: p.membershipId, p_date: day })
+              .then((r) => ((r.data ?? []) as Array<{ slot_start: string }>).map((s) => s.slot_start), () => [] as string[])
+          )
+        );
+        const soonest = found.flat().filter((s) => new Date(s).getTime() > Date.now()).sort()[0];
+        if (soonest) nextFree = soonest;
+      }
+    }
+
+    const cities = Array.from(new Set(places.map((p) => p.city).filter(Boolean)));
+    const cats = Array.from(new Set(services.map((s) => s.category).filter(Boolean))).slice(0, 4);
+    const about = [cats.length ? cats.join(", ") : null, places.length > 1 ? places.map((p) => p.name).join(", ") : cities.join(", ")]
+      .filter(Boolean)
+      .join(". ");
 
     return {
       businessName: business.name,
       city: location?.city ?? null,
       slug: business.shop_slug as string,
+      verified: business.identity_verification === "verified",
+      about: about ? `${about}.` : "",
+      openUntil,
+      nextFree,
+      places,
       services,
       providers,
     };
@@ -143,14 +193,26 @@ export default async function BookingPage({
       <BookingFlow
         slug={data.slug}
         businessName={data.businessName}
-        city={data.city}
+        verified={data.verified}
+        about={data.about}
+        openUntil={data.openUntil}
+        nextFree={data.nextFree}
+        places={data.places}
         services={data.services}
         providers={data.providers}
       />
       {/* Clear of the booking button, which is fixed to the foot of the page. */}
-      <div className="mx-auto max-w-md px-6 pb-36">
+      <div className="mx-auto max-w-md px-6 pb-36 lg:max-w-5xl">
         <ReportProblem source="booking" slug={data.slug} businessName={data.businessName} />
       </div>
     </main>
   );
+}
+
+/** "20:00" to "8pm", "17:30" to "5:30pm". */
+function hourLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${h12}:${String(m).padStart(2, "0")}${suffix}` : `${h12}${suffix}`;
 }

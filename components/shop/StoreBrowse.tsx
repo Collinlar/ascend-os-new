@@ -31,6 +31,9 @@ export default function StoreBrowse({
   settings = DEFAULT_SETTINGS,
   promoLink = null,
   services = [],
+  serviceCount = 0,
+  category: categoryProp,
+  onCategory,
 }: {
   slug: string;
   businessName: string;
@@ -46,11 +49,17 @@ export default function StoreBrowse({
   settings?: ShopSettings;
   promoLink?: { kind: "product" | "service"; id: string } | null;
   services?: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
+  serviceCount?: number;
+  /** The aisle, when the storefront holds it (round 4, S1). */
+  category?: string | null;
+  onCategory?: (c: string | null) => void;
 }) {
   const facts = fulfilmentFacts(settings, places.length > 1 ? places.map((p) => p.name) : []);
   const promoProduct = promoLink?.kind === "product" ? products.find((p) => p.id === promoLink.id) ?? null : null;
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string | null>(null);
+  const [ownCategory, setOwnCategory] = useState<string | null>(null);
+  const category = categoryProp !== undefined ? categoryProp : ownCategory;
+  const setCategory = (c: string | null) => (onCategory ? onCategory(c) : setOwnCategory(c));
   // Search filters (round 2, R4): sort, a price ceiling, in stock.
   const [sort, setSort] = useState<"popular" | "low" | "high" | "new">("popular");
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
@@ -228,6 +237,35 @@ export default function StoreBrowse({
                       className="tap flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] border-teal-200 bg-teal-50 px-4 text-[14px] font-semibold text-teal-800"
                     >
                       Book a service
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* On a laptop, the aisles as tiles with how much is in each
+                  (round 4, S1). */}
+              {category === null && !query.trim() && !filtering && categories.length > 1 && (
+                <div className="mt-5 hidden gap-3 lg:grid lg:grid-cols-4">
+                  {categories.slice(0, bookable ? 3 : 4).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className="tap flex flex-col items-start gap-1 rounded-[18px] border border-neutral-100 bg-teal-50 px-4 py-4 text-left hover:border-teal-brand"
+                    >
+                      <span className="font-heading text-[16px] font-bold text-ink-heading">{c}</span>
+                      <span className="text-[13px] text-neutral-600">
+                        {products.filter((p) => p.category === c).length} product{products.filter((p) => p.category === c).length === 1 ? "" : "s"}
+                      </span>
+                    </button>
+                  ))}
+                  {bookable && (
+                    <a href={`/b/${slug}`} className="tap flex flex-col items-start gap-1 rounded-[18px] border border-neutral-100 bg-gold-light px-4 py-4 hover:border-teal-brand">
+                      <span className="font-heading text-[16px] font-bold text-ink-heading">Book a service</span>
+                      <span className="text-[13px] text-neutral-600">
+                        {serviceCount} service{serviceCount === 1 ? "" : "s"}
+                        {places.length > 1 ? `, ${places.length} locations` : ""}
+                      </span>
                     </a>
                   )}
                 </div>

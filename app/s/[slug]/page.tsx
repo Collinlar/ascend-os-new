@@ -39,6 +39,8 @@ interface ShopData {
   promoLink: { kind: "product" | "service"; id: string } | null;
   /** A few services to book, for the "Book with us" row (R4). */
   services: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
+  /** How many services can be booked, for the laptop tile (round 4, S1). */
+  serviceCount: number;
 }
 
 async function loadShop(slug: string): Promise<ShopData | null> {
@@ -52,7 +54,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
 
     const { data: locations } = await db
       .from("location")
-      .select("id, name, city")
+      .select("id, name, city, address")
       .eq("business_id", business.id)
       .eq("active", true)
       .order("created_at", { ascending: true })
@@ -148,6 +150,18 @@ async function loadShop(slug: string): Promise<ShopData | null> {
     // A best seller has to have sold more than a handful, or it is noise.
     const bestId = best && best[1] >= 3 ? best[0] : null;
 
+    // The product's own sections (round 4, S1). Before 0150 there are none.
+    const detailsBy = new Map<string, { use?: string; inside?: string; goodFor?: string }>();
+    if (itemIds.length) {
+      const { data: rows, error: detailsError } = await db.from("catalogue_item").select("id, how_to_use, what_is_inside, good_for").in("id", itemIds);
+      if (!detailsError) {
+        for (const r of (rows ?? []) as Array<Record<string, string | null>>) {
+          const d = { use: r.how_to_use ?? undefined, inside: r.what_is_inside ?? undefined, goodFor: r.good_for ?? undefined };
+          if (d.use || d.inside || d.goodFor) detailsBy.set(r.id as string, d);
+        }
+      }
+    }
+
     const products: StorefrontProduct[] = (items ?? []).flatMap((item) => {
       const listing = (item.channel_listing as unknown as Array<{
         price_override: number | null;
@@ -174,6 +188,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
             .sort((a, b) => b[1] - a[1])
             .slice(0, 4)
             .map(([id]) => id),
+          ...(detailsBy.has(item.id) ? { details: detailsBy.get(item.id) } : {}),
         },
       ];
     });
@@ -184,7 +199,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       city: location?.city ?? null,
       slug: business.shop_slug,
       memberSince: (business.created_at as string | null) ?? null,
-      places: (locations ?? []).map((l) => ({ id: l.id as string, name: l.name as string, city: (l.city as string | null) ?? null })),
+      places: (locations ?? []).map((l) => ({ id: l.id as string, name: l.name as string, city: (l.city as string | null) ?? null, address: (l.address as string | null) ?? null })),
       products,
       ...(await (async () => {
         // Before 0143 the table is not there, and the shop keeps its old ways.
@@ -209,6 +224,7 @@ async function loadShop(slug: string): Promise<ShopData | null> {
       }),
       verified: trust.data?.identity_verification === "verified",
       bookable: (services.count ?? 0) > 0,
+      serviceCount: services.count ?? 0,
     };
   } catch {
     return null;
@@ -270,6 +286,7 @@ export default async function ShopPage({
       settings={shop.settings}
       promoLink={shop.promoLink}
       services={shop.services}
+      serviceCount={shop.serviceCount}
     />
   );
 }

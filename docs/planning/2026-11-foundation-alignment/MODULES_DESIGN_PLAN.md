@@ -516,3 +516,21 @@ What Ascend already has underneath: a booking can be `fixed_slot`, `request_to_b
 7. **Paying online.** *Recommended:* as the shop: until Paystack the screens say what is true (pay the deposit to the business, or on the day), and switch to MoMo and card when Paystack is on.
 8. **The product's sections, and the rider.** *Recommended:* yes to both. The product editor gains three optional fields (How to use, What is inside, Good for), shown only when filled. The owner can name who delivers an order (a name and a phone) when sending it out, and the tracking page shows them with Call.
 9. **Order.** *Recommended:* S1, S2, S3.
+
+Approved by Collins on 27 November 2026, all nine as recommended.
+
+### S1 The booking page, and the shop on a laptop (built 27 November 2026; needs 0150)
+
+- **Booking page** (`/b/[slug]`, `components/services/BookingFlow.tsx`), as the design draws it:
+  - The business up front: Verified only when Ascend verified it, its categories and places, "Open today until 8pm" from the team's own hours today (Ascend keeps no opening hours), and "Next free" from the shortest service across the next four days.
+  - Category chips from the services' own categories; each service with its length, price, and "Deposit GHS 75" or "Pay on the day".
+  - The service: where (when there are two or more places; the booking goes to the place picked), the deposit and the rest, who does it.
+  - Choose a time: who with (Anyone, or one person, whose own times then show), two weeks of days under the month, Morning and Afternoon, times in Accra; "Continue · tomorrow 10:30".
+  - Your details: name, WhatsApp, "Anything we should know?" (kept on the booking for whoever does it, as "From the customer: ..."), and the offers opt-in, unticked, recorded with the booking as evidence.
+  - Booked: a BK- reference, when, who and where, the deposit and the rest, what happens next, Add to calendar (a calendar file) and Directions (a map search of the place's address).
+  - On a laptop: services in two columns, and the questions beside "Your booking".
+  - Not yet: managing the booking (S2), home service and classes (S3), paying online (Paystack).
+- **The shop on a laptop**: a line across the top with pickup and delivery; the header with Shop all, the three biggest categories, Book a service and Track order; category tiles with how many products each, and a Book a service tile with how many services and places; "Buy now" beside Add on the product page; a footer with Visit us (each place's address), Help, Paying, and who sells and fulfils.
+- **Track order** (`/s/[slug]/track`): the order's reference and the phone it was placed with open a fresh private link to that order. Both are needed, and a wrong pair says nothing about which was wrong.
+- **0150 (decision 8)**: a product's How to use, What is inside and Good for (each optional, up to 600 characters, shown only when filled), set in the product editor; and who delivers an order (a name and a phone in full), set by the owner on the order page and shown to the customer on the tracking link with Call.
+- Tested: PGlite 5/5 (0150 applied twice). Live before 0150, 17 checks with a throwaway ZZ salon and shop (two places, two services in two categories, the team working 08:00 to 20:00): open until 8pm, next free, categories, a booking at the second place with its note and opt-in, one without either at the first place, the shop footer and Track order with the right and a wrong number, the rider and sections waiting for 0150. The one miss was the test: category tiles show only when a shop has two or more categories. A full booking clicked through at 375, and both pages checked at 1440; then removed.

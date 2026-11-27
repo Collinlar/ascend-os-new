@@ -13,6 +13,8 @@ import { deniedByDatabase } from "@/lib/authority/denied";
 export const dynamic = "force-dynamic";
 
 export interface StockRow {
+  /** How to use it, what is inside, good for (round 4, S1). */
+  details?: { use: string; inside: string; goodFor: string };
   itemId: string;
   name: string;
   description: string | null;
@@ -111,6 +113,8 @@ async function handlePATCH(request: NextRequest) {
     // absent for one that has not.
     shopVisible?: boolean;
     shopPriceOverride?: number | string | null;
+    /** How to use it, what is inside, good for (round 4, S1); "" clears. */
+    details?: { use?: string | null; inside?: string | null; goodFor?: string | null };
     /** The whole list of sizes; any left out are switched off (0144). */
     sizes?: Array<{ id?: string | null; name?: string; priceDelta?: number | string }>;
   };
@@ -269,6 +273,25 @@ async function handlePATCH(request: NextRequest) {
         { error: "Saved, but we could not change where it sells. Tap again." },
         { status: 502 }
       );
+    }
+  }
+
+  // The product's own sections (round 4, S1). Saved after the product, and
+  // only what was sent. Before 0150 there is nowhere to keep them.
+  if (body.details) {
+    const clean = (v: string | null | undefined) => (v === undefined ? undefined : (v ?? "").trim().slice(0, 600) || null);
+    const patch: Record<string, string | null> = {};
+    const use = clean(body.details.use);
+    const inside = clean(body.details.inside);
+    const goodFor = clean(body.details.goodFor);
+    if (use !== undefined) patch.how_to_use = use;
+    if (inside !== undefined) patch.what_is_inside = inside;
+    if (goodFor !== undefined) patch.good_for = goodFor;
+    if (Object.keys(patch).length) {
+      const { error: detailsError } = await db.from("catalogue_item").update(patch).eq("id", body.itemId).eq("business_id", body.businessId);
+      if (detailsError && !/how_to_use|what_is_inside|good_for/.test(detailsError.message)) {
+        return NextResponse.json({ error: "The product saved, but its sections did not. Tap save again." }, { status: 500 });
+      }
     }
   }
 

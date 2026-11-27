@@ -43,6 +43,8 @@ export default function ProductManager({
   const [barcode, setBarcode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  // The product's own sections on the Shop (round 4, S1).
+  const [details, setDetails] = useState({ use: "", inside: "", goodFor: "" });
   const [category, setCategory] = useState("");
   const [lowStock, setLowStock] = useState("");
   const [shopVisible, setShopVisible] = useState(true);
@@ -84,6 +86,7 @@ export default function ProductManager({
     setPanel("edit");
     setName(row.name);
     setDescription(row.description ?? "");
+    setDetails({ use: row.details?.use ?? "", inside: row.details?.inside ?? "", goodFor: row.details?.goodFor ?? "" });
     setCategory(row.category ?? "");
     setPrice(row.price === null ? "" : String(row.price));
     setBarcode(row.barcode ?? "");
@@ -150,6 +153,7 @@ export default function ProductManager({
           ...(sellsOnline
             ? {
                 description: description.trim() === "" ? null : description.trim(),
+                details,
                 shopVisible,
                 shopPriceOverride: shopPrice.trim() === "" ? null : Number(shopPrice),
                 sizes: sizes
@@ -176,6 +180,7 @@ export default function ProductManager({
                     ? null
                     : description.trim()
                   : r.description,
+                details: sellsOnline ? { use: details.use.trim(), inside: details.inside.trim(), goodFor: details.goodFor.trim() } : r.details,
                 category: category.trim() === "" ? null : category.trim(),
                 price: price === "" ? r.price : Number(price),
                 barcode: barcode.trim() === "" ? null : barcode.trim(),
@@ -704,6 +709,29 @@ export default function ProductManager({
                         className="mt-1 w-full resize-y rounded-control border border-line px-3 py-2 text-sm focus:border-teal focus:outline-none"
                       />
                     </div>
+
+                    {/* Each shows on the product page only when filled. */}
+                    {(
+                      [
+                        ["use", "How to use it (optional)", "Like: apply from roots to ends, leave 15 minutes, rinse"],
+                        ["inside", "What is inside (optional)", "Like: raw shea butter, coconut oil, aloe vera"],
+                        ["goodFor", "Good for (optional)", "Like: natural, relaxed and braided hair"],
+                      ] as Array<["use" | "inside" | "goodFor", string, string]>
+                    ).map(([key, label, hint]) => (
+                      <div key={key}>
+                        <label className="text-xs text-ink-muted" htmlFor={`detail-${key}`}>
+                          {label}
+                        </label>
+                        <textarea
+                          id={`detail-${key}`}
+                          value={details[key]}
+                          onChange={(e) => setDetails({ ...details, [key]: e.target.value.slice(0, 600) })}
+                          rows={2}
+                          placeholder={hint}
+                          className="mt-1 w-full resize-y rounded-control border border-line px-3 py-2 text-sm focus:border-teal focus:outline-none"
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
 

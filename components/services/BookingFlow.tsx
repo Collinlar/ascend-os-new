@@ -6,16 +6,14 @@ import { formatGHS } from "@/lib/money";
 import { newClientRef } from "@/lib/ids";
 import { TILE_TINTS } from "@/lib/brand/tints";
 
-// Customer Web booking, built on the Ascend Services design.
+// Customer booking page (round 4, S1), from the Ascend Services customer
+// designs: the business up front with when it is open and the next free
+// time, services by category, then one question a screen: the service,
+// who and when (mornings and afternoons), your details, booked.
 //
-// Six screens that each ask one thing: which service, which day and time,
-// who with, and who you are. A stranger on a phone should never be looking
-// at two questions at once.
-//
-// The design has a seventh, paying the deposit. Nothing on this platform
-// can take a card or a MoMo push yet, so the deposit is told plainly as
-// what is due on the day instead of being collected behind a button that
-// does not work.
+// Paying the deposit online waits for Paystack (decision 7): the deposit is
+// told as paid to the business, on the day or directly, never collected
+// behind a button that does not work.
 
 export interface BookableService {
   id: string;
@@ -24,11 +22,20 @@ export interface BookableService {
   price: number | null;
   durationMinutes: number;
   depositAmount: number | null;
+  category: string | null;
+  photo: string | null;
 }
 
 export interface Provider {
   membershipId: string;
   name: string;
+}
+
+export interface BookingPlace {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
 }
 
 interface Slot {
@@ -37,15 +44,14 @@ interface Slot {
   membershipIds: string[];
 }
 
-type Step = "services" | "service" | "time" | "staff" | "details" | "done";
+type Step = "services" | "service" | "time" | "details" | "done";
 
-// Deterministic tint, so the same service is the same colour every visit.
-const TINTS = TILE_TINTS;
+const ACCRA = "Africa/Accra";
 
 function tintFor(seed: string) {
   let n = 0;
   for (let i = 0; i < seed.length; i += 1) n = (n + seed.charCodeAt(i)) % 997;
-  return TINTS[n % TINTS.length];
+  return TILE_TINTS[n % TILE_TINTS.length];
 }
 
 function initials(name: string, max = 2) {
@@ -62,59 +68,117 @@ function duration(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+  return rest === 0 ? `${hours} hour${hours === 1 ? "" : "s"}` : `${hours} hr ${rest} min`;
 }
 
-function clockTime(iso: string) {
-  return new Date(iso)
-    .toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true })
-    .replace(" ", "");
+function clock(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-GB", { timeZone: ACCRA, hour: "2-digit", minute: "2-digit" });
+}
+
+function longDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: ACCRA, weekday: "long", day: "numeric", month: "long" });
+}
+
+function accraHour(iso: string) {
+  return Number(new Date(iso).toLocaleTimeString("en-GB", { timeZone: ACCRA, hour: "2-digit", hour12: false }));
+}
+
+/** "today 15:30", "tomorrow 09:00", "Thu 4 Dec, 10:00". */
+export function whenShort(iso: string) {
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: ACCRA });
+  const t = new Date(iso);
+  const today = day(new Date());
+  const tomorrow = day(new Date(Date.now() + 864e5));
+  if (day(t) === today) return `today ${clock(iso)}`;
+  if (day(t) === tomorrow) return `tomorrow ${clock(iso)}`;
+  return `${t.toLocaleDateString("en-GB", { timeZone: ACCRA, weekday: "short", day: "numeric", month: "short" })}, ${clock(iso)}`;
+}
+
+function calendarFile(title: string, start: string, end: string, where: string, details: string) {
+  const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const esc = (s: string) => s.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+  const body = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//AscendSME//Bookings//EN",
+    "BEGIN:VEVENT",
+    `UID:${stamp(start)}-${Math.random().toString(36).slice(2)}@ascendsme`,
+    `DTSTAMP:${stamp(new Date().toISOString())}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${esc(title)}`,
+    `LOCATION:${esc(where)}`,
+    `DESCRIPTION:${esc(details)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  return `data:text/calendar;charset=utf-8,${encodeURIComponent(body)}`;
 }
 
 export default function BookingFlow({
   slug,
   businessName,
-  city,
+  verified,
+  about,
+  openUntil,
+  nextFree,
+  places,
   services,
   providers,
 }: {
   slug: string;
   businessName: string;
-  city: string | null;
+  verified: boolean;
+  about: string;
+  /** "8pm", from the team's hours today; null when nobody works today. */
+  openUntil: string | null;
+  /** The earliest free time across the services, if any in the next days. */
+  nextFree: string | null;
+  places: BookingPlace[];
   services: BookableService[];
   providers: Provider[];
 }) {
   const [step, setStep] = useState<Step>("services");
+  const [category, setCategory] = useState<string>("All");
   const [service, setService] = useState<BookableService | null>(null);
+  const [place, setPlace] = useState<BookingPlace | null>(places[0] ?? null);
+  // null means anybody: the first person free at that time.
+  const [provider, setProvider] = useState<Provider | null>(null);
   const [date, setDate] = useState<string>("");
   const [slot, setSlot] = useState<Slot | null>(null);
-  // null means anybody: the first specialist free at that time.
-  const [provider, setProvider] = useState<Provider | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [note, setNote] = useState("");
+  const [offers, setOffers] = useState(false);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<{ id: string; start: string } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ id: string; start: string; end: string; reference: string } | null>(null);
   const [clientRef] = useState(() => newClientRef("book"));
 
-  // Fourteen days is as far as anybody plans a haircut, and it keeps the
-  // rail scrollable rather than endless.
+  const categories = useMemo(() => {
+    const set = Array.from(new Set(services.map((s) => s.category).filter((c): c is string => Boolean(c))));
+    return set.length > 1 ? ["All", ...set] : [];
+  }, [services]);
+  const shown = category === "All" ? services : services.filter((s) => s.category === category);
+
+  // Two weeks is as far as most people plan a visit.
   const days = useMemo(() => {
-    const out: Array<{ iso: string; dow: string; day: string }> = [];
+    const out: Array<{ iso: string; dow: string; day: string; month: string }> = [];
     for (let i = 0; i < 14; i += 1) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
+      const d = new Date(Date.now() + i * 864e5);
       out.push({
-        iso: d.toISOString().slice(0, 10),
-        dow: d.toLocaleDateString("en-GB", { weekday: "short" }),
-        day: String(d.getDate()),
+        iso: d.toLocaleDateString("en-CA", { timeZone: ACCRA }),
+        dow: d.toLocaleDateString("en-GB", { timeZone: ACCRA, weekday: "short" }),
+        day: d.toLocaleDateString("en-GB", { timeZone: ACCRA, day: "numeric" }),
+        month: d.toLocaleDateString("en-GB", { timeZone: ACCRA, month: "long", year: "numeric" }),
       });
     }
     return out;
   }, []);
+  const monthLabel = (days.find((d) => d.iso === date) ?? days[0]).month;
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -126,28 +190,25 @@ export default function BookingFlow({
     setSlots([]);
     setSlot(null);
     try {
-      const res = await fetch(
-        `/api/services/slots?itemId=${service.id}&membershipId=any&date=${date}`
-      );
+      const res = await fetch(`/api/services/slots?itemId=${service.id}&membershipId=${provider?.membershipId ?? "any"}&date=${date}`);
       const data = await res.json().catch(() => null);
       setSlots(res.ok ? (data.slots ?? []) : []);
-      if (!res.ok) setError(data?.error ?? null);
+      if (!res.ok) setError(data?.error ?? "We could not load the times just now. Tap the day again.");
     } catch {
       setError("We could not load the times just now. Tap the day again.");
     } finally {
       setLoadingSlots(false);
     }
-  }, [service, date]);
+  }, [service, date, provider]);
 
   useEffect(() => {
     if (step === "time" && date) loadSlots();
   }, [step, date, loadSlots]);
 
-  // Only the specialists free at the chosen time are offered.
-  const freeThen = useMemo(
-    () => providers.filter((p) => slot?.membershipIds.includes(p.membershipId)),
-    [providers, slot]
-  );
+  const morning = slots.filter((s) => accraHour(s.start) < 12);
+  const afternoon = slots.filter((s) => accraHour(s.start) >= 12);
+  const who = provider?.name ?? (slot ? providers.find((p) => slot.membershipIds.includes(p.membershipId))?.name : null) ?? "First one free";
+  const whereL = place ? [place.name, place.city].filter(Boolean).join(", ") : "";
 
   async function book() {
     if (!service || !slot) return;
@@ -161,11 +222,14 @@ export default function BookingFlow({
           slug,
           clientRef,
           itemId: service.id,
-          // Anybody resolves to the first specialist the slot says is free.
+          // Anybody resolves to the first person the slot says is free.
           membershipId: provider?.membershipId ?? slot.membershipIds[0],
+          locationId: place?.id ?? undefined,
           scheduledStart: slot.start,
           customerName: name,
           customerPhone: phone,
+          note: note.trim() || undefined,
+          marketingOptIn: offers,
           // A Discover click that brought them, for the promotion (round 3, P1).
           discoverRef: discoverRef(slug),
         }),
@@ -175,7 +239,12 @@ export default function BookingFlow({
         setError(data?.error ?? "We could not book that time. Pick another.");
         return;
       }
-      setConfirmed({ id: data.bookingId, start: data.scheduledStart ?? slot.start });
+      setConfirmed({
+        id: data.bookingId,
+        start: data.scheduledStart ?? slot.start,
+        end: slot.end,
+        reference: data.reference ?? `BK-${String(data.bookingId).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      });
       setStep("done");
     } catch {
       setError("We could not reach the network just now. Tap again in a moment.");
@@ -184,93 +253,65 @@ export default function BookingFlow({
     }
   }
 
-  const summary = service && slot && (
-    <dl className="flex flex-col gap-2.5">
-      <Row label="Service" value={service.name} />
-      <Row
-        label="When"
-        value={`${new Date(slot.start).toLocaleDateString("en-GB", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        })} at ${clockTime(slot.start)}`}
-      />
-      <Row label="With" value={provider?.name ?? "First one free"} />
-      <Row label="Takes" value={duration(service.durationMinutes)} />
-      {service.price !== null && <Row label="Price" value={formatGHS(service.price)} />}
-    </dl>
-  );
+  const deposit = service?.depositAmount ?? null;
+  const later = service && service.price !== null ? service.price - (deposit ?? 0) : null;
 
   // ---------------------------------------------------------------- done --
   if (step === "done" && confirmed && service) {
-    const balance =
-      service.price !== null && service.depositAmount
-        ? service.price - service.depositAmount
-        : service.price;
-
+    const address = place ? [place.address, place.name, place.city].filter(Boolean).join(", ") : "";
     return (
-      <div className="mx-auto max-w-md px-6 pb-16">
-        <div className="flex animate-riseup flex-col items-center pt-11 text-center">
-          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-50">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <polyline
-                points="5,12.5 10,17.5 19,7"
-                stroke="#007A6F"
-                strokeWidth="2.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+      <div className="mx-auto flex max-w-md flex-col gap-3.5 px-5 pb-16 pt-6 lg:max-w-lg">
+        <div className="flex flex-col items-center gap-2.5 text-center">
+          <span className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-teal-700 text-white">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18" />
             </svg>
           </span>
-          <h1 className="mt-4 text-[23px] font-extrabold tracking-[-0.02em] text-ink">
-            You are booked
-          </h1>
-          <p className="mt-1.5 text-[13.5px] font-medium leading-relaxed text-neutral-600">
-            {businessName} confirms on WhatsApp. Message them there if you need
-            to move it.
+          <h1 className="font-heading text-[23px] font-extrabold text-ink-heading">You are booked</h1>
+          <p className="text-[14px] leading-relaxed text-neutral-600">
+            {longDay(confirmed.start)}, {clock(confirmed.start)}
+            <br />
+            {who}
+            {whereL ? ` · ${whereL}` : ""}
           </p>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-[18px] border border-neutral-200 bg-white">
-          <div className="flex items-center justify-between border-b border-dashed border-neutral-200-strong px-5 py-4">
-            <div>
-              <p className="text-[15px] font-extrabold text-ink">{businessName}</p>
-              {city && (
-                <p className="text-[11.5px] font-medium text-neutral-600">{city}</p>
-              )}
-            </div>
-            <span className="mono text-[11.5px] text-neutral-600">
-              {confirmed.id.replace(/-/g, "").slice(0, 6).toUpperCase()}
-            </span>
-          </div>
-
-          <div className="px-5 py-4">{summary}</div>
-
+        <div className="rounded-[16px] border border-neutral-200 bg-white">
+          <Line k="Booking" v={`${confirmed.reference} · ${service.name}`} />
           {service.price !== null && (
-            <div className="flex flex-col gap-2 border-t border-neutral-200-soft bg-neutral-50 px-5 py-3.5">
-              {service.depositAmount ? (
-                <>
-                  <Money
-                    label="Deposit to hold it"
-                    value={formatGHS(service.depositAmount)}
-                    tone="teal"
-                  />
-                  <Money
-                    label="Rest on the day"
-                    value={formatGHS(balance ?? 0)}
-                  />
-                </>
-              ) : (
-                <Money label="Due on the day" value={formatGHS(service.price)} />
-              )}
-              <p className="text-[11.5px] font-medium text-neutral-600">
-                Nothing is taken now. You settle with {businessName} when you
-                come in.
-              </p>
-            </div>
+            <>
+              {deposit ? <Line k="Deposit to hold it" v={formatGHS(deposit)} /> : null}
+              <Line k={deposit ? "Rest after your visit" : "To pay on the day"} v={formatGHS(later ?? service.price)} last />
+            </>
           )}
         </div>
 
+        <div className="flex flex-col gap-2 rounded-[16px] bg-neutral-50 px-4 py-3.5 text-[13px] text-ink">
+          <strong>What happens next</strong>
+          <span>{businessName} confirms on WhatsApp.</span>
+          {deposit ? <span>Pay the {formatGHS(deposit)} deposit to {businessName} as they tell you. Nothing was taken here.</span> : <span>You pay {businessName} on the day. Nothing was taken here.</span>}
+          <span>Please arrive 10 minutes early.</span>
+        </div>
+
+        <div className="flex gap-2">
+          <a
+            href={calendarFile(`${service.name} at ${businessName}`, confirmed.start, confirmed.end, address, `Booking ${confirmed.reference} with ${who}.`)}
+            download={`${confirmed.reference}.ics`}
+            className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800"
+          >
+            Add to calendar
+          </a>
+          {address && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800"
+            >
+              Directions
+            </a>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -281,7 +322,7 @@ export default function BookingFlow({
             setConfirmed(null);
             setStep("services");
           }}
-          className="tap mt-4 flex w-full items-center justify-center rounded-[14px] bg-teal font-bold text-white"
+          className="tap flex min-h-[48px] items-center justify-center rounded-[14px] bg-teal font-bold text-white"
         >
           Book something else
         </button>
@@ -292,27 +333,59 @@ export default function BookingFlow({
   // ------------------------------------------------------------ services --
   if (step === "services") {
     return (
-      <div>
-        {/* The business's own header, on the v3 design's light teal: who
-            this is and that they take bookings, before anything to pick. */}
-        <div className="mx-auto max-w-md px-5 pt-5">
-          <div className="rounded-[24px] bg-teal-50 px-5 pb-5 pt-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1">
-              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-teal-brand" />
-              <span className="text-[11.5px] font-bold text-teal-800">Taking bookings</span>
+      <div className="mx-auto flex max-w-md flex-col gap-3.5 pb-10 pt-4 lg:max-w-5xl">
+        {/* @contrast-surface #007A6F */}
+        <div className="mx-4 overflow-hidden rounded-[22px] bg-gradient-to-br from-teal-800 to-teal-700 text-white">
+          <div className="flex flex-col gap-2 px-[18px] pb-4 pt-[18px] lg:px-7 lg:py-6">
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-white font-heading font-extrabold text-teal-800">{initials(businessName)}</span>
+              <span className="flex min-w-0 flex-col">
+                <h1 className="font-heading text-[18px] font-bold leading-tight lg:text-[22px]">{businessName}</h1>
+                {verified && (
+                  <span className="flex items-center gap-1 text-[12px] font-bold text-mint-bright">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="M9 12l2 2 4-4" />
+                    </svg>
+                    Verified business
+                  </span>
+                )}
+              </span>
             </span>
-            <h1 className="mt-2.5 font-heading text-[26px] font-extrabold leading-tight text-ink-heading">{businessName}</h1>
-            {city && <p className="mt-0.5 text-[13.5px] text-neutral-600">{city}</p>}
+            {about && <p className="text-[13px] leading-snug text-white/90">{about}</p>}
+            {(openUntil || nextFree) && (
+              <span className="flex flex-wrap gap-1.5">
+                {openUntil && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">Open today until {openUntil}</span>}
+                {nextFree && <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold">Next free: {whenShort(nextFree)}</span>}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-md flex-col gap-3 px-5 pb-10 pt-5">
+        {/* @contrast-surface white */}
+        {categories.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Show">
+            {categories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                aria-pressed={category === c}
+                className={`tap min-h-[36px] flex-none rounded-full border-[1.5px] px-3.5 text-[13px] font-semibold ${
+                  category === c ? "border-teal-700 bg-teal-700 text-white" : "border-neutral-200 bg-white text-neutral-700"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-2.5 px-4 lg:grid-cols-2">
           {services.length === 0 ? (
-            <p className="py-16 text-center text-sm font-medium text-neutral-600">
-              Nothing is bookable here just yet. Check back soon.
-            </p>
+            <p className="py-16 text-center text-sm font-medium text-neutral-600">Nothing is bookable here just yet. Check back soon.</p>
           ) : (
-            services.map((s) => {
+            shown.map((s) => {
               const tint = tintFor(s.id);
               return (
                 <button
@@ -322,297 +395,295 @@ export default function BookingFlow({
                     setService(s);
                     setStep("service");
                   }}
-                  className="tap flex items-center gap-3.5 rounded-panel border border-neutral-200 bg-white p-3 text-left"
+                  className="tap flex items-center gap-3 rounded-[16px] border border-neutral-200 bg-white p-2.5 text-left"
                 >
-                  <span
-                    aria-hidden
-                    style={{ backgroundColor: tint.bg, color: tint.ink }}
-                    className="flex h-[70px] w-[70px] flex-none items-center justify-center rounded-control"
-                  >
-                    <span className="mono text-lg font-semibold">{initials(s.name)}</span>
+                  {s.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.photo} alt="" width={72} height={72} loading="lazy" className="h-[72px] w-[72px] flex-none rounded-[12px] object-cover" />
+                  ) : (
+                    <span aria-hidden style={{ backgroundColor: tint.bg, color: tint.ink }} className="flex h-[72px] w-[72px] flex-none items-center justify-center rounded-[12px]">
+                      <span className="mono text-lg font-semibold">{initials(s.name)}</span>
+                    </span>
+                  )}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <strong className="text-[14px] text-ink">{s.name}</strong>
+                    <span className="text-[12.5px] text-neutral-600">{duration(s.durationMinutes)}</span>
+                    <span className="flex items-center justify-between gap-1.5">
+                      <strong className="num text-[13.5px] text-ink">{s.price === null ? "Price on asking" : formatGHS(s.price)}</strong>
+                      {s.depositAmount ? (
+                        <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[11.5px] font-bold text-teal-800">Deposit {formatGHS(s.depositAmount)}</span>
+                      ) : (
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11.5px] font-bold text-neutral-700">Pay on the day</span>
+                      )}
+                    </span>
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-bold text-ink">
-                      {s.name}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-medium text-neutral-600">
-                      {duration(s.durationMinutes)}
-                      {s.depositAmount ? " · deposit to hold" : ""}
-                    </span>
-                    <span className="num mt-2 block text-[15px] font-extrabold text-ink">
-                      {s.price === null ? "Price on asking" : formatGHS(s.price)}
-                    </span>
-                  </span>
-                  <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
-                    <polyline
-                      points="1,1 7.5,7.5 1,14"
-                      stroke="#BFC5CD"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
                 </button>
               );
             })
           )}
         </div>
+
+        <div className="mx-4 flex flex-col gap-2 rounded-[16px] bg-neutral-50 px-3.5 py-3.5 text-[12.5px] text-neutral-700">
+          <span>Book in a minute. No account needed.</span>
+          <span>A deposit, where there is one, holds your time. The rest is paid after.</span>
+          <span>{businessName} confirms your booking on WhatsApp.</span>
+        </div>
+        <p className="text-center text-[12px] text-neutral-600">Bookings powered by AscendSME</p>
       </div>
     );
   }
 
-  // ------------------------------------------------------------- chosen ---
-  const stepIndex = { service: 1, time: 2, staff: 3, details: 4 }[
-    step as "service" | "time" | "staff" | "details"
-  ];
+  // ------------------------------------------------------------- the rest --
+  const stepIndex = { service: 1, time: 2, details: 3 }[step as "service" | "time" | "details"];
+  const canGo = step === "service" ? true : step === "time" ? Boolean(slot) : name.trim().length >= 2 && phone.replace(/\D/g, "").length >= 9;
 
   return (
-    <div className="mx-auto max-w-md px-6 pb-32">
-      <Header
-        title={
-          step === "service"
-            ? businessName
-            : step === "time"
-              ? "Pick a time"
-              : step === "staff"
-                ? "Who with?"
-                : "Your details"
-        }
-        step={stepIndex}
-        onBack={() => {
-          setError(null);
-          if (step === "service") setStep("services");
-          else if (step === "time") setStep("service");
-          else if (step === "staff") setStep("time");
-          else setStep(freeThen.length > 1 ? "staff" : "time");
-        }}
-      />
+    <div className="mx-auto max-w-md px-4 pb-32 lg:max-w-4xl">
+      <div className="flex items-center gap-2.5 pb-2.5 pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            if (step === "service") setStep("services");
+            else if (step === "time") setStep("service");
+            else setStep("time");
+          }}
+          aria-label="Go back"
+          className="tap flex h-11 w-11 flex-none items-center justify-center rounded-full bg-neutral-100"
+        >
+          <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
+            <polyline points="7.5,1 1,7.5 7.5,14" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <strong className="min-w-0 flex-1 truncate text-center text-[15.5px] text-ink">
+          {step === "service" ? businessName : step === "time" ? "Choose a time" : "Your details"}
+        </strong>
+        <span className="w-11" />
+      </div>
+      <div className="flex gap-1.5 pb-3" aria-label={`Step ${stepIndex} of 3`}>
+        {[1, 2, 3].map((i) => (
+          <span key={i} className={`h-1 flex-1 rounded-full ${i <= stepIndex ? "bg-teal-700" : "bg-neutral-200"}`} />
+        ))}
+      </div>
 
-      {error && (
-        <p className="mb-3 rounded-panel bg-gold-light px-4 py-3 text-sm font-semibold text-gold-ink">
-          {error}
-        </p>
-      )}
+      {error && <p role="alert" className="mb-3 rounded-[14px] bg-gold-light px-4 py-3 text-sm font-semibold text-gold-ink">{error}</p>}
 
-      {step === "service" && service && (
-        <>
-          <h2 className="text-2xl font-extrabold tracking-[-0.02em] text-ink">
-            {service.name}
-          </h2>
-          {service.description && (
-            <p className="mt-2 text-[13.5px] font-medium leading-relaxed text-neutral-600">
-              {service.description}
-            </p>
-          )}
-
-          <div className="mt-4 flex gap-2.5">
-            <Stat label="Price" value={service.price === null ? "On asking" : formatGHS(service.price)} />
-            <Stat label="Takes" value={duration(service.durationMinutes)} />
-            {service.depositAmount !== null && (
-              <Stat
-                label="Deposit"
-                value={formatGHS(service.depositAmount)}
-                tone="teal"
-              />
-            )}
-          </div>
-
-          {providers.length > 0 && (
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-3.5">
+          {step === "service" && service && (
             <>
-              <p className="eyebrow mt-6">Who can do this</p>
-              <div className="mt-2.5 flex flex-col gap-2.5">
-                {providers.map((p) => (
-                  <div
-                    key={p.membershipId}
-                    className="flex items-center gap-3 rounded-control border border-neutral-200 bg-white px-3 py-2.5"
-                  >
-                    <Avatar name={p.name} />
-                    <span className="text-sm font-bold text-ink">{p.name}</span>
+              <h2 className="font-heading text-[24px] font-extrabold text-ink-heading">{service.name}</h2>
+              <p className="text-[13.5px] text-neutral-600">
+                {duration(service.durationMinutes)}
+                {service.price !== null ? ` · ${formatGHS(service.price)}` : ""}
+              </p>
+              {service.description && <p className="text-[14px] leading-relaxed text-neutral-700">{service.description}</p>}
+
+              {places.length > 1 && (
+                <>
+                  <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Where</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {places.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPlace(p)}
+                        aria-pressed={place?.id === p.id}
+                        className={`tap flex min-h-[52px] flex-col justify-center rounded-[14px] border-[1.5px] px-3 py-2 text-left ${place?.id === p.id ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
+                      >
+                        <span className="text-[13.5px] font-bold text-ink">{p.name}</span>
+                        {p.address && <span className="text-[12px] text-neutral-600">{p.address}</span>}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+
+              {service.price !== null && (
+                <div className="flex flex-col gap-1 rounded-[14px] border border-teal-200 bg-teal-50 px-4 py-3 text-[13px] text-teal-800">
+                  <strong>{deposit ? `${formatGHS(deposit)} deposit holds your time` : "Pay on the day"}</strong>
+                  <span>{deposit ? `The rest, ${formatGHS(later ?? 0)}, is paid after your visit. You pay ${businessName} directly.` : `You pay ${businessName} after your visit. Nothing is taken now.`}</span>
+                </div>
+              )}
+
+              {providers.length > 0 && (
+                <>
+                  <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Done by</span>
+                  <div className="flex flex-wrap gap-3">
+                    {providers.map((p) => (
+                      <span key={p.membershipId} className="flex items-center gap-2">
+                        <Avatar name={p.name} />
+                        <span className="text-[13.5px] font-bold text-ink">{p.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
-        </>
-      )}
 
-      {step === "time" && service && (
-        <>
-          <p className="eyebrow">Choose a day</p>
-          <div className="scr -mx-6 mt-2.5 flex gap-2 overflow-x-auto px-6 pb-1.5">
-            {days.map((d) => {
-              const on = d.iso === date;
-              return (
-                <button
-                  key={d.iso}
-                  type="button"
-                  onClick={() => setDate(d.iso)}
-                  aria-pressed={on}
-                  className={`tap flex w-14 flex-none flex-col items-center justify-center rounded-control border py-2 ${
-                    on
-                      ? "border-teal bg-teal text-white"
-                      : "border-neutral-200 bg-white text-neutral-600"
-                  }`}
-                >
-                  <span className="text-[11px] font-semibold opacity-80">{d.dow}</span>
-                  <span className="num text-[19px] font-extrabold leading-tight">
-                    {d.day}
+          {step === "time" && service && (
+            <>
+              <div className="flex items-center gap-2.5 rounded-[14px] bg-neutral-50 px-3 py-2.5">
+                <span aria-hidden style={{ backgroundColor: tintFor(service.id).bg }} className="h-10 w-10 flex-none rounded-[10px]" />
+                <span className="flex min-w-0 flex-col">
+                  <strong className="text-[13.5px] text-ink">{service.name}</strong>
+                  <span className="text-[12.5px] text-neutral-600">
+                    {duration(service.durationMinutes)}
+                    {whereL ? ` · ${whereL}` : ""}
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                </span>
+              </div>
 
-          <p className="eyebrow mt-6">Available times</p>
-          {!date ? (
-            <p className="mt-3 text-sm font-medium text-neutral-600">
-              Pick a day and we will show what is free.
-            </p>
-          ) : loadingSlots ? (
-            <p className="mt-3 text-sm font-medium text-neutral-600">
-              Checking the diary...
-            </p>
-          ) : slots.length === 0 ? (
-            <p className="mt-3 rounded-panel border border-neutral-200 bg-neutral-50 px-4 py-4 text-sm font-medium text-neutral-600">
-              Nothing free that day. Try another.
-            </p>
-          ) : (
-            <div className="mt-2.5 grid grid-cols-3 gap-2.5">
-              {slots.map((s) => {
-                const on = slot?.start === s.start;
-                return (
-                  <button
-                    key={s.start}
-                    type="button"
-                    onClick={() => setSlot(s)}
-                    aria-pressed={on}
-                    className={`tap num flex items-center justify-center rounded-control border py-3 text-sm font-bold ${
-                      on
-                        ? "border-teal bg-teal-50 text-teal-800"
-                        : "border-neutral-200 bg-white text-ink-soft"
-                    }`}
-                  >
-                    {clockTime(s.start)}
-                  </button>
-                );
-              })}
-            </div>
+              {providers.length > 1 && (
+                <>
+                  <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">With</span>
+                  <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                    {[null, ...providers].map((p) => {
+                      const on = (provider?.membershipId ?? null) === (p?.membershipId ?? null);
+                      return (
+                        <button
+                          key={p?.membershipId ?? "any"}
+                          type="button"
+                          onClick={() => {
+                            setProvider(p);
+                            setSlot(null);
+                          }}
+                          aria-pressed={on}
+                          className={`tap flex min-w-[92px] flex-1 flex-col items-center gap-1 rounded-[14px] border-[1.5px] px-2 py-2.5 ${on ? "border-teal-700 bg-teal-50" : "border-neutral-200 bg-white"}`}
+                        >
+                          {p ? <Avatar name={p.name} /> : <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-[13px] font-extrabold text-neutral-700">Any</span>}
+                          <span className="text-[12.5px] font-bold text-ink">{p ? p.name.split(" ")[0] : "Anyone"}</span>
+                          <span className="text-[11px] text-neutral-600">{p ? "Pick their times" : "First one free"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">{monthLabel}</span>
+                <span className="text-[12px] text-neutral-600">Times in Accra</span>
+              </div>
+              <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {days.map((d) => {
+                  const on = d.iso === date;
+                  return (
+                    <button
+                      key={d.iso}
+                      type="button"
+                      onClick={() => setDate(d.iso)}
+                      aria-pressed={on}
+                      aria-label={`${d.dow} ${d.day}`}
+                      className={`tap flex w-[52px] flex-none flex-col items-center gap-0.5 rounded-[14px] border-[1.5px] py-2 ${on ? "border-teal-700 bg-teal-700 text-white" : "border-neutral-200 bg-white text-ink"}`}
+                    >
+                      <span className="text-[11px] font-semibold">{d.dow}</span>
+                      <strong className="num text-[16px]">{d.day}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {!date ? (
+                <p className="text-[13.5px] text-neutral-600">Pick a day and we show what is free.</p>
+              ) : loadingSlots ? (
+                <p className="text-[13.5px] text-neutral-600">Checking the diary for that day.</p>
+              ) : slots.length === 0 ? (
+                <p className="rounded-[14px] border border-neutral-200 bg-neutral-50 px-4 py-4 text-[13.5px] text-neutral-700">Nothing free that day{provider ? ` with ${provider.name.split(" ")[0]}` : ""}. Try another day.</p>
+              ) : (
+                <>
+                  {[
+                    ["Morning", morning],
+                    ["Afternoon", afternoon],
+                  ].map(([label, list]) =>
+                    (list as Slot[]).length === 0 ? null : (
+                      <div key={label as string} className="flex flex-col gap-1.5">
+                        <span className="text-[12.5px] text-neutral-600">{label as string}</span>
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {(list as Slot[]).map((s) => {
+                            const on = slot?.start === s.start;
+                            return (
+                              <button
+                                key={s.start}
+                                type="button"
+                                onClick={() => setSlot(s)}
+                                aria-pressed={on}
+                                className={`tap num min-h-[44px] rounded-[12px] border-[1.5px] text-[14px] font-bold ${on ? "border-teal-700 bg-teal-700 text-white" : "border-neutral-200 bg-white text-ink"}`}
+                              >
+                                {clock(s.start)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </>
+              )}
+            </>
           )}
 
-          {slot && (
-            <div className="mt-4 flex gap-3 rounded-panel border border-teal-200 bg-teal-50 px-3.5 py-3.5">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className="mt-0.5 flex-none">
-                <circle cx="12" cy="12" r="9.2" stroke="#006B62" strokeWidth="1.5" />
-                <path
-                  d="M12 7.4V12l3 1.8"
-                  stroke="#006B62"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+          {step === "details" && service && slot && (
+            <>
+              <Field id="bk-name" label="Name" value={name} onChange={setName} placeholder="Who should they ask for?" autoComplete="name" />
+              <Field id="bk-phone" label="WhatsApp number for your booking" value={phone} onChange={setPhone} placeholder="024 000 0000" autoComplete="tel" inputMode="tel" />
+              <label htmlFor="bk-note" className="flex flex-col gap-1.5">
+                <span className="text-[13px] font-semibold text-neutral-700">Anything we should know? (optional)</span>
+                <textarea
+                  id="bk-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value.slice(0, 300))}
+                  rows={2}
+                  placeholder="Like your hair length, or a colour you want"
+                  className="rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 py-3 text-[16px] text-ink outline-none placeholder:text-neutral-500 focus:border-teal"
                 />
-              </svg>
-              <p className="text-[12.5px] font-semibold leading-snug text-teal-800">
-                {clockTime(slot.start)} to {clockTime(slot.end)}, about{" "}
-                {duration(service.durationMinutes)}.
-              </p>
-            </div>
+              </label>
+              <label className="flex min-h-[44px] cursor-pointer items-start gap-3 rounded-[14px] border border-neutral-200 bg-white px-3.5 py-3">
+                <input type="checkbox" checked={offers} onChange={(e) => setOffers(e.target.checked)} className="mt-0.5 h-5 w-5 flex-none accent-teal-700" />
+                <span className="text-[13px] leading-snug text-neutral-700">Send me offers from {businessName} on WhatsApp. You can stop anytime.</span>
+              </label>
+            </>
           )}
-        </>
-      )}
+        </div>
 
-      {step === "staff" && (
-        <>
-          <p className="eyebrow">Choose your specialist</p>
-          <div className="mt-2.5 flex flex-col gap-2.5">
-            <Choice
-              selected={provider === null}
-              onClick={() => setProvider(null)}
-              title="Anybody"
-              detail="Whoever is free at that time"
-            />
-            {freeThen.map((p) => (
-              <Choice
-                key={p.membershipId}
-                selected={provider?.membershipId === p.membershipId}
-                onClick={() => setProvider(p)}
-                title={p.name}
-                detail="Free at the time you picked"
-                avatar={p.name}
-              />
-            ))}
-          </div>
-        </>
-      )}
+        {/* What is being booked, kept in view: under the questions on a
+            phone, beside them on a laptop. */}
+        {service && step !== "service" && (
+          <aside className="flex flex-col gap-2 rounded-[16px] border border-neutral-200 bg-white px-4 py-3.5 lg:sticky lg:top-4">
+            <span className="text-[11px] font-bold uppercase tracking-eyebrow text-neutral-600">Your booking</span>
+            <Line k="Service" v={service.name} bare />
+            <Line k="When" v={slot ? `${longDay(slot.start)}, ${clock(slot.start)}` : "Pick a time"} bare />
+            <Line k="With" v={who} bare />
+            {whereL && <Line k="Where" v={whereL} bare />}
+            {service.price !== null && <Line k="Price" v={formatGHS(service.price)} bare />}
+            {deposit ? <Line k="Deposit, paid to the business" v={formatGHS(deposit)} bare /> : null}
+          </aside>
+        )}
+      </div>
 
-      {step === "details" && service && slot && (
-        <>
-          <label htmlFor="bk-name" className="eyebrow block">
-            Your name
-          </label>
-          <input
-            id="bk-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-            placeholder="Who should they ask for?"
-            className="mt-2 w-full rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-600 focus:border-teal"
-          />
-
-          <label htmlFor="bk-phone" className="eyebrow mt-5 block">
-            Your WhatsApp number
-          </label>
-          <input
-            id="bk-phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="024 000 0000"
-            className="num mt-2 w-full rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-600 focus:border-teal"
-          />
-
-          <div className="mt-5 rounded-panel border border-neutral-200 bg-white px-4 py-4">
-            <p className="eyebrow mb-2.5">Your booking</p>
-            {summary}
-          </div>
-
-          {service.depositAmount !== null && (
-            <p className="mt-3 rounded-panel border border-teal-200 bg-teal-50 px-4 py-3.5 text-[12.5px] font-semibold leading-snug text-teal-800">
-              {formatGHS(service.depositAmount)} holds this slot, and you settle
-              it with {businessName} when you come in. Nothing is taken now.
-            </p>
-          )}
-        </>
-      )}
-
-      {/* One decision, one button, always in the same place. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white from-70% to-transparent px-6 pb-6 pt-5">
-        <div className="mx-auto max-w-md">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-100 bg-white px-4 pb-6 pt-3">
+        <div className="mx-auto max-w-md lg:max-w-4xl">
           <button
             type="button"
-            disabled={
-              placing ||
-              (step === "time" && !slot) ||
-              (step === "details" && (name.trim().length < 2 || phone.trim().length < 9))
-            }
+            disabled={placing || !canGo}
             onClick={() => {
               setError(null);
               if (step === "service") setStep("time");
-              else if (step === "time") setStep(freeThen.length > 1 ? "staff" : "details");
-              else if (step === "staff") setStep("details");
+              else if (step === "time") setStep("details");
               else book();
             }}
-            className="tap flex h-14 w-full items-center justify-center rounded-[16px] bg-teal font-heading text-base font-extrabold text-white disabled:opacity-40"
+            className="tap flex h-[50px] w-full items-center justify-center rounded-[14px] bg-teal font-heading text-[15px] font-extrabold text-white disabled:opacity-40 lg:ml-auto lg:w-[320px]"
           >
             {step === "service"
-              ? "Pick a time"
+              ? "Choose a time"
               : step === "time"
-                ? "Continue"
-                : step === "staff"
-                  ? "Continue"
-                  : placing
-                    ? "Booking your time..."
-                    : "Confirm this booking"}
+                ? slot
+                  ? `Continue · ${whenShort(slot.start)}`
+                  : "Pick a time to continue"
+                : placing
+                  ? "Booking your time"
+                  : "Book this time"}
           </button>
         </div>
       </div>
@@ -620,172 +691,53 @@ export default function BookingFlow({
   );
 }
 
-function Header({
-  title,
-  step,
-  onBack,
-}: {
-  title: string;
-  step: number;
-  onBack: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 py-4">
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label="Go back"
-        className="tap flex h-10 w-10 flex-none items-center justify-center rounded-full border border-neutral-200 bg-white"
-      >
-        <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
-          <polyline
-            points="7.5,1 1,7.5 7.5,14"
-            stroke="#374151"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      <p className="min-w-0 flex-1 truncate text-[15px] font-extrabold text-ink">
-        {title}
-      </p>
-      <span className="num flex-none text-xs font-bold text-neutral-600">
-        Step {step} of 4
-      </span>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = "plain",
-}: {
-  label: string;
-  value: string;
-  tone?: "plain" | "teal";
-}) {
-  return (
-    <div
-      className={`flex-1 rounded-[13px] border p-3 ${
-        tone === "teal" ? "border-teal-200 bg-teal-50" : "border-neutral-200 bg-white"
-      }`}
-    >
-      <p
-        className={`text-[10.5px] font-bold uppercase tracking-[0.05em] ${
-          tone === "teal" ? "text-teal-800" : "text-neutral-600"
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`num mt-0.5 text-[17px] font-extrabold ${
-          tone === "teal" ? "text-teal-800" : "text-ink"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function Avatar({ name }: { name: string }) {
   const tint = tintFor(name);
   return (
-    <span
-      aria-hidden
-      style={{ backgroundColor: tint.bg, color: tint.ink }}
-      className="flex h-10 w-10 flex-none items-center justify-center rounded-full text-[13px] font-extrabold"
-    >
+    <span aria-hidden style={{ backgroundColor: tint.bg, color: tint.ink }} className="flex h-10 w-10 flex-none items-center justify-center rounded-full text-[13px] font-extrabold">
       {initials(name)}
     </span>
   );
 }
 
-function Choice({
-  selected,
-  onClick,
-  title,
-  detail,
-  avatar,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  title: string;
-  detail: string;
-  avatar?: string;
-}) {
+function Line({ k, v, last, bare }: { k: string; v: string; last?: boolean; bare?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`tap flex items-center gap-3 rounded-[14px] border px-3 py-2.5 text-left ${
-        selected ? "border-teal bg-teal-50" : "border-neutral-200 bg-white"
-      }`}
-    >
-      {avatar ? (
-        <Avatar name={avatar} />
-      ) : (
-        <span
-          aria-hidden
-          className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-neutral-50"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="9" cy="9" r="3.2" stroke="#646E7C" strokeWidth="1.6" />
-            <circle cx="16" cy="10" r="2.6" stroke="#646E7C" strokeWidth="1.6" />
-            <path
-              d="M3.5 18c.4-2.6 2.4-4 5.5-4s5.1 1.4 5.5 4"
-              stroke="#646E7C"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
-        </span>
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-bold text-ink">{title}</span>
-        <span className="block text-xs font-medium text-neutral-600">{detail}</span>
-      </span>
-      <span
-        aria-hidden
-        className={`h-5 w-5 flex-none rounded-full border-2 ${
-          selected ? "border-teal bg-teal" : "border-neutral-200-stronger"
-        }`}
-      />
-    </button>
+    <span className={`flex items-baseline justify-between gap-3 text-[13px] ${bare ? "" : `px-3.5 py-2.5 ${last ? "" : "border-b border-neutral-100"}`}`}>
+      <span className="text-neutral-600">{k}</span>
+      <strong className="text-right text-ink">{v}</strong>
+    </span>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-[12.5px] font-medium text-neutral-600">{label}</dt>
-      <dd className="text-right text-[13px] font-bold text-ink">{value}</dd>
-    </div>
-  );
-}
-
-function Money({
+function Field({
+  id,
   label,
   value,
-  tone = "plain",
+  onChange,
+  placeholder,
+  autoComplete,
+  inputMode,
 }: {
+  id: string;
   label: string;
   value: string;
-  tone?: "plain" | "teal";
+  onChange: (v: string) => void;
+  placeholder: string;
+  autoComplete?: string;
+  inputMode?: "tel" | "text";
 }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-[12.5px] font-semibold text-neutral-600">{label}</span>
-      <span
-        className={`num text-[12.5px] font-extrabold ${
-          tone === "teal" ? "text-teal-800" : "text-ink"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
+    <label htmlFor={id} className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-semibold text-neutral-700">{label}</span>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        className="h-12 rounded-[14px] border-[1.5px] border-neutral-200 bg-white px-4 text-[16px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-neutral-500 focus:border-teal"
+      />
+    </label>
   );
 }

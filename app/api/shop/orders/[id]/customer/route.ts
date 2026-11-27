@@ -15,7 +15,7 @@ async function handlePOST(request: NextRequest, { params }: { params: { id: stri
   if (!personId) {
     return NextResponse.json({ error: "Your session timed out. Verify your WhatsApp number to continue." }, { status: 401 });
   }
-  let body: { action?: string; reportId?: string; reply?: string; sorted?: boolean };
+  let body: { action?: string; reportId?: string; reply?: string; sorted?: boolean; riderName?: string; riderPhone?: string };
   try {
     body = await request.json();
   } catch {
@@ -40,6 +40,32 @@ async function handlePOST(request: NextRequest, { params }: { params: { id: stri
     } catch {
       return NextResponse.json({ error: "We could not make the link just now. Tap again in a moment." }, { status: 500 });
     }
+  }
+
+  // Who delivers it (round 4, S1): a name and a phone, shown to the
+  // customer on their tracking link. Empty clears it.
+  if (body.action === "set_rider") {
+    const name = (body.riderName ?? "").trim();
+    const phone = (body.riderPhone ?? "").replace(/[\s-]/g, "").replace(/^0(?=\d{9}$)/, "+233");
+    if (name && (name.length < 2 || name.length > 60)) {
+      return NextResponse.json({ error: "Their name, as the customer will see it, like Nii Lartey." }, { status: 422 });
+    }
+    if (phone && !/^\+[1-9][0-9]{7,14}$/.test(phone)) {
+      return NextResponse.json({ error: "Their phone number, like 024 555 2290." }, { status: 422 });
+    }
+    const { error } = await db
+      .from("shop_order")
+      .update({ rider_name: name || null, rider_phone: name && phone ? phone : null })
+      .eq("id", order.id)
+      .eq("business_id", order.business_id)
+      .eq("fulfilment", "merchant_delivery");
+    if (error) {
+      if (/rider_name|rider_phone|column/.test(error.message)) {
+        return NextResponse.json({ error: "Naming the rider switches on after this week's update." }, { status: 503 });
+      }
+      return NextResponse.json({ error: "That did not save. Tap again in a moment." }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "reply") {

@@ -18,6 +18,12 @@ interface Body {
   customerName?: string;
   customerPhone?: string;
   serviceAddress?: string;
+  /** Which place, when the business has more than one (round 4, S1). */
+  locationId?: string;
+  /** "Anything we should know?", kept on the booking for whoever does it. */
+  note?: string;
+  /** "Send me offers on WhatsApp", unticked unless they tick it. */
+  marketingOptIn?: boolean;
   /** The Discover click that brought them, if one did (round 3, P1). */
   discoverRef?: string;
 }
@@ -77,13 +83,15 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
-  const { data: location } = await db
+  // The place they picked, if it is one of this business's; otherwise the
+  // first, as before.
+  const { data: places } = await db
     .from("location")
     .select("id")
     .eq("business_id", business.id)
     .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+    .order("created_at");
+  const location = (places ?? []).find((p) => p.id === body.locationId) ?? (places ?? [])[0] ?? null;
 
   const { data, error } = await db.rpc("book_service", {
     p: {
@@ -136,6 +144,31 @@ async function handlePOST(request: NextRequest) {
     );
   }
 
+  // What they told us, and the offers opt-in with the booking as its
+  // evidence. Neither is ever in the way of the booking itself.
+  const note = typeof body.note === "string" ? body.note.trim().slice(0, 300) : "";
+  if (note && data.booking_id) {
+    await db.from("service_booking").update({ staff_notes: `From the customer: ${note}` }).eq("id", data.booking_id).then(() => null, () => null);
+  }
+  if (body.marketingOptIn === true && data.booking_id) {
+    const { data: booked } = await db.from("service_booking").select("customer_id").eq("id", data.booking_id).maybeSingle();
+    if (booked?.customer_id) {
+      await db
+        .rpc("record_consent", {
+          p: {
+            customer_id: booked.customer_id,
+            business_id: business.id,
+            purpose: "marketing",
+            granted: true,
+            channel: "whatsapp",
+            source: "booking_page",
+            evidence: { service_booking_id: data.booking_id, asked: `Send me offers from ${business.name} on WhatsApp. You can stop anytime.` },
+          },
+        })
+        .then(() => null, () => null);
+    }
+  }
+
   // Counted for the Discover promotion that brought them, if one did. Never
   // in the way of the booking itself (round 3, P1).
   const ref = typeof body.discoverRef === "string" ? body.discoverRef : "";
@@ -151,6 +184,7 @@ async function handlePOST(request: NextRequest) {
     status: data.status,
     scheduledStart: data.scheduled_start,
     depositRequired: Number(data.deposit_required ?? 0),
+    reference: `BK-${String(data.booking_id).replace(/-/g, "").slice(0, 6).toUpperCase()}`,
     businessName: business.name,
   });
 }

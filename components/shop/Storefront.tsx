@@ -9,7 +9,7 @@ import OrderPlaced from "./OrderPlaced";
 import ProductDetail from "./ProductDetail";
 import StoreBrowse from "./StoreBrowse";
 import { initials, type StorefrontProduct } from "./storefront-parts";
-import { DEFAULT_SETTINGS, type ShopSettings } from "@/lib/shop/settings";
+import { DEFAULT_SETTINGS, fulfilmentFacts, type ShopSettings } from "@/lib/shop/settings";
 import { discoverRef, takeDiscoverRef } from "@/lib/discover/ref";
 
 export type { StorefrontProduct } from "./storefront-parts";
@@ -25,7 +25,7 @@ interface Props {
   businessName: string;
   city: string | null;
   memberSince: string | null;
-  places: { id: string; name: string; city: string | null }[];
+  places: { id: string; name: string; city: string | null; address?: string | null }[];
   products: StorefrontProduct[];
   /** Ascend has verified who runs it (Modules M6b). */
   verified?: boolean;
@@ -35,12 +35,21 @@ interface Props {
   settings?: ShopSettings;
   promoLink?: { kind: "product" | "service"; id: string } | null;
   services?: Array<{ id: string; name: string; price: number; minutes: number | null; deposit: number | null }>;
+  serviceCount?: number;
 }
 
 type View = "browse" | "product" | "basket" | "checkout" | "placed";
 
-export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false, settings = DEFAULT_SETTINGS, promoLink = null, services = [] }: Props) {
+export default function Storefront({ slug, businessName, city, memberSince, places, products, verified = false, bookable = false, settings = DEFAULT_SETTINGS, promoLink = null, services = [], serviceCount = 0 }: Props) {
   const [view, setView] = useState<View>("browse");
+  // The aisle being browsed, also picked from the laptop header (round 4, S1).
+  const [category, setCategory] = useState<string | null>(null);
+  const topCategories = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const p of products) if (p.category) seen.set(p.category, (seen.get(p.category) ?? 0) + 1);
+    return Array.from(seen.entries()).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+  }, [products]);
+  const strip = fulfilmentFacts(settings, places.length > 1 ? places.map((p) => p.name) : []);
   const [openId, setOpenId] = useState<string | null>(null);
   // Keyed by line: the product id, or "product:size" for a product with
   // sizes, so 250ml and 500ml of one product are two lines (round 2, R4).
@@ -196,6 +205,16 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
       {/* Identity strip. Stays on every screen so a customer four taps deep
           still knows whose shop they are in, which is the whole job of a
           page somebody reached from a forwarded link. */}
+      {/* On a laptop, how it reaches you, said across the top (round 4, S1). */}
+      {settings.saved && (strip.pickup || strip.delivery) && (
+        <div className="hidden bg-teal-50 lg:block">
+          <p className="mx-auto flex max-w-[1280px] items-center justify-center gap-3 px-8 py-2 text-[12.5px] font-semibold text-teal-800">
+            {[strip.pickup ? `${strip.pickup.title}: ${strip.pickup.detail}` : null, strip.delivery ? `${strip.delivery.title}: ${strip.delivery.detail}` : null, "Pay on the day"]
+              .filter(Boolean)
+              .join("  ·  ")}
+          </p>
+        </div>
+      )}
       <header className="sticky top-0 z-30 border-b border-neutral-100 bg-white">
         <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 py-3 sm:px-8">
           <button
@@ -216,6 +235,42 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
               </span>
             </span>
           </button>
+
+          {/* The laptop's own way around the shop (round 4, S1). */}
+          <nav aria-label={`${businessName} shop`} className="hidden flex-1 items-center justify-center gap-1 lg:flex">
+            <button
+              type="button"
+              onClick={() => {
+                setCategory(null);
+                setView("browse");
+              }}
+              className="tap rounded-full px-3.5 py-2 text-[14px] font-semibold text-ink hover:bg-teal-50"
+            >
+              Shop all
+            </button>
+            {topCategories.slice(0, 3).map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => {
+                  setCategory(c.name);
+                  setView("browse");
+                }}
+                aria-pressed={category === c.name}
+                className={`tap rounded-full px-3.5 py-2 text-[14px] font-semibold hover:bg-teal-50 ${category === c.name ? "bg-teal-50 text-teal-800" : "text-ink"}`}
+              >
+                {c.name}
+              </button>
+            ))}
+            {bookable && (
+              <a href={`/b/${slug}`} className="tap rounded-full px-3.5 py-2 text-[14px] font-semibold text-ink hover:bg-teal-50">
+                Book a service
+              </a>
+            )}
+          </nav>
+          <a href={`/s/${slug}/track`} className="tap hidden min-h-[44px] flex-none items-center rounded-control px-3 text-[14px] font-semibold text-teal-dark hover:bg-teal-50 lg:flex">
+            Track order
+          </a>
 
           {view !== "placed" && (
             <button
@@ -262,6 +317,9 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           settings={settings}
           promoLink={promoLink}
           services={services}
+          serviceCount={serviceCount}
+          category={category}
+          onCategory={setCategory}
           basket={perItem}
           onOpen={(p) => {
             setOpenId(p.id);
@@ -291,6 +349,10 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
           onAdd={(quantity, sizeId) => {
             add(open, quantity, sizeId);
             setView("basket");
+          }}
+          onBuyNow={(quantity, sizeId) => {
+            add(open, quantity, sizeId);
+            setView("checkout");
           }}
           onBack={() => setView("browse")}
         />
@@ -389,15 +451,41 @@ export default function Storefront({ slug, businessName, city, memberSince, plac
         </div>
       )}
 
-      <footer className="border-t border-neutral-100 bg-white px-4 py-6 sm:px-8">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-2">
-          <p className="text-[13px] font-semibold text-slate-grey">
-            © {new Date().getFullYear()} {businessName}
-          </p>
-          <p className="text-[13px] font-semibold text-slate-grey">
-            Powered by Ascend Shop
-          </p>
+      <footer className="border-t border-neutral-100 bg-white px-4 py-8 sm:px-8">
+        {/* Who they are, where to find them, and how buying works: only
+            what Ascend holds (round 4, S1). Opening hours wait until
+            Ascend keeps them. */}
+        <div className="mx-auto grid max-w-[1280px] gap-6 text-[13.5px] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1.5">
+            <p className="font-heading text-[16px] font-bold text-ink-heading">{businessName}</p>
+            {verified && <p className="font-semibold text-teal-800">Business verified by AscendSME</p>}
+          </div>
+          {places.some((p) => p.address || p.city) && (
+            <div className="flex flex-col gap-1.5">
+              <p className="font-bold text-ink">Visit us</p>
+              {places.map((p) => (
+                <p key={p.id} className="text-slate-grey">
+                  {[p.address, p.name, p.city].filter(Boolean).join(", ")}
+                </p>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <p className="font-bold text-ink">Help</p>
+            {settings.saved && strip.pickup && <p className="text-slate-grey">{strip.pickup.title}: {strip.pickup.detail}</p>}
+            {settings.saved && strip.delivery && <p className="text-slate-grey">{strip.delivery.title}: {strip.delivery.detail}</p>}
+            {settings.saved && strip.returns && <p className="text-slate-grey">{strip.returns}</p>}
+            <a href={`/s/${slug}/track`} className="tap self-start font-semibold text-teal-dark">Track an order</a>
+            {settings.contactLine && <p className="text-slate-grey">{settings.contactLine}</p>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="font-bold text-ink">Paying</p>
+            <p className="text-slate-grey">You pay {businessName} when you collect your order or it reaches you. Nothing is taken online.</p>
+          </div>
         </div>
+        <p className="mx-auto mt-6 max-w-[1280px] border-t border-neutral-100 pt-4 text-[12.5px] font-semibold text-slate-grey">
+          Shop powered by AscendSME · {businessName} sells and fulfils every order
+        </p>
       </footer>
     </div>
   );

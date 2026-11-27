@@ -8,6 +8,7 @@ import { Icon } from "@/components/shell/icons";
 import OrderActions from "@/components/shop/OrderActions";
 import RecordPayment from "@/components/payments/RecordPayment";
 import OrderCustomerCare, { type OwnerReportView } from "@/components/shop/OrderCustomerCare";
+import OrderRider from "@/components/shop/OrderRider";
 import { orderRef, photoLinks } from "@/lib/shop/tracking";
 import { ISSUE_BY_REASON } from "@/lib/shop/order-issues";
 import { MODULES, shopTabs } from "@/lib/nav/modules";
@@ -65,6 +66,10 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
     .eq("business_id", workspace.businessId)
     .maybeSingle();
   if (!o) notFound();
+  // Who delivers it (round 4, S1). undefined before 0150, when it cannot be kept.
+  const rider = o
+    ? await db.from("shop_order").select("rider_name, rider_phone").eq("id", params.id).maybeSingle().then((r) => (r.error ? undefined : ((r.data ?? null) as { rider_name: string | null; rider_phone: string | null } | null)), () => undefined)
+    : undefined;
 
   const [pays, events, orders, reportRows] = await Promise.all([
     db
@@ -218,6 +223,11 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
             customerPhone={customer?.phone_e164 ?? null}
             reports={reportViews}
           />
+          {o.fulfilment === "merchant_delivery" && rider !== undefined && !["fulfilled", "cancelled", "refunded"].includes(o.status as string) && (
+            <Card title="Who delivers it">
+              <OrderRider orderId={o.id as string} name={rider?.rider_name ?? null} phone={rider?.rider_phone ?? null} />
+            </Card>
+          )}
           <Card title="Move it on">
             <OrderActions orderId={o.id as string} status={o.status as string} fulfilment={o.fulfilment as string} />
             {!["pending", "confirmed", "preparing", "ready", "out_for_delivery"].includes(o.status as string) && (
