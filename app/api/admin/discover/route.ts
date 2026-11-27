@@ -12,7 +12,10 @@ import { withAuthority } from "@/lib/authority/with-authority";
 export const dynamic = "force-dynamic";
 
 interface Body {
-  action?: "suspend" | "decide" | "review_campaign";
+  action?: "suspend" | "decide" | "review_campaign" | "moderate" | "decide_listing";
+  /** moderate (round 3, P3): ask for a change, or remove. */
+  kind?: "change" | "remove";
+  flaggedText?: string;
   listingId?: string;
   /** review_campaign (round 3, P2) */
   campaignId?: string;
@@ -67,6 +70,30 @@ async function handlePOST(request: NextRequest) {
 
   if (!body.listingId) {
     return NextResponse.json({ error: "Pick a listing." }, { status: 422 });
+  }
+
+  // Listing review (round 3, P3, 0148).
+  if (body.action === "moderate" || body.action === "decide_listing") {
+    const { error } =
+      body.action === "moderate"
+        ? await db.rpc("moderate_listing", {
+            p: { admin_person_id: admin.personId, listing_id: body.listingId, kind: body.kind ?? "", reason: body.reason ?? "", flagged_text: body.flaggedText ?? "" },
+          })
+        : await db.rpc("decide_listing", {
+            p: { admin_person_id: admin.personId, listing_id: body.listingId, restore: body.restore === true, reason: body.reason ?? "" },
+          });
+    if (error) {
+      const said: Array<[RegExp, string]> = [
+        [/reason_needed/, "Say why, in at least 10 characters. The business reads it."],
+        [/flag_not_in_text/, "Those exact words are not in the description. Copy them from it."],
+        [/different_reviewer/, "You removed this listing, so someone else decides the appeal."],
+        [/nothing_to_decide/, "This listing is not waiting for a decision any more."],
+        [/admin_only/, "Only a platform admin can do this."],
+      ];
+      const hit = said.find(([re]) => re.test(error.message));
+      return NextResponse.json({ error: hit ? hit[1] : "That did not go through. Try again." }, { status: 422 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "suspend") {

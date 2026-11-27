@@ -15,32 +15,52 @@ export const dynamic = "force-dynamic";
 // waits, and it has already done the one thing we asked of it.
 
 async function load(): Promise<ModerationRow[]> {
-  const { data } = await supabaseServer()
+  const db = supabaseServer();
+  const full = await db
     .from("discover_listing")
     .select(
-      "id, business_id, status, city, category, suspended_reason, appeal_note, business:business_id(name, shop_slug), item:item_id(name)"
+      "id, business_id, status, city, category, suspended_reason, appeal_note, change_reason, flagged_text, resubmitted_at, appealed_at, appeal_evidence, business:business_id(name, shop_slug), item:item_id(name, description)"
     )
     .in("status", ["eligible", "pending_review", "suspended"])
     .order("status");
+  // Before 0148 the review columns are not there: read what there is.
+  const data = (full.error
+    ? (
+        await db
+          .from("discover_listing")
+          .select("id, business_id, status, city, category, suspended_reason, appeal_note, business:business_id(name, shop_slug), item:item_id(name, description)")
+          .in("status", ["eligible", "pending_review", "suspended"])
+          .order("status")
+      ).data
+    : full.data) as Array<Record<string, unknown>> | null;
 
-  return (data ?? []).map((l) => {
-    const business = l.business as unknown as {
-      name: string;
-      shop_slug: string | null;
-    } | null;
-    return {
-      listingId: l.id as string,
-      businessId: l.business_id as string,
-      businessName: business?.name ?? "A business",
-      itemName: (l.item as unknown as { name: string } | null)?.name ?? null,
-      city: (l.city as string | null) ?? null,
-      category: (l.category as string | null) ?? null,
-      status: l.status as string,
-      suspendedReason: (l.suspended_reason as string | null) ?? null,
-      appealNote: (l.appeal_note as string | null) ?? null,
-      shopSlug: business?.shop_slug ?? null,
-    };
-  });
+  return Promise.all(
+    (data ?? []).map(async (l) => {
+      const business = l.business as { name: string; shop_slug: string | null } | null;
+      const item = l.item as { name: string; description: string | null } | null;
+      const files = ((l.appeal_evidence ?? []) as Array<{ path: string; name: string }>).slice(0, 3);
+      // Evidence sits in a private bucket: links last ten minutes.
+      const signed = files.length ? (await db.storage.from("reports").createSignedUrls(files.map((f) => f.path), 600)).data ?? [] : [];
+      return {
+        listingId: l.id as string,
+        businessId: l.business_id as string,
+        businessName: business?.name ?? "A business",
+        itemName: item?.name ?? null,
+        description: item?.description ?? null,
+        city: (l.city as string | null) ?? null,
+        category: (l.category as string | null) ?? null,
+        status: l.status as string,
+        suspendedReason: (l.suspended_reason as string | null) ?? null,
+        changeReason: (l.change_reason as string | null) ?? null,
+        flaggedText: (l.flagged_text as string | null) ?? null,
+        appealNote: (l.appeal_note as string | null) ?? null,
+        appealed: Boolean(l.appealed_at),
+        resubmitted: Boolean(l.resubmitted_at),
+        evidence: files.map((f, k) => ({ name: f.name, url: signed[k]?.signedUrl ?? "" })).filter((f) => f.url),
+        shopSlug: business?.shop_slug ?? null,
+      };
+    })
+  );
 }
 
 // Campaigns waiting for review (round 3, P2), oldest first. Before 0147
@@ -82,7 +102,8 @@ export default async function AdminDiscover() {
 
   const rows = await load().catch((): ModerationRow[] => []);
   const reviews = await loadReviews().catch((): ReviewRow[] => []);
-  const appeals = rows.filter((r) => r.status === "suspended" && r.appealNote).length;
+  // Resubmissions and appeals wait in pending_review (0148).
+  const appeals = rows.filter((r) => r.status === "pending_review").length;
 
   return (
     <PageShell>
@@ -90,10 +111,10 @@ export default async function AdminDiscover() {
         title="Discover moderation"
         intro={
           appeals > 0
-            ? `${appeals} ${appeals === 1 ? "business has" : "businesses have"} answered a suspension and ${
-                appeals === 1 ? "is" : "are"
-              } waiting on you.`
-            : "What is listed, what is suspended, and anything a business has asked us to reconsider."
+            ? `${appeals} ${appeals === 1 ? "listing is" : "listings are"} waiting for a decision.`
+            : reviews.length > 0
+              ? `${reviews.length} ${reviews.length === 1 ? "campaign is" : "campaigns are"} waiting for review.`
+              : "What is listed, what is off Discover, and anything a business has asked us to reconsider."
         }
       />
       <section aria-labelledby="campaign-reviews" className="mb-8">

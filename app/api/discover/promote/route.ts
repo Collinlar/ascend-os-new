@@ -9,7 +9,11 @@ import { supabaseServer } from "@/lib/supabase";
 import { withAuthority } from "@/lib/authority/with-authority";
 
 interface Body {
-  action?: "start_campaign" | "pause_campaign" | "resume_campaign" | "appeal" | "create_campaign" | "estimate";
+  action?: "start_campaign" | "pause_campaign" | "resume_campaign" | "appeal" | "create_campaign" | "estimate" | "fix_listing";
+  /** fix_listing (round 3, P3): take the flagged words out, or say it was edited. */
+  removeFlagged?: boolean;
+  /** appeal (round 3, P3): up to three files, as base64, PDF, JPG or PNG. */
+  evidence?: Array<{ name?: string; type?: string; base64?: string }>;
   listingId?: string;
   // New campaign (round 3, P2)
   kind?: string;
@@ -190,6 +194,26 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ resumed: true });
   }
 
+  // "Needs a change" (round 3, P3): the database checks catalogue.manage.
+  if (body.action === "fix_listing") {
+    const { data: listing } = await db.from("discover_listing").select("id, business_id").eq("id", body.listingId ?? "").maybeSingle();
+    if (!listing || listing.business_id !== membership.business_id) {
+      return NextResponse.json({ error: "We could not find that listing." }, { status: 404 });
+    }
+    const { error } = await db.rpc("fix_listing", {
+      p: { business_id: membership.business_id, actor_membership_id: membership.id, listing_id: listing.id, remove_flagged: body.removeFlagged === true },
+    });
+    if (error) {
+      const denied = deniedByDatabase(error);
+      if (denied) return denied;
+      return NextResponse.json(
+        { error: /no_change_asked/.test(error.message) ? "Nothing on this listing needs a change." : "That did not go through. Tap again in a moment." },
+        { status: /no_change_asked/.test(error.message) ? 409 : 500 }
+      );
+    }
+    return NextResponse.json({ resubmitted: true });
+  }
+
   if (body.action === "appeal") {
     if (!body.listingId || !(body.note ?? "").trim()) {
       return NextResponse.json(
@@ -206,13 +230,39 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: "We could not find that listing." }, { status: 404 });
     }
 
+    // Evidence (round 3, P3): up to three files, kept private, read only by
+    // Ascend's reviewers through short-lived links.
+    const files = Array.isArray(body.evidence) ? body.evidence.slice(0, 4) : [];
+    if (files.length > 3) return NextResponse.json({ error: "Three files are enough. Remove one and send again." }, { status: 422 });
+    const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png" };
+    const uploaded: Array<{ path: string; name: string; size: number }> = [];
+    for (const f of files) {
+      const ext = EXT[f.type ?? ""];
+      const bytes = Buffer.from(String(f.base64 ?? ""), "base64");
+      if (!ext || bytes.byteLength === 0) {
+        return NextResponse.json({ error: "Attach a PDF, JPG or PNG." }, { status: 422 });
+      }
+      if (bytes.byteLength > 2 * 1024 * 1024) {
+        return NextResponse.json({ error: `${f.name ?? "That file"} is over 2 MB. Attach a smaller copy.` }, { status: 422 });
+      }
+      const path = `${membership.business_id}/appeal-${crypto.randomUUID()}.${ext}`;
+      const { error: upError } = await db.storage.from("reports").upload(path, bytes, { contentType: f.type, upsert: false });
+      if (upError) {
+        if (uploaded.length) await db.storage.from("reports").remove(uploaded.map((u) => u.path));
+        return NextResponse.json({ error: "Your file did not upload. Try again in a moment." }, { status: 502 });
+      }
+      uploaded.push({ path, name: String(f.name ?? `evidence.${ext}`).slice(0, 80), size: bytes.byteLength });
+    }
+
     const { error } = await db.rpc("appeal_listing", {
       p: {
         listing_id: listing.id,
         note: body.note,
         actor_membership_id: membership.id,
+        evidence: uploaded,
       },
     });
+    if (error && uploaded.length) await db.storage.from("reports").remove(uploaded.map((u) => u.path));
     if (error) {
       if (/nothing_to_appeal/.test(error.message)) {
         return NextResponse.json(

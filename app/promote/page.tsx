@@ -10,6 +10,7 @@ import { currentWorkspace } from "@/lib/nav/workspace";
 import { checkPageAccess } from "@/lib/authority/page";
 import { formatGHS } from "@/lib/money";
 import { campaignType, loadBalance, loadPromotionFigures, type CampaignFigures } from "@/lib/promote/load";
+import { loadSuggestions } from "@/lib/promote/suggest";
 
 export const dynamic = "force-dynamic";
 
@@ -52,11 +53,13 @@ export default async function Promote() {
     );
   }
   const db = supabaseServer();
-  const [figures, balance, listings, performance] = await Promise.all([
+  const [figures, balance, listings, performance, suggestions] = await Promise.all([
     loadPromotionFigures(workspace.businessId),
     loadBalance(workspace.businessId),
     db.from("discover_listing").select("id, status, category, city, suspended_reason, item:item_id(name)").eq("business_id", workspace.businessId),
     db.rpc("campaign_performance", { p_business: workspace.businessId }),
+    // What is worth promoting, from the business's own numbers (P3).
+    loadSuggestions(workspace.businessId).catch(() => []),
   ]);
   const t = figures?.totals ?? { seen: 0, clicks: 0, visits: 0, orders: 0, bookings: 0, sales: 0, spent: 0 };
   const campaigns = figures?.campaigns ?? [];
@@ -197,6 +200,25 @@ export default async function Promote() {
                 </Link>
               </div>
             </section>
+
+            {suggestions.length > 0 && (
+              <section className="flex flex-col gap-3 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
+                <h2 className="font-heading text-base font-bold text-ink-heading">Worth promoting</h2>
+                {suggestions.map((s) => (
+                  <div key={s.key} className="flex flex-col gap-1.5 border-t border-neutral-100 pt-3 first-of-type:border-t-0 first-of-type:pt-0">
+                    <strong className="text-[14px] text-ink">{s.title}</strong>
+                    <span className="text-[13px] leading-snug text-neutral-700">{s.why}</span>
+                    {s.resumeCampaignId ? (
+                      <CampaignToggle campaignId={s.resumeCampaignId} paused />
+                    ) : (
+                      <Link href={s.href} className={`${secondaryAction} min-h-[40px] self-start`}>
+                        {s.action}
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </section>
+            )}
 
             <p className="rounded-[16px] bg-neutral-50 px-4 py-3 text-[12.5px] leading-relaxed text-neutral-600">
               Promoted listings always show a <strong className="text-ink">Sponsored</strong> label. Verified, Trusted and Ascend Pick cannot be bought, and paying does not change your normal ranking.
