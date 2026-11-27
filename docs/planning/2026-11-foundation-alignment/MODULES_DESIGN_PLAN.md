@@ -420,7 +420,7 @@ Approved by Collins on 27 November 2026, all nine as recommended. Prices are the
 - Before 0146 the pages still show every campaign with seen and clicks, and "Not yet" where a figure needs tracing.
 - Tested: PGlite 15/15 (0146 applied twice); live before 0146, 11 checks; the three pages at 1440 and 375. after 0146, 13 on live (a click carried to a visit and a GHS 170 order, "GHS 170 from GHS 0.10"), and in the browser a storefront opened with a click's reference recorded the visit and took the reference off the address; then removed.
 
-### P2 New campaign (built 27 November 2026; needs 0147)
+### P2 New campaign (done, 27 November 2026; 0147 run on live)
 
 - `/promote/new` (`components/discover/NewCampaign.tsx`), as the design draws it: what to promote (Product, Service, Shop or Location Boost; Collection and Spotlight say "Ask Ascend", since grouping products and placing on Discover's home do not exist yet), who should see it (near which shops, 3, 5 or 10 km, and words people look for), a daily budget (GHS 10, 20, 50, 100) and how long (7, 14, 30 days), how it looks on Discover with the Sponsored label (and Verified only when it is), and what to expect: an estimate or "not enough history yet", the most it can cost, the Balance it is charged to, and how many days the Balance covers.
 - **0147**: a campaign carries its kind, daily budget, days, places, radius, words and review. `create_campaign` checks the permission (`campaigns.send`), the listing, that the kind fits it, the business's own places (one for a Location Boost), and that the Balance covers one day. `review_campaign` (admin) starts it that day for its length, or declines it with a reason; nothing is charged before it starts.
@@ -429,4 +429,4 @@ Approved by Collins on 27 November 2026, all nine as recommended. Prices are the
 - **Decision 3**: `promotion_estimate` gives the middle half of reach and clicks per GHS from at least 10 campaigns in the same category over 60 days; otherwise none.
 - Review: the admin Discover page lists campaigns waiting, oldest first, with Approve, start today and Decline with the reason. The business sees In review, then Live, or Not approved with Ascend's reason.
 - A listing's "Pay to appear higher" is now "Promote this", into the new form, so nothing skips review.
-- Tested: PGlite 32/32 (0147 applied twice); live before 0147, 3 checks, and the page at 1440 and 375. `scratchpad/liveP2.mjs after` is ready for after 0147 (it uses a temporary ZZ admin, removed at the end).
+- Tested: PGlite 32/32 (0147 applied twice); live before 0147, 3 checks, and the page at 1440 and 375. after 0147, 18 on live: submitted at most GHS 140, refused past one day of Balance and for a mismatched kind, In review and not on Discover, reviewed by a temporary ZZ admin (removed), shown for its words in Accra and not in Kumasi, GHS 20 spent of 205 clicks and then resting, Not approved with Ascend's reason; then removed.
