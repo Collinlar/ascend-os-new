@@ -172,9 +172,11 @@ export default function BookingManage({ view: v }: { view: ManageView }) {
 
       {changeable && mode === "view" && (
         <div className="flex gap-2">
-          <button type="button" hidden={!movable} onClick={() => { setMode("move"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800">
-            Pick a new time
-          </button>
+          {movable && (
+            <button type="button" onClick={() => { setMode("move"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-line-brand bg-white text-[14px] font-bold text-teal-800">
+              Pick a new time
+            </button>
+          )}
           <button type="button" onClick={() => { setMode("cancel"); setError(null); setDone(null); }} className="tap flex min-h-[46px] flex-1 items-center justify-center rounded-[14px] border-[1.5px] border-neutral-200 bg-white text-[14px] font-bold text-danger-ink">
             Cancel booking
           </button>
