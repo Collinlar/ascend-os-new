@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatGHS } from "@/lib/money";
@@ -55,8 +56,6 @@ export default function PromoteManager({
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [budgetFor, setBudgetFor] = useState<string | null>(null);
-  const [budget, setBudget] = useState("");
   const [appealFor, setAppealFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
@@ -191,44 +190,13 @@ export default function PromoteManager({
 
               {listing.status === "eligible" && (
                 <div className="mt-3">
-                  {budgetFor === listing.id ? (
-                    <div className="flex flex-wrap gap-2">
-                      <label className="sr-only" htmlFor={`budget-${listing.id}`}>
-                        Budget in GH₵
-                      </label>
-                      <input
-                        id={`budget-${listing.id}`}
-                        value={budget}
-                        onChange={(e) => setBudget(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="How much, in GH₵"
-                        className={`num min-w-0 flex-1 ${input}`}
-                      />
-                      <button
-                        onClick={async () => {
-                          const ok = await post(listing.id, { action: "start_campaign", listingId: listing.id, budget: parseFloat(budget) });
-                          if (ok) {
-                            setBudgetFor(null);
-                            setBudget("");
-                          }
-                        }}
-                        disabled={busy === listing.id}
-                        className="tap flex items-center rounded-control bg-teal px-4 text-sm font-bold text-white disabled:opacity-60"
-                      >
-                        {busy === listing.id ? "Starting it..." : "Start promoting it"}
-                      </button>
-                      <button onClick={() => setBudgetFor(null)} className="tap flex items-center px-3 text-sm font-semibold text-neutral-600">
-                        Leave it
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setBudgetFor(listing.id)}
-                      className="tap flex items-center rounded-control border-[1.5px] border-line-brand px-4 text-sm font-bold text-teal-800 hover:bg-teal-50"
-                    >
-                      Pay to appear higher
-                    </button>
-                  )}
+                  {/* A new campaign goes to Ascend's review (round 3, P2). */}
+                  <Link
+                    href={`/promote/new?listing=${listing.id}`}
+                    className="tap inline-flex min-h-[44px] items-center rounded-control border-[1.5px] border-line-brand px-4 text-sm font-bold text-teal-800 hover:bg-teal-50"
+                  >
+                    Promote this
+                  </Link>
                 </div>
               )}
             </div>

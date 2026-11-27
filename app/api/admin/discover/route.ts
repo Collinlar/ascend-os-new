@@ -12,8 +12,11 @@ import { withAuthority } from "@/lib/authority/with-authority";
 export const dynamic = "force-dynamic";
 
 interface Body {
-  action?: "suspend" | "decide";
+  action?: "suspend" | "decide" | "review_campaign";
   listingId?: string;
+  /** review_campaign (round 3, P2) */
+  campaignId?: string;
+  approve?: boolean;
   reason?: string;
   /** decide only: true reinstates, false upholds the suspension. */
   restore?: boolean;
@@ -34,11 +37,37 @@ async function handlePOST(request: NextRequest) {
     return NextResponse.json({ error: "That did not go through." }, { status: 400 });
   }
 
+  const db = supabaseServer();
+
+  // A new campaign waiting for review (round 3, P2). Approving starts it
+  // today; declining ends it with the reason, and nothing was charged.
+  if (body.action === "review_campaign") {
+    if (!body.campaignId) return NextResponse.json({ error: "Pick a campaign." }, { status: 422 });
+    const { data, error } = await db.rpc("review_campaign", {
+      p: {
+        admin_person_id: admin.personId,
+        campaign_id: body.campaignId,
+        decision: body.approve ? "approve" : "decline",
+        note: body.reason ?? "",
+      },
+    });
+    if (error) {
+      const msg = /note_needed/.test(error.message)
+        ? "Say what the business should change, in at least 10 characters."
+        : /listing_not_eligible/.test(error.message)
+          ? "Its listing is not showing on Discover, so it cannot start. Decline it with the reason."
+          : /admin_only/.test(error.message)
+            ? "Only a platform admin can review campaigns."
+            : "That did not go through. Tap again.";
+      return NextResponse.json({ error: msg }, { status: 422 });
+    }
+    const out = data as { status?: string; already?: string };
+    return NextResponse.json({ ok: true, status: out.status ?? out.already });
+  }
+
   if (!body.listingId) {
     return NextResponse.json({ error: "Pick a listing." }, { status: 422 });
   }
-
-  const db = supabaseServer();
 
   if (body.action === "suspend") {
     const reason = (body.reason ?? "").trim();

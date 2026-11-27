@@ -183,9 +183,10 @@ export function shopTabs(capabilities: Set<string>, current: "/shop" | "/orders"
 }
 
 /** Promotions (round 3): the overview, each campaign's results, and the Balance. */
-export function promotionsTabs(current: "/promote" | "/promote/balance"): ModuleTab[] {
+export function promotionsTabs(current: "/promote" | "/promote/new" | "/promote/balance"): ModuleTab[] {
   return [
     { label: "Overview", href: "/promote" },
+    { label: "New campaign", href: "/promote/new" },
     { label: "Ascend Balance", href: "/promote/balance" },
   ].map((t) => ({ ...t, current: t.href === current }));
 }

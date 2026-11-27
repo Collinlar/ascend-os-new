@@ -66,8 +66,16 @@ export default async function CampaignResults({ params }: { params: { id: string
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-[20px] border border-line-brand bg-white px-[18px] py-4">
           <span className="flex min-w-0 flex-col gap-1">
             <span className="text-[13px] text-neutral-600">{campaignType(c)}</span>
+            {c.reviewStatus === "pending" && <span className="text-[13px] font-semibold text-gold-700">Waiting for Ascend&rsquo;s review. Nothing is charged before it starts.</span>}
+            {c.reviewStatus === "declined" && <span className="text-[13px] font-semibold text-danger-ink">Not approved{c.reviewNote ? `: ${c.reviewNote}` : ""}</span>}
             <span className="text-[14px] text-ink">
-              {[c.city ? `Near ${c.city}` : "On Discover", `${formatGHS(c.budget)} budget`, `from ${day(c.startsAt)}${c.endsAt ? ` to ${day(c.endsAt)}` : ""}`].join(" · ")}
+              {[
+                c.city ? `Near ${c.city}` : "On Discover",
+                c.dailyBudget !== null ? `${formatGHS(c.dailyBudget)} a day` : `${formatGHS(c.budget)} budget`,
+                c.reviewStatus === "approved" ? `from ${day(c.startsAt)}${c.endsAt ? ` to ${day(c.endsAt)}` : ""}` : c.days ? `${c.days} days once approved` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </span>
           <span className="flex items-center gap-2">

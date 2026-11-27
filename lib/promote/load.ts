@@ -21,6 +21,13 @@ export interface CampaignFigures {
   category: string | null;
   itemName: string | null;
   itemKind: string | null;
+  /** New campaigns (round 3, P2): what kind of boost, the day's budget,
+   *  the length, and where review stands. */
+  kind: string | null;
+  dailyBudget: number | null;
+  days: number | null;
+  reviewStatus: string;
+  reviewNote: string | null;
   seen: number;
   clicks: number;
   visits: number;
@@ -51,7 +58,11 @@ export interface BalanceSplit {
 }
 
 /** The design's name for what a campaign promotes. */
-export function campaignType(c: Pick<CampaignFigures, "itemKind" | "itemName">): string {
+export function campaignType(c: Pick<CampaignFigures, "itemKind" | "itemName"> & { kind?: string | null }): string {
+  if (c.kind === "location") return "Location Boost";
+  if (c.kind === "shop") return "Shop Boost";
+  if (c.kind === "service") return "Service Boost";
+  if (c.kind === "product") return "Product Boost";
   if (!c.itemName) return "Shop Boost";
   return c.itemKind === "service" ? "Service Boost" : "Product Boost";
 }
@@ -89,6 +100,11 @@ export async function loadPromotionFigures(businessId: string, days = 30): Promi
       category: (c.category as string) ?? null,
       itemName: (c.item_name as string) ?? null,
       itemKind: (c.item_kind as string) ?? null,
+      kind: (c.kind as string) ?? null,
+      dailyBudget: c.daily_budget === null || c.daily_budget === undefined ? null : n(c.daily_budget),
+      days: c.days === null || c.days === undefined ? null : n(c.days),
+      reviewStatus: (c.review_status as string) ?? "approved",
+      reviewNote: (c.review_note as string) ?? null,
       seen: n(c.seen),
       clicks: n(c.clicks),
       visits: n(c.visits),
@@ -205,6 +221,11 @@ async function fallbackFigures(businessId: string): Promise<{ totals: PromotionT
       category: l?.category ?? null,
       itemName: l?.item?.name ?? null,
       itemKind: l?.item?.kind ?? null,
+      kind: null,
+      dailyBudget: null,
+      days: null,
+      reviewStatus: "approved",
+      reviewNote: null,
       seen: n(p.impressions),
       clicks: n(p.clicks),
       visits: 0,

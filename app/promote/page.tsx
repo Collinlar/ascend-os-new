@@ -25,6 +25,9 @@ const count = (n: number) => n.toLocaleString("en-GH");
 
 function status(c: CampaignFigures): { text: string; tone: Tone } {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: ACCRA });
+  // Review first (round 3, P2): nothing runs or is charged before it passes.
+  if (c.reviewStatus === "pending") return { text: "In review", tone: "warn" };
+  if (c.reviewStatus === "declined") return { text: "Not approved", tone: "bad" };
   if (c.listingStatus === "suspended") return { text: "Removed from Discover", tone: "bad" };
   if (c.listingStatus === "pending_review") return { text: "In review", tone: "warn" };
   if (c.status === "paused") return { text: "Paused by you", tone: "mute" };
@@ -103,9 +106,14 @@ export default async function Promote() {
             </section>
 
             <section className="overflow-hidden rounded-[20px] border border-line-brand bg-white">
-              <h2 className="px-[18px] pb-2 pt-4 font-heading text-base font-bold text-ink-heading">Campaigns</h2>
+              <div className="flex items-center justify-between gap-2 px-[18px] pb-2 pt-4">
+                <h2 className="font-heading text-base font-bold text-ink-heading">Campaigns</h2>
+                <Link href="/promote/new" className={`${secondaryAction} min-h-[40px]`}>
+                  New campaign
+                </Link>
+              </div>
               {campaigns.length === 0 ? (
-                <p className="px-[18px] pb-4 text-[13.5px] text-neutral-600">No campaigns yet. Choose a listing below to promote it.</p>
+                <p className="px-[18px] pb-4 text-[13.5px] text-neutral-600">No campaigns yet. Start one, or choose a listing below to promote it.</p>
               ) : (
                 <>
                   <div aria-hidden className={`hidden bg-neutral-50 px-[18px] py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-neutral-500 ${COLS}`}>
@@ -122,10 +130,14 @@ export default async function Promote() {
                         <Link href={`/promote/${c.id}`} className="tap flex min-w-0 basis-full flex-col lg:basis-auto">
                           <span className="truncate font-semibold text-ink underline-offset-2 hover:underline">{c.itemName ?? workspace.businessName}</span>
                           <span className="text-xs text-neutral-600">{campaignType(c)}</span>
+                          {c.reviewStatus === "declined" && c.reviewNote && (
+                            <span className="text-xs text-danger-ink">Ascend: {c.reviewNote}</span>
+                          )}
                         </Link>
                         <span className="text-neutral-700">{c.city ?? "Discover"}</span>
                         <span className="num text-neutral-700 lg:text-right">
                           {formatGHS(c.spent)} <span className="text-neutral-500">of {formatGHS(c.budget)}</span>
+                          {c.dailyBudget !== null && <span className="block text-xs text-neutral-500">{formatGHS(c.dailyBudget)} a day</span>}
                         </span>
                         <span className="text-neutral-700">
                           {count(c.clicks)} click{c.clicks === 1 ? "" : "s"} · {count(c.orders + c.bookings)} {c.itemKind === "service" ? "booking" : "order"}
